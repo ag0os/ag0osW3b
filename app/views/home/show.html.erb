@@ -1,0 +1,33 @@
+<section class="hero container">
+  <p class="hero__eyebrow">Agustin Calabrese</p>
+  <h1 class="hero__title"><%= SiteSetting["tagline"] %></h1>
+  <p class="hero__lead">
+    Grounded in years of Rails/backend product engineering across fintech,
+    video streaming, and enterprise systems.
+  </p>
+  <div class="hero__actions">
+    <%= link_to "Get in touch", contact_path, class: "btn btn--primary" %>
+    <%= link_to "See my work", work_path, class: "btn" %>
+  </div>
+</section>
+
+<div class="container stack">
+  <% @sections.each do |section| %>
+    <%= render "shared/section", section: section %>
+  <% end %>
+
+  <% if @recent_posts.any? %>
+    <section class="section">
+      <h2 class="section__heading">Writing</h2>
+      <ul class="post-list">
+        <% @recent_posts.each do |post| %>
+          <li class="post-list__item">
+            <%= link_to post.title, post_path(post), class: "post-list__title" %>
+            <time class="muted"><%= post.published_at&.strftime("%B %-d, %Y") %></time>
+          </li>
+        <% end %>
+      </ul>
+      <%= link_to "All writing →", posts_path, class: "link-more" %>
+    </section>
+  <% end %>
+</div>

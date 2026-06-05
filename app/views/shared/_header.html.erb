@@ -1,0 +1,17 @@
+<header class="site-header" data-controller="theme">
+  <div class="container site-header__inner">
+    <%= link_to SiteSetting["site_title"], root_path, class: "brand" %>
+
+    <nav class="nav" aria-label="Primary">
+      <%= link_to "Home",    root_path,    class: ("is-active" if current_page?(root_path)) %>
+      <%= link_to "About",   about_path,   class: ("is-active" if current_page?(about_path)) %>
+      <%= link_to "Work",    work_path,    class: ("is-active" if current_page?(work_path)) %>
+      <%= link_to "Writing", posts_path,   class: ("is-active" if current_page?(posts_path)) %>
+      <%= link_to "Contact", contact_path, class: ("is-active" if current_page?(contact_path)) %>
+    </nav>
+
+    <button class="theme-toggle" type="button" data-action="theme#toggle" aria-label="Toggle color theme" title="Toggle theme">
+      <span data-theme-target="label">☀</span>
+    </button>
+  </div>
+</header>

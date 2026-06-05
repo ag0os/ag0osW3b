@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+home_intro:
+  key: home_intro
+  page: home
+  heading: Intro
+  body: "Hello from **home**."
+  visible: true
+  position: 1
+
+home_hidden:
+  key: home_hidden
+  page: home
+  heading: Hidden
+  body: A hidden block.
+  visible: false
+  position: 2

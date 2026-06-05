@@ -1,0 +1,40 @@
+<% content_for :title, "Sections" %>
+
+<div class="admin-toolbar">
+  <h1>Sections</h1>
+  <%= link_to "+ New section", new_admin_section_path, class: "btn btn--primary btn--sm" %>
+</div>
+
+<p class="muted">Static content blocks. Toggle visibility to show or hide a block on the live site without deleting it.</p>
+
+<% Section::PAGES.each do |page| %>
+  <% page_sections = @sections.select { |s| s.page == page } %>
+  <h2 class="section-group"><%= page.titleize %></h2>
+  <% if page_sections.any? %>
+    <table class="table">
+      <thead><tr><th>Pos</th><th>Key</th><th>Heading</th><th>Visibility</th><th></th></tr></thead>
+      <tbody>
+        <% page_sections.each do |section| %>
+          <tr class="<%= "is-dim" unless section.visible? %>">
+            <td class="muted"><%= section.position %></td>
+            <td><%= link_to section.key, edit_admin_section_path(section), class: "mono" %></td>
+            <td class="muted"><%= section.heading.presence || "—" %></td>
+            <td>
+              <%= button_to (section.visible? ? "Visible" : "Hidden"),
+                    toggle_admin_section_path(section), method: :patch,
+                    class: "toggle toggle--#{section.visible? ? "on" : "off"}" %>
+            </td>
+            <td class="row-actions">
+              <%= link_to "Edit", edit_admin_section_path(section) %>
+              <%= button_to "Delete", admin_section_path(section), method: :delete,
+                    class: "btn-link btn-link--danger",
+                    form: { data: { turbo_confirm: "Delete “#{section.key}”?" } } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="muted">No sections for <%= page %> yet. <%= link_to "Add one", new_admin_section_path(page: page) %>.</p>
+  <% end %>
+<% end %>

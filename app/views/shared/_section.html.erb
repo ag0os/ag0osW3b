@@ -1,0 +1,8 @@
+<section class="section" id="<%= section.key %>">
+  <% if section.heading.present? %>
+    <h2 class="section__heading"><%= section.heading %></h2>
+  <% end %>
+  <div class="prose">
+    <%= markdown(section.body) %>
+  </div>
+</section>
