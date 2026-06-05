@@ -1,0 +1,46 @@
+<%= form_with model: [:admin, section], class: "form" do |form| %>
+  <% if section.errors.any? %>
+    <div class="form-errors">
+      <p><%= pluralize(section.errors.count, "error") %> prevented saving:</p>
+      <ul>
+        <% section.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="field-row">
+    <label class="field">
+      <span>Page</span>
+      <%= form.select :page, Section::PAGES.map { |p| [p.titleize, p] } %>
+    </label>
+    <label class="field">
+      <span>Position</span>
+      <%= form.number_field :position %>
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Key <small class="muted">(unique, e.g. home_hero)</small></span>
+    <%= form.text_field :key, class: "mono" %>
+  </label>
+
+  <label class="field">
+    <span>Heading <small class="muted">(optional)</small></span>
+    <%= form.text_field :heading %>
+  </label>
+
+  <label class="field field--checkbox">
+    <%= form.check_box :visible %>
+    <span>Visible on the live site</span>
+  </label>
+
+  <label class="field">
+    <span>Body <small class="muted">(Markdown)</small></span>
+    <%= form.text_area :body, rows: 14, class: "mono" %>
+  </label>
+
+  <div class="form-actions">
+    <%= form.submit class: "btn btn--primary" %>
+    <%= link_to "Cancel", admin_sections_path, class: "btn btn--ghost" %>
+  </div>
+<% end %>

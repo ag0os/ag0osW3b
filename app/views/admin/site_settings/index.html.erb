@@ -1,0 +1,17 @@
+<% content_for :title, "Settings" %>
+
+<h1>Settings</h1>
+<p class="muted">Site-wide values used across the header, footer, and metadata.</p>
+
+<%= form_with url: admin_site_settings_path, method: :patch, class: "form" do %>
+  <% @settings.each do |key, value| %>
+    <label class="field">
+      <span><%= key.titleize %></span>
+      <%= text_field_tag "settings[#{key}]", value, class: ("mono" if key.end_with?("url", "email")) %>
+    </label>
+  <% end %>
+
+  <div class="form-actions">
+    <%= submit_tag "Save settings", class: "btn btn--primary" %>
+  </div>
+<% end %>

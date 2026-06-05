@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <title><%= content_for(:title).presence || "Admin" %> · Admin</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.dataset.theme = t;
+        } catch (e) {}
+      })();
+    </script>
+
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "admin", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="admin">
+    <header class="admin-header">
+      <div class="admin-header__inner">
+        <%= link_to "Admin", admin_root_path, class: "brand" %>
+        <nav class="admin-nav" aria-label="Admin">
+          <%= link_to "Dashboard", admin_root_path %>
+          <%= link_to "Posts", admin_posts_path %>
+          <%= link_to "Sections", admin_sections_path %>
+          <%= link_to "Settings", admin_site_settings_path %>
+          <%= link_to "View site ↗", root_path, target: "_blank" %>
+        </nav>
+        <%= button_to "Sign out", session_path, method: :delete, class: "btn btn--ghost btn--sm" %>
+      </div>
+    </header>
+
+    <main class="admin-main container">
+      <%= render "shared/flash" %>
+      <%= yield %>
+    </main>
+  </body>
+</html>

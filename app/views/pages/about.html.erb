@@ -1,0 +1,15 @@
+<% content_for :title, "About · #{SiteSetting["site_title"]}" %>
+
+<div class="container stack page">
+  <header class="page__header">
+    <h1>About</h1>
+  </header>
+
+  <% if @sections.any? %>
+    <% @sections.each do |section| %>
+      <%= render "shared/section", section: section %>
+    <% end %>
+  <% else %>
+    <p class="muted">About content coming soon.</p>
+  <% end %>
+</div>

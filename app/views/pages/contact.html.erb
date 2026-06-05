@@ -1,0 +1,17 @@
+<% content_for :title, "Contact · #{SiteSetting["site_title"]}" %>
+
+<div class="container stack page">
+  <header class="page__header">
+    <h1>Contact</h1>
+  </header>
+
+  <% @sections.each do |section| %>
+    <%= render "shared/section", section: section %>
+  <% end %>
+
+  <ul class="contact-links">
+    <li><%= mail_to SiteSetting["email"], SiteSetting["email"], class: "btn btn--primary" %></li>
+    <li><%= link_to "LinkedIn", SiteSetting["linkedin_url"], class: "btn", target: "_blank", rel: "noopener" %></li>
+    <li><%= link_to "GitHub", SiteSetting["github_url"], class: "btn", target: "_blank", rel: "noopener" %></li>
+  </ul>
+</div>

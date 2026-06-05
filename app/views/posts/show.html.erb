@@ -1,0 +1,20 @@
+<% content_for :title, "#{@post.title} · #{SiteSetting["site_title"]}" %>
+<% content_for :description, @post.excerpt if @post.excerpt.present? %>
+
+<article class="container post">
+  <header class="post__header">
+    <h1 class="post__title"><%= @post.title %></h1>
+    <p class="post__meta muted">
+      <time><%= @post.published_at&.strftime("%B %-d, %Y") %></time>
+      <% @post.tag_list.each do |tag| %><span class="tag"><%= tag %></span><% end %>
+    </p>
+  </header>
+
+  <div class="prose">
+    <%= markdown(@post.body) %>
+  </div>
+
+  <footer class="post__footer">
+    <%= link_to "← All writing", posts_path, class: "link-more" %>
+  </footer>
+</article>

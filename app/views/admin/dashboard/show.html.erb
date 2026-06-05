@@ -1,0 +1,32 @@
+<% content_for :title, "Dashboard" %>
+
+<h1>Dashboard</h1>
+
+<div class="cards">
+  <div class="card"><span class="card__num"><%= @posts_count %></span><span class="card__label">Posts</span></div>
+  <div class="card"><span class="card__num"><%= @published_count %></span><span class="card__label">Published</span></div>
+  <div class="card"><span class="card__num"><%= @sections_count %></span><span class="card__label">Sections</span></div>
+</div>
+
+<div class="admin-toolbar">
+  <h2>Recent posts</h2>
+  <%= link_to "+ New post", new_admin_post_path, class: "btn btn--primary btn--sm" %>
+</div>
+
+<% if @recent_posts.any? %>
+  <table class="table">
+    <thead><tr><th>Title</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+      <% @recent_posts.each do |post| %>
+        <tr>
+          <td><%= link_to post.title, edit_admin_post_path(post) %></td>
+          <td><span class="badge badge--<%= post.status %>"><%= post.status %></span></td>
+          <td class="muted"><%= post.updated_at.strftime("%b %-d, %Y") %></td>
+          <td><%= link_to "Edit", edit_admin_post_path(post) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p class="muted">No posts yet.</p>
+<% end %>

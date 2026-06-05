@@ -1,0 +1,46 @@
+<%= form_with model: [:admin, post], class: "form" do |form| %>
+  <% if post.errors.any? %>
+    <div class="form-errors">
+      <p><%= pluralize(post.errors.count, "error") %> prevented saving:</p>
+      <ul>
+        <% post.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <label class="field">
+    <span>Title</span>
+    <%= form.text_field :title %>
+  </label>
+
+  <div class="field-row">
+    <label class="field">
+      <span>Slug</span>
+      <%= form.text_field :slug, placeholder: "auto-generated from title if blank", class: "mono" %>
+    </label>
+    <label class="field">
+      <span>Status</span>
+      <%= form.select :status, Post.statuses.keys.map { |s| [s.titleize, s] } %>
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Tags</span>
+    <%= form.text_field :tags, placeholder: "comma, separated" %>
+  </label>
+
+  <label class="field">
+    <span>Excerpt</span>
+    <%= form.text_area :excerpt, rows: 2 %>
+  </label>
+
+  <label class="field">
+    <span>Body <small class="muted">(Markdown)</small></span>
+    <%= form.text_area :body, rows: 20, class: "mono" %>
+  </label>
+
+  <div class="form-actions">
+    <%= form.submit class: "btn btn--primary" %>
+    <%= link_to "Cancel", admin_posts_path, class: "btn btn--ghost" %>
+  </div>
+<% end %>

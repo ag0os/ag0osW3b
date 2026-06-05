@@ -1,0 +1,24 @@
+<% content_for :title, "Writing · #{SiteSetting["site_title"]}" %>
+
+<div class="container stack page">
+  <header class="page__header">
+    <h1>Writing</h1>
+    <p class="muted">Notes on AI-native workflows, agent orchestration, and product-minded engineering.</p>
+  </header>
+
+  <% if @posts.any? %>
+    <ul class="post-list post-list--full">
+      <% @posts.each do |post| %>
+        <li class="post-list__item">
+          <%= link_to post.title, post_path(post), class: "post-list__title" %>
+          <time class="muted"><%= post.published_at&.strftime("%B %-d, %Y") %></time>
+          <% if post.excerpt.present? %>
+            <p class="muted post-list__excerpt"><%= post.excerpt %></p>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="muted">First essays coming soon.</p>
+  <% end %>
+</div>

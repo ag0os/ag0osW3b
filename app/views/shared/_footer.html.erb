@@ -1,0 +1,11 @@
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <p class="site-footer__cta">Open to senior / founding product-engineering roles and AI-workflow consulting.</p>
+    <nav class="social" aria-label="Elsewhere">
+      <%= link_to "GitHub",   SiteSetting["github_url"],   target: "_blank", rel: "me noopener" %>
+      <%= link_to "LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "me noopener" %>
+      <%= mail_to SiteSetting["email"], "Email" %>
+    </nav>
+    <p class="muted">© <%= Date.current.year %> <%= SiteSetting["site_title"] %></p>
+  </div>
+</footer>
