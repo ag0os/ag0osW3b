@@ -5,7 +5,7 @@ Markdown blog and a simple admin for managing content.
 
 ## Stack
 
-- Ruby 4.0.5 · Rails 8.1 (vanilla — no Tailwind, no Node build step)
+- Ruby 4.0.5 · Rails 8.1
 - Propshaft · import maps · Hotwire (Turbo + Stimulus)
 - Vanilla CSS with custom-property design tokens (light/dark)
 - SQLite + Solid Queue/Cache/Cable
