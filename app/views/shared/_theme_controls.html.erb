@@ -1,0 +1,24 @@
+<%# Preset switcher plus light/dark toggle.
+
+    Hidden until the `js` class lands on <html> (set by the pre-paint script in
+    the layout, so there is no flash). Without JavaScript these controls cannot
+    do anything, and a dead control is worse than an absent one. %>
+<div class="theme-controls" data-controller="theme"
+     data-theme-presets-value="<%= SiteSetting::PRESETS.to_json %>">
+  <div class="theme-switcher" role="radiogroup" aria-label="Design theme">
+    <% SiteSetting::PRESETS.each do |preset| %>
+      <button type="button" class="swatch" role="radio" aria-checked="false" tabindex="-1"
+              data-preset="<%= preset %>"
+              data-theme-target="swatch"
+              data-action="theme#choosePreset keydown->theme#navigate">
+        <span class="swatch__chip" aria-hidden="true"></span>
+        <span class="visually-hidden"><%= SiteSetting::PRESET_LABELS[preset] %></span>
+      </button>
+    <% end %>
+  </div>
+
+  <button type="button" class="mode-toggle" data-action="theme#toggleMode">
+    <span data-theme-target="modeLabel" aria-hidden="true">☀</span>
+    <span class="visually-hidden" data-theme-target="modeText">Switch to dark mode</span>
+  </button>
+</div>

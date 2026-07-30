@@ -1,0 +1,652 @@
+/* ==========================================================================
+   ag0osW3b — components
+
+   The growth file. Every component here reads only semantic tokens, so each
+   one works across all four presets in both modes without a preset-specific
+   branch. There are no `[data-theme="..."]` selectors in this file, and there
+   should never be one: if a component needs to differ per preset, the
+   difference belongs in the token contract instead.
+
+   When this file gets unwieldy, split it into components/*.css and add the
+   link tags. The cascade layer keeps the order correct either way.
+   ========================================================================== */
+
+@layer components {
+  /* ---- Header ------------------------------------------------------------*/
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in oklab, var(--bg) 90%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: var(--border-width) solid var(--border);
+  }
+
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-height: 4rem;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    font-family: var(--font-display);
+    font-weight: var(--weight-display);
+    letter-spacing: var(--tracking-display);
+    color: var(--text);
+    margin-right: auto;
+  }
+
+  .brand:hover {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .nav {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .nav a {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .nav a:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  /* Current page carries weight and a rule, not color alone. */
+  .nav a.is-active {
+    color: var(--text);
+    font-weight: 650;
+    box-shadow: inset 0 -2px 0 0 var(--accent);
+  }
+
+  /* ---- Theme controls ----------------------------------------------------*/
+  /* Revealed only once <html> has the `js` class, which the pre-paint script
+     adds. Without JavaScript these controls are absent rather than dead. */
+  .theme-controls {
+    display: none;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .js .theme-controls {
+    display: flex;
+  }
+
+  .theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 3px;
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .swatch {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: var(--border-width) solid transparent;
+    border-radius: var(--radius-sm);
+    background: none;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  .swatch:hover {
+    border-color: var(--border-strong);
+  }
+
+  /* Selected state carries three signals, none of them hue: a border, a ring,
+     and a check glyph. Required by the accessibility contract. */
+  .swatch[aria-checked="true"] {
+    border-color: var(--text);
+    box-shadow: 0 0 0 1px var(--text);
+  }
+
+  .swatch__chip {
+    position: relative;
+    display: block;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: calc(var(--radius-sm) - 1px);
+    border: 1px solid color-mix(in oklab, var(--text) 25%, transparent);
+    background: linear-gradient(135deg, var(--chip-1) 0 50%, var(--chip-2) 50% 100%);
+  }
+
+  .swatch[aria-checked="true"] .swatch__chip::after {
+    content: "✓";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--chip-2);
+    text-shadow: 0 0 2px var(--chip-1), 0 0 3px var(--chip-1);
+  }
+
+  .swatch[data-preset="workshop"] .swatch__chip {
+    --chip-1: var(--chip-workshop-1);
+    --chip-2: var(--chip-workshop-2);
+  }
+
+  .swatch[data-preset="console"] .swatch__chip {
+    --chip-1: var(--chip-console-1);
+    --chip-2: var(--chip-console-2);
+  }
+
+  .swatch[data-preset="spec"] .swatch__chip {
+    --chip-1: var(--chip-spec-1);
+    --chip-2: var(--chip-spec-2);
+  }
+
+  .swatch[data-preset="terminal"] .swatch__chip {
+    --chip-1: var(--chip-terminal-1);
+    --chip-2: var(--chip-terminal-2);
+  }
+
+  .mode-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 2.15rem;
+    height: 2.15rem;
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  .mode-toggle:hover {
+    border-color: var(--border-strong);
+  }
+
+  /* ---- Buttons -----------------------------------------------------------*/
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0.6rem 1.15rem;
+    border: var(--border-width) solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: 650;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+
+  .btn:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .btn--primary {
+    background: var(--accent-fill);
+    border-color: var(--accent-fill);
+    color: var(--accent-contrast);
+  }
+
+  .btn--primary:hover {
+    background: var(--accent-fill-hover);
+    border-color: var(--accent-fill-hover);
+    color: var(--accent-contrast);
+  }
+
+  .btn--ghost {
+    background: transparent;
+    border-color: var(--border);
+  }
+
+  .btn--sm {
+    padding: 0.35rem 0.7rem;
+    font-size: var(--text-xs);
+  }
+
+  /* ---- Hero --------------------------------------------------------------*/
+  .hero {
+    padding-block: var(--space-8) var(--space-6);
+  }
+
+  .hero__eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: var(--case-label);
+    color: var(--text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .hero__title {
+    font-size: var(--text-3xl);
+    max-width: 17ch;
+  }
+
+  .hero__lead {
+    margin-top: var(--space-5);
+    max-width: 48ch;
+    font-size: var(--text-lg);
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  .hero__actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-top: var(--space-6);
+  }
+
+  /* ---- Content sections --------------------------------------------------*/
+  .section__heading {
+    font-size: var(--text-xl);
+    padding-top: var(--space-4);
+    border-top: var(--border-width) solid var(--border);
+    margin-bottom: var(--space-4);
+  }
+
+  .link-more {
+    display: inline-block;
+    margin-top: var(--space-5);
+    font-family: var(--font-display);
+    font-weight: 650;
+    font-size: var(--text-sm);
+  }
+
+  /* ---- Post list ---------------------------------------------------------
+     A rule-separated list, not a card grid. Date sits beside the title on wide
+     viewports and above it on narrow ones. */
+  .post-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+  }
+
+  .post-list__item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-1) var(--space-5);
+    align-items: baseline;
+    padding-block: var(--space-4);
+    border-bottom: var(--border-width) solid var(--border);
+  }
+
+  .post-list__item:first-child {
+    border-top: var(--border-width) solid var(--border);
+  }
+
+  .post-list__title {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-display);
+    letter-spacing: var(--tracking-display);
+    color: var(--text);
+  }
+
+  .post-list__title:hover {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .post-list__date {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .post-list__excerpt {
+    grid-column: 1 / -1;
+    max-width: 62ch;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  @media (max-width: 34rem) {
+    .post-list__item {
+      grid-template-columns: 1fr;
+    }
+
+    .post-list__date {
+      order: -1;
+    }
+  }
+
+  /* ---- Post --------------------------------------------------------------*/
+  .post {
+    padding-block: var(--space-7) var(--space-8);
+  }
+
+  .post__title {
+    font-size: var(--text-2xl);
+    max-width: 24ch;
+  }
+
+  .post__meta {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-6);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    color: var(--text-muted);
+  }
+
+  .tag {
+    padding: 0.1rem 0.55rem;
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .post__footer {
+    margin-top: var(--space-8);
+    padding-top: var(--space-5);
+    border-top: var(--border-width) solid var(--border);
+  }
+
+  /* ---- Prose (rendered markdown) -----------------------------------------*/
+  .prose {
+    max-width: 68ch;
+  }
+
+  .prose > * + * {
+    margin-top: var(--space-4);
+  }
+
+  .prose h2 {
+    font-size: var(--text-xl);
+    margin-top: var(--space-7);
+  }
+
+  .prose h3 {
+    font-size: var(--text-lg);
+    margin-top: var(--space-6);
+  }
+
+  .prose a {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .prose ul,
+  .prose ol {
+    padding-left: 1.35rem;
+  }
+
+  .prose li + li {
+    margin-top: var(--space-2);
+  }
+
+  .prose blockquote {
+    margin-block: var(--space-5);
+    padding: var(--space-3) var(--space-5);
+    background: var(--bg-subtle);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .prose code {
+    font-size: 0.88em;
+    background: var(--bg-subtle);
+    border: var(--border-width) solid var(--border);
+    padding: 0.1em 0.35em;
+    border-radius: var(--radius-sm);
+  }
+
+  .prose img {
+    border-radius: var(--radius);
+  }
+
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .prose th,
+  .prose td {
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border);
+    text-align: left;
+  }
+
+  .prose th {
+    background: var(--bg-subtle);
+  }
+
+  /* Wide content scrolls inside its own box; the page body never does. */
+  .prose pre.highlight {
+    background: var(--bg-subtle);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+
+  .prose pre.highlight code {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: var(--text-sm);
+  }
+
+  /* ---- Syntax highlight (Rouge token classes) ----------------------------
+     Lightness comes from --hl-l, which flips with mode; hue and chroma come
+     from the preset. That is why these seven rules serve all eight surfaces. */
+  .highlight .c, .highlight .c1, .highlight .cm, .highlight .cd {
+    color: var(--hl-comment);
+    font-style: italic;
+  }
+
+  .highlight .k, .highlight .kd, .highlight .kc, .highlight .kn, .highlight .kp, .highlight .kr {
+    color: var(--hl-keyword);
+  }
+
+  .highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .sc,
+  .highlight .sd, .highlight .se, .highlight .sh, .highlight .si, .highlight .sx, .highlight .dl {
+    color: var(--hl-string);
+  }
+
+  .highlight .mi, .highlight .mf, .highlight .mh, .highlight .mo, .highlight .il {
+    color: var(--hl-number);
+  }
+
+  .highlight .nf, .highlight .nc, .highlight .nn, .highlight .nd,
+  .highlight .vi, .highlight .vg, .highlight .vc {
+    color: var(--hl-name);
+  }
+
+  .highlight .nb, .highlight .bp, .highlight .no {
+    color: var(--hl-builtin);
+  }
+
+  .highlight .o, .highlight .ow, .highlight .p {
+    color: var(--hl-punct);
+  }
+
+  /* ---- Flash -------------------------------------------------------------
+     The glyph is what keeps notice and alert distinguishable without relying
+     on hue. Tokenized: these used to be four hardcoded colors that broke in
+     six of the eight surfaces. */
+  .flash {
+    display: flex;
+    gap: var(--space-3);
+    max-width: var(--maxw);
+    margin: var(--space-4) auto 0;
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-width) solid;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+  }
+
+  .flash::before {
+    font-weight: 700;
+    line-height: inherit;
+  }
+
+  .flash--notice {
+    background: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .flash--notice::before {
+    content: "✓";
+    color: var(--accent);
+  }
+
+  .flash--alert {
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--text);
+  }
+
+  .flash--alert::before {
+    content: "!";
+    color: var(--danger);
+  }
+
+  /* ---- Contact -----------------------------------------------------------*/
+  .contact-links {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  /* ---- Footer ------------------------------------------------------------*/
+  .site-footer {
+    margin-top: var(--space-9);
+    padding-block: var(--space-7);
+    border-top: var(--border-width) solid var(--border);
+    background: var(--bg-subtle);
+  }
+
+  .site-footer__inner {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .site-footer__cta {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: var(--weight-display);
+    letter-spacing: var(--tracking-display);
+    max-width: 34ch;
+  }
+
+  .social {
+    display: flex;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+    font-size: var(--text-sm);
+  }
+
+  .site-footer__legal {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  /* ---- Forms -------------------------------------------------------------*/
+  .form {
+    display: grid;
+    gap: var(--space-4);
+    max-width: 42rem;
+  }
+
+  .field {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .field > span {
+    font-family: var(--font-display);
+    font-weight: 650;
+    font-size: var(--text-sm);
+  }
+
+  .field input,
+  .field textarea,
+  .field select {
+    font: inherit;
+    font-size: var(--text-base);
+    color: var(--text);
+    background: var(--surface);
+    border: var(--border-width) solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.7rem;
+  }
+
+  .field input::placeholder,
+  .field textarea::placeholder {
+    color: var(--text-faint);
+  }
+
+  .field textarea.mono {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  /* Stays inside the normal content column rather than centering itself, so
+     the form lines up with the brand and everything else on the site. */
+  .auth {
+    padding-block: var(--space-8);
+  }
+
+  .auth h1 {
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-6);
+  }
+
+  .auth .form {
+    max-width: 26rem;
+  }
+
+  @media (max-width: 40rem) {
+    .site-header__inner {
+      padding-block: var(--space-3);
+    }
+
+    .brand {
+      margin-right: 0;
+      flex: 1 0 100%;
+    }
+
+    .nav {
+      gap: var(--space-3);
+      margin-right: auto;
+    }
+  }
+}

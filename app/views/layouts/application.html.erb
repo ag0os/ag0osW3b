@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="<%= SiteSetting.theme_preset %>">
   <head>
     <title><%= content_for(:title).presence || SiteSetting["site_title"] %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,15 +7,21 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <%# Apply the saved/preferred theme before first paint to avoid a flash. %>
+    <%# Applies the visitor's saved preset and mode before first paint.
+        data-theme always has a server-rendered value (the site default).
+        data-mode is only ever set when the visitor has chosen one, so with
+        JavaScript off the OS preference decides via a media query in
+        themes.css, and nobody gets a surface they did not ask for. %>
     <script>
       (function () {
+        var el = document.documentElement;
+        var presets = <%= raw SiteSetting::PRESETS.to_json %>;
+        el.classList.add("js");
         try {
-          var t = localStorage.getItem("theme");
-          if (t !== "light" && t !== "dark") {
-            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
-          document.documentElement.dataset.theme = t;
+          var theme = localStorage.getItem("theme");
+          if (presets.indexOf(theme) !== -1) el.dataset.theme = theme;
+          var mode = localStorage.getItem("mode");
+          if (mode === "light" || mode === "dark") el.dataset.mode = mode;
         } catch (e) {}
       })();
     </script>
@@ -23,13 +29,14 @@
     <%= yield :head %>
 
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "themes", "application", "components", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
   <body class="site">
+    <a class="skip-link" href="#main">Skip to content</a>
     <%= render "shared/header" %>
-    <main class="site-main">
+    <main class="site-main" id="main">
       <%= render "shared/flash" %>
       <%= yield %>
     </main>

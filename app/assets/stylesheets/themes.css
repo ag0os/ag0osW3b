@@ -1,0 +1,476 @@
+/* ==========================================================================
+   ag0osW3b design system — token contract and theme presets
+
+   TWO INDEPENDENT AXES, both set as attributes on <html>:
+
+     data-theme   workshop | console | spec | terminal   (the design identity)
+     data-mode    light | dark                           (absent = follow OS)
+
+   Eight surfaces total. Every one of them is a shipped surface.
+
+   ── HOW TO USE THIS FILE ──────────────────────────────────────────────────
+
+   Components consume ONLY the semantic role names (--bg, --text, --accent,
+   --radius, --font-body, ...). A component must never reference a preset by
+   name and must never hardcode a color. That rule is the whole architecture:
+   it is why adding a fifth preset is a data change, not a code change.
+
+   ── HOW A PRESET IS DEFINED ───────────────────────────────────────────────
+
+   Each preset block declares paired values:
+
+     --l-*   the light-mode value
+     --d-*   the dark-mode value
+
+   plus its mode-independent type and shape tokens. The MODE RESOLUTION block
+   at the bottom maps the --l- and --d- pairs onto the semantic names. That is
+   written once and works for every preset, present and future.
+
+   ── ADDING A PRESET ───────────────────────────────────────────────────────
+
+   1. Copy a preset block, rename the [data-theme="..."] selector.
+   2. Fill in all 14 --l-/--d- pairs plus type and shape tokens.
+   3. Add the name to PRESETS in app/models/site_setting.rb.
+   4. Run bin/rails test. test/design/contrast_test.rb will fail the build if
+      any pair misses WCAG AA. It is not optional and it is not advisory.
+
+   Color is authored in OKLCH. Chroma drops as lightness approaches either
+   extreme. No #000, no #fff: every neutral is tinted toward its preset hue.
+   ========================================================================== */
+
+@layer tokens, base, layout, components, utilities;
+
+@layer tokens {
+  /* ---- Shared scales -----------------------------------------------------
+     Mode- and preset-independent. Presets vary color, type and shape; the
+     spatial skeleton stays fixed so a component written once works in all
+     eight combinations. */
+
+  :root {
+    /* spacing */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+    --space-8: 4.5rem;
+    --space-9: 7rem;
+
+    /* type scale — heading steps stay at or above a 1.25 ratio */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1.0625rem;
+    --text-lg: 1.35rem;
+    --text-xl: clamp(1.7rem, 1.45rem + 1.1vw, 2.1rem);
+    --text-2xl: clamp(2.15rem, 1.7rem + 2.1vw, 2.9rem);
+    --text-3xl: clamp(2.7rem, 1.9rem + 3.6vw, 4rem);
+
+    /* layout */
+    --maxw: 62rem;
+    --gutter: clamp(1.25rem, 4vw, 2.5rem);
+
+    /* motion — exponential ease-out, no bounce, no elastic */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-fast: 120ms;
+    --dur: 220ms;
+
+    /* derived roles: computed from the preset palette, never hand-authored */
+    --surface-hover: color-mix(in oklab, var(--surface) 94%, var(--text));
+    --accent-subtle: color-mix(in oklab, var(--accent) 14%, var(--bg));
+    --accent-fill-hover: color-mix(in oklab, var(--accent-fill) 88%, var(--text));
+    --danger-bg: color-mix(in oklab, var(--danger) 12%, var(--bg));
+    --danger-border: color-mix(in oklab, var(--danger) 55%, var(--bg));
+    --success-bg: color-mix(in oklab, var(--success) 12%, var(--bg));
+    --success-border: color-mix(in oklab, var(--success) 55%, var(--bg));
+    --focus: var(--accent);
+
+    /* Preset preview swatches, for the switcher chips.
+
+       These are deliberately mode-independent: a chip is a paint chip. It
+       stands for the preset's identity, not for how that preset happens to
+       render right now, so it does not change under you when you flip modes.
+       Each pair is the preset's characteristic surface and accent. Terminal
+       shows its dark home, because that is what terminal is. */
+    --chip-workshop-1: oklch(0.975 0.008 85);
+    --chip-workshop-2: oklch(0.5 0.135 35);
+    --chip-console-1: oklch(0.895 0.006 95);
+    --chip-console-2: oklch(0.66 0.19 48);
+    --chip-spec-1: oklch(0.98 0.003 250);
+    --chip-spec-2: oklch(0.5 0.21 27);
+    --chip-terminal-1: oklch(0.155 0.012 65);
+    --chip-terminal-2: oklch(0.8 0.145 78);
+  }
+
+  /* ======================================================================
+     PRESET: workshop  (default)
+
+     Ink on warm paper. Restrained: tinted neutrals plus one oxide-red accent
+     held under ~10% of the surface. Humanist sans headings over an old-style
+     serif body, which inverts magazine grammar on purpose. Warmth here comes
+     from palette, space and type, never from editorial affectation: no drop
+     caps, no display-serif italic headlines, no tracked uppercase labels.
+
+     Scene: reading a long post on a laptop at a kitchen table, mid-morning.
+     ====================================================================== */
+
+  [data-theme="workshop"] {
+    --l-bg: oklch(0.975 0.008 85);
+    --d-bg: oklch(0.21 0.014 60);
+    --l-bg-subtle: oklch(0.945 0.012 85);
+    --d-bg-subtle: oklch(0.175 0.012 60);
+    --l-surface: oklch(0.99 0.005 85);
+    --d-surface: oklch(0.255 0.014 60);
+    --l-border: oklch(0.87 0.012 80);
+    --d-border: oklch(0.36 0.016 60);
+    --l-border-strong: oklch(0.62 0.02 80);
+    --d-border-strong: oklch(0.56 0.02 60);
+    --l-text: oklch(0.27 0.018 60);
+    --d-text: oklch(0.93 0.012 85);
+    --l-text-muted: oklch(0.5 0.02 60);
+    --d-text-muted: oklch(0.73 0.016 75);
+    --l-text-faint: oklch(0.61 0.018 60);
+    --d-text-faint: oklch(0.61 0.016 75);
+    --l-accent: oklch(0.5 0.135 35);
+    --d-accent: oklch(0.74 0.12 45);
+    --l-accent-hover: oklch(0.42 0.14 35);
+    --d-accent-hover: oklch(0.83 0.1 48);
+    --l-accent-fill: oklch(0.5 0.135 35);
+    --d-accent-fill: oklch(0.74 0.12 45);
+    --l-accent-contrast: oklch(0.985 0.006 85);
+    --d-accent-contrast: oklch(0.19 0.014 60);
+    --l-danger: oklch(0.47 0.17 22);
+    --d-danger: oklch(0.72 0.15 22);
+    --l-success: oklch(0.47 0.1 150);
+    --d-success: oklch(0.74 0.1 150);
+
+    /* type: humanist sans display, old-style serif body */
+    --font-display: Seravek, Optima, Candara, Corbel, "Gill Sans Nova", Ubuntu,
+      "DejaVu Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Iowan Old Style", Charter, "Palatino Linotype", Palatino,
+      "Book Antiqua", Georgia, ui-serif, serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --tracking-display: -0.015em;
+    --tracking-label: 0.01em;
+    --case-label: none;
+    --weight-display: 600;
+    --leading-body: 1.7;
+
+    /* shape: soft, near-flat, paper-like */
+    --radius: 6px;
+    --radius-sm: 4px;
+    --radius-lg: 10px;
+    --border-width: 1px;
+    --shadow: 0 1px 2px oklch(0.27 0.018 60 / 0.05), 0 8px 24px oklch(0.27 0.018 60 / 0.06);
+
+    /* syntax: warm, book-ink hues */
+    --hl-comment: oklch(var(--hl-l) 0.018 80);
+    --hl-keyword: oklch(var(--hl-l) 0.14 30);
+    --hl-string: oklch(var(--hl-l) 0.1 145);
+    --hl-number: oklch(var(--hl-l) 0.12 60);
+    --hl-name: oklch(var(--hl-l) 0.12 300);
+    --hl-builtin: oklch(var(--hl-l) 0.13 50);
+    --hl-punct: oklch(var(--hl-l) 0.03 80);
+  }
+
+  /* ======================================================================
+     PRESET: console  (studio instrument)
+
+     Hardware-panel logic drawn from thirteen years of audio work. Panel grey
+     with a signal orange that carries real surface area. Neo-grotesque for
+     labels, mono for values and metadata. Machined edges, crisp hard shadow,
+     no blur.
+
+     --case-label is uppercase HERE AND ONLY HERE. Small tracked uppercase
+     labels are normally AI scaffolding; they are earned in this preset because
+     equipment labeling is the named system it is built on. Do not copy the
+     pattern into another preset.
+
+     Scene: adjusting a channel on a desk under studio lighting, mid-session.
+     ====================================================================== */
+
+  [data-theme="console"] {
+    --l-bg: oklch(0.895 0.006 95);
+    --d-bg: oklch(0.255 0.006 95);
+    --l-bg-subtle: oklch(0.855 0.006 95);
+    --d-bg-subtle: oklch(0.205 0.005 95);
+    --l-surface: oklch(0.945 0.005 95);
+    --d-surface: oklch(0.305 0.006 95);
+    --l-border: oklch(0.74 0.008 95);
+    --d-border: oklch(0.42 0.008 95);
+    --l-border-strong: oklch(0.55 0.01 95);
+    --d-border-strong: oklch(0.6 0.01 95);
+    --l-text: oklch(0.24 0.008 95);
+    --d-text: oklch(0.94 0.005 95);
+    --l-text-muted: oklch(0.44 0.01 95);
+    --d-text-muted: oklch(0.72 0.008 95);
+    --l-text-faint: oklch(0.55 0.01 95);
+    --d-text-faint: oklch(0.61 0.008 95);
+    --l-accent: oklch(0.46 0.16 42);
+    --d-accent: oklch(0.76 0.16 55);
+    --l-accent-hover: oklch(0.39 0.15 42);
+    --d-accent-hover: oklch(0.84 0.13 58);
+    --l-accent-fill: oklch(0.66 0.19 48);
+    --d-accent-fill: oklch(0.7 0.185 50);
+    --l-accent-contrast: oklch(0.18 0.01 95);
+    --d-accent-contrast: oklch(0.18 0.006 95);
+    --l-danger: oklch(0.46 0.18 25);
+    --d-danger: oklch(0.72 0.16 25);
+    --l-success: oklch(0.46 0.11 150);
+    --d-success: oklch(0.75 0.11 150);
+
+    /* type: true grotesque, mono for values */
+    --font-display: "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
+      "Liberation Sans", ui-sans-serif, sans-serif;
+    --font-body: "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
+      "Liberation Sans", ui-sans-serif, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo,
+      Consolas, "Liberation Mono", monospace;
+    --tracking-display: -0.022em;
+    --tracking-label: 0.09em;
+    --case-label: uppercase;
+    --weight-display: 700;
+    --leading-body: 1.6;
+
+    /* shape: machined, hard-edged, zero blur */
+    --radius: 3px;
+    --radius-sm: 2px;
+    --radius-lg: 4px;
+    --border-width: 1px;
+    --shadow: 0 1px 0 0 oklch(0.24 0.008 95 / 0.22);
+
+    /* syntax: orange family against neutral panel */
+    --hl-comment: oklch(var(--hl-l) 0.012 95);
+    --hl-keyword: oklch(var(--hl-l) 0.15 45);
+    --hl-string: oklch(var(--hl-l) 0.09 160);
+    --hl-number: oklch(var(--hl-l) 0.13 75);
+    --hl-name: oklch(var(--hl-l) 0.1 265);
+    --hl-builtin: oklch(var(--hl-l) 0.14 30);
+    --hl-punct: oklch(var(--hl-l) 0.02 95);
+  }
+
+  /* ======================================================================
+     PRESET: spec  (technical-spec grid)
+
+     Swiss rigor. Near-monochrome with one signal red. The 1px rule is the
+     primary visual device and it is load-bearing, not decoration. Zero radius,
+     zero elevation, tight tracking, strong weight contrast.
+
+     Density here comes from type and rules, not from spacing: the spatial
+     skeleton is shared across all presets by design.
+
+     Scene: checking a drawing against a spec sheet at a desk, task light on.
+     ====================================================================== */
+
+  [data-theme="spec"] {
+    --l-bg: oklch(0.98 0.003 250);
+    --d-bg: oklch(0.185 0.008 250);
+    --l-bg-subtle: oklch(0.945 0.005 250);
+    --d-bg-subtle: oklch(0.15 0.007 250);
+    --l-surface: oklch(0.995 0.0015 250);
+    --d-surface: oklch(0.225 0.009 250);
+    --l-border: oklch(0.84 0.008 250);
+    --d-border: oklch(0.34 0.012 250);
+    --l-border-strong: oklch(0.3 0.012 250);
+    --d-border-strong: oklch(0.72 0.01 250);
+    --l-text: oklch(0.21 0.012 250);
+    --d-text: oklch(0.95 0.004 250);
+    --l-text-muted: oklch(0.48 0.012 250);
+    --d-text-muted: oklch(0.72 0.008 250);
+    --l-text-faint: oklch(0.6 0.01 250);
+    --d-text-faint: oklch(0.59 0.008 250);
+    --l-accent: oklch(0.52 0.2 27);
+    --d-accent: oklch(0.68 0.19 27);
+    --l-accent-hover: oklch(0.44 0.19 27);
+    --d-accent-hover: oklch(0.77 0.16 27);
+    --l-accent-fill: oklch(0.5 0.21 27);
+    --d-accent-fill: oklch(0.52 0.21 27);
+    --l-accent-contrast: oklch(0.99 0.002 250);
+    --d-accent-contrast: oklch(0.98 0.003 250);
+    --l-danger: oklch(0.52 0.2 27);
+    --d-danger: oklch(0.68 0.19 27);
+    --l-success: oklch(0.46 0.11 155);
+    --d-success: oklch(0.74 0.11 155);
+
+    /* type: neutral system sans, tight, high weight contrast */
+    --font-display: ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI Variable Display", "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text",
+      "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo,
+      Consolas, "Liberation Mono", monospace;
+    --tracking-display: -0.032em;
+    --tracking-label: 0.02em;
+    --case-label: none;
+    --weight-display: 700;
+    --leading-body: 1.6;
+
+    /* shape: sharp, flat, rule-driven */
+    --radius: 0;
+    --radius-sm: 0;
+    --radius-lg: 0;
+    --border-width: 1px;
+    --shadow: none;
+
+    /* syntax: precise, cool, one warm signal */
+    --hl-comment: oklch(var(--hl-l) 0.012 250);
+    --hl-keyword: oklch(var(--hl-l) 0.17 27);
+    --hl-string: oklch(var(--hl-l) 0.1 160);
+    --hl-number: oklch(var(--hl-l) 0.13 255);
+    --hl-name: oklch(var(--hl-l) 0.12 290);
+    --hl-builtin: oklch(var(--hl-l) 0.12 60);
+    --hl-punct: oklch(var(--hl-l) 0.02 250);
+  }
+
+  /* ======================================================================
+     PRESET: terminal
+
+     Dark-first, monospace throughout. AMBER phosphor, not green: amber reads
+     as a 1970s terminal manual and ties to the hardware lineage, where green
+     on black lands straight in the AI-startup-neon cliché this site is
+     explicitly not.
+
+     HARD BANS inside this preset: no glow, no bloom, no text-shadow, no
+     gradient, no scanline overlay, no particles. The restraint is what
+     separates it from the thing it resembles.
+
+     Light mode is a line printer on fanfold paper. It is a finished surface,
+     not a fallback.
+
+     Scene: reading logs in a dim room late, or the same output on paper.
+     ====================================================================== */
+
+  [data-theme="terminal"] {
+    --l-bg: oklch(0.955 0.01 90);
+    --d-bg: oklch(0.135 0.012 65);
+    --l-bg-subtle: oklch(0.92 0.014 90);
+    --d-bg-subtle: oklch(0.105 0.01 65);
+    --l-surface: oklch(0.975 0.007 90);
+    --d-surface: oklch(0.17 0.013 65);
+    --l-border: oklch(0.83 0.016 88);
+    --d-border: oklch(0.33 0.018 65);
+    --l-border-strong: oklch(0.6 0.022 85);
+    --d-border-strong: oklch(0.54 0.03 68);
+    --l-text: oklch(0.28 0.02 70);
+    --d-text: oklch(0.89 0.045 80);
+    --l-text-muted: oklch(0.48 0.022 70);
+    --d-text-muted: oklch(0.7 0.055 75);
+    --l-text-faint: oklch(0.6 0.02 70);
+    --d-text-faint: oklch(0.56 0.05 72);
+    --l-accent: oklch(0.46 0.115 55);
+    --d-accent: oklch(0.8 0.145 78);
+    --l-accent-hover: oklch(0.38 0.11 55);
+    --d-accent-hover: oklch(0.88 0.12 80);
+    --l-accent-fill: oklch(0.5 0.13 55);
+    --d-accent-fill: oklch(0.75 0.15 75);
+    --l-accent-contrast: oklch(0.97 0.008 90);
+    --d-accent-contrast: oklch(0.14 0.012 65);
+    --l-danger: oklch(0.47 0.18 25);
+    --d-danger: oklch(0.74 0.16 25);
+    --l-success: oklch(0.46 0.1 145);
+    --d-success: oklch(0.78 0.1 145);
+
+    /* type: mono, all of it */
+    --font-display: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
+      "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --font-body: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
+      "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
+      "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --tracking-display: 0;
+    --tracking-label: 0.04em;
+    --case-label: none;
+    --weight-display: 700;
+    --leading-body: 1.65;
+
+    /* shape: nothing rounded, nothing raised */
+    --radius: 0;
+    --radius-sm: 0;
+    --radius-lg: 0;
+    --border-width: 1px;
+    --shadow: none;
+
+    /* syntax: near-monochrome amber, separated by chroma rather than hue */
+    --hl-comment: oklch(var(--hl-l) 0.02 70);
+    --hl-keyword: oklch(var(--hl-l) 0.15 68);
+    --hl-string: oklch(var(--hl-l) 0.08 105);
+    --hl-number: oklch(var(--hl-l) 0.13 88);
+    --hl-name: oklch(var(--hl-l) 0.11 45);
+    --hl-builtin: oklch(var(--hl-l) 0.14 55);
+    --hl-punct: oklch(var(--hl-l) 0.035 70);
+  }
+
+  /* ======================================================================
+     MODE RESOLUTION
+
+     Written once; applies to every preset. Three cases, in cascade order:
+
+       1. no data-mode attribute, OS prefers light  → light  (the base rule)
+       2. no data-mode attribute, OS prefers dark   → dark   (media query)
+       3. data-mode set explicitly                  → wins over the OS
+
+     Case 2 is what keeps the site correct with JavaScript unavailable: the
+     server never renders data-mode, so the OS preference decides and no
+     visitor gets a surface they did not ask for.
+     ====================================================================== */
+
+  :root {
+    color-scheme: light;
+    --hl-l: 0.43;
+    --bg: var(--l-bg);
+    --bg-subtle: var(--l-bg-subtle);
+    --surface: var(--l-surface);
+    --border: var(--l-border);
+    --border-strong: var(--l-border-strong);
+    --text: var(--l-text);
+    --text-muted: var(--l-text-muted);
+    --text-faint: var(--l-text-faint);
+    --accent: var(--l-accent);
+    --accent-hover: var(--l-accent-hover);
+    --accent-fill: var(--l-accent-fill);
+    --accent-contrast: var(--l-accent-contrast);
+    --danger: var(--l-danger);
+    --success: var(--l-success);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-mode="light"]) {
+      color-scheme: dark;
+      --hl-l: 0.75;
+      --bg: var(--d-bg);
+      --bg-subtle: var(--d-bg-subtle);
+      --surface: var(--d-surface);
+      --border: var(--d-border);
+      --border-strong: var(--d-border-strong);
+      --text: var(--d-text);
+      --text-muted: var(--d-text-muted);
+      --text-faint: var(--d-text-faint);
+      --accent: var(--d-accent);
+      --accent-hover: var(--d-accent-hover);
+      --accent-fill: var(--d-accent-fill);
+      --accent-contrast: var(--d-accent-contrast);
+      --danger: var(--d-danger);
+      --success: var(--d-success);
+    }
+  }
+
+  :root[data-mode="dark"] {
+    color-scheme: dark;
+    --hl-l: 0.75;
+    --bg: var(--d-bg);
+    --bg-subtle: var(--d-bg-subtle);
+    --surface: var(--d-surface);
+    --border: var(--d-border);
+    --border-strong: var(--d-border-strong);
+    --text: var(--d-text);
+    --text-muted: var(--d-text-muted);
+    --text-faint: var(--d-text-faint);
+    --accent: var(--d-accent);
+    --accent-hover: var(--d-accent-hover);
+    --accent-fill: var(--d-accent-fill);
+    --accent-contrast: var(--d-accent-contrast);
+    --danger: var(--d-danger);
+    --success: var(--d-success);
+  }
+}

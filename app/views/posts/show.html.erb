@@ -4,8 +4,10 @@
 <article class="container post">
   <header class="post__header">
     <h1 class="post__title"><%= @post.title %></h1>
-    <p class="post__meta muted">
-      <time><%= @post.published_at&.strftime("%B %-d, %Y") %></time>
+    <p class="post__meta">
+      <time datetime="<%= @post.published_at&.iso8601 %>">
+        <%= @post.published_at&.strftime("%B %-d, %Y") %>
+      </time>
       <% @post.tag_list.each do |tag| %><span class="tag"><%= tag %></span><% end %>
     </p>
   </header>

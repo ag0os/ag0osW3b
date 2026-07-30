@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="<%= SiteSetting.theme_preset %>">
   <head>
     <title><%= content_for(:title).presence || "Admin" %> · Admin</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,20 +7,24 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
+    <%# Same pre-paint script as the public layout: the admin shares the
+        visitor's stored preset and mode, so /admin never contradicts the
+        surface you were just looking at. %>
     <script>
       (function () {
+        var el = document.documentElement;
+        var presets = <%= raw SiteSetting::PRESETS.to_json %>;
+        el.classList.add("js");
         try {
-          var t = localStorage.getItem("theme");
-          if (t !== "light" && t !== "dark") {
-            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
-          document.documentElement.dataset.theme = t;
+          var theme = localStorage.getItem("theme");
+          if (presets.indexOf(theme) !== -1) el.dataset.theme = theme;
+          var mode = localStorage.getItem("mode");
+          if (mode === "light" || mode === "dark") el.dataset.mode = mode;
         } catch (e) {}
       })();
     </script>
 
-    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
-    <%= stylesheet_link_tag "admin", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "themes", "application", "components", "admin", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
@@ -33,13 +37,14 @@
           <%= link_to "Posts", admin_posts_path %>
           <%= link_to "Sections", admin_sections_path %>
           <%= link_to "Settings", admin_site_settings_path %>
-          <%= link_to "View site ↗", root_path, target: "_blank" %>
+          <%= link_to "View site ↗", root_path, target: "_blank", rel: "noopener" %>
         </nav>
+        <%= render "shared/theme_controls" %>
         <%= button_to "Sign out", session_path, method: :delete, class: "btn btn--ghost btn--sm" %>
       </div>
     </header>
 
-    <main class="admin-main container">
+    <main class="admin-main container" id="main">
       <%= render "shared/flash" %>
       <%= yield %>
     </main>

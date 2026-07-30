@@ -7,13 +7,15 @@
   </header>
 
   <% if @posts.any? %>
-    <ul class="post-list post-list--full">
+    <ul class="post-list">
       <% @posts.each do |post| %>
         <li class="post-list__item">
           <%= link_to post.title, post_path(post), class: "post-list__title" %>
-          <time class="muted"><%= post.published_at&.strftime("%B %-d, %Y") %></time>
+          <time class="post-list__date" datetime="<%= post.published_at&.iso8601 %>">
+            <%= post.published_at&.strftime("%b %-d, %Y") %>
+          </time>
           <% if post.excerpt.present? %>
-            <p class="muted post-list__excerpt"><%= post.excerpt %></p>
+            <p class="post-list__excerpt"><%= post.excerpt %></p>
           <% end %>
         </li>
       <% end %>

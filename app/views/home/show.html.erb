@@ -23,7 +23,9 @@
         <% @recent_posts.each do |post| %>
           <li class="post-list__item">
             <%= link_to post.title, post_path(post), class: "post-list__title" %>
-            <time class="muted"><%= post.published_at&.strftime("%B %-d, %Y") %></time>
+            <time class="post-list__date" datetime="<%= post.published_at&.iso8601 %>">
+              <%= post.published_at&.strftime("%b %-d, %Y") %>
+            </time>
           </li>
         <% end %>
       </ul>

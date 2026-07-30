@@ -6,6 +6,6 @@
       <%= link_to "LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "me noopener" %>
       <%= mail_to SiteSetting["email"], "Email" %>
     </nav>
-    <p class="muted">© <%= Date.current.year %> <%= SiteSetting["site_title"] %></p>
+    <p class="site-footer__legal">© <%= Date.current.year %> <%= SiteSetting["site_title"] %></p>
   </div>
 </footer>

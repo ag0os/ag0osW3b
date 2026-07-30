@@ -7,7 +7,7 @@ Markdown blog and a simple admin for managing content.
 
 - Ruby 4.0.5 · Rails 8.1
 - Propshaft · import maps · Hotwire (Turbo + Stimulus)
-- Vanilla CSS with custom-property design tokens (light/dark)
+- Vanilla CSS design system: four theme presets, each in light and dark
 - SQLite + Solid Queue/Cache/Cable
 - commonmarker + rouge for Markdown posts
 
@@ -27,3 +27,10 @@ Run the tests with `bin/rails test`.
 Content lives in the database and is managed at `/admin`: static `Section`
 blocks (toggleable per page), Markdown `Post`s (draft/published), and key/value
 `SiteSetting`s.
+
+## Design
+
+Four theme presets (`workshop`, `console`, `spec`, `terminal`), each shipping
+light and dark. Visitors switch from the header; the site default is set at
+`/admin/settings`. `DESIGN.md` documents the token contract, `PRODUCT.md` the
+strategy behind it, and `test/design/` enforces both.
