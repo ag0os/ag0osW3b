@@ -8,17 +8,21 @@
   <div class="theme-switcher" role="radiogroup" aria-label="Design theme">
     <% SiteSetting::PRESETS.each do |preset| %>
       <button type="button" class="swatch" role="radio" aria-checked="false" tabindex="-1"
+              aria-label="<%= SiteSetting::PRESET_LABELS[preset] %> theme"
               data-preset="<%= preset %>"
               data-theme-target="swatch"
               data-action="theme#choosePreset keydown->theme#navigate">
         <span class="swatch__chip" aria-hidden="true"></span>
-        <span class="visually-hidden"><%= SiteSetting::PRESET_LABELS[preset] %></span>
       </button>
     <% end %>
   </div>
 
-  <button type="button" class="mode-toggle" data-action="theme#toggleMode">
+  <%# A toggle button: one stable name plus a pressed state, rather than a label
+      that rewrites itself. Screen readers announce the state change either way,
+      and the name stays something you can refer to. %>
+  <button type="button" class="mode-toggle" aria-label="Dark mode" aria-pressed="false"
+          data-theme-target="modeButton"
+          data-action="theme#toggleMode">
     <span data-theme-target="modeLabel" aria-hidden="true">☀</span>
-    <span class="visually-hidden" data-theme-target="modeText">Switch to dark mode</span>
   </button>
 </div>

@@ -12,7 +12,7 @@ import { Controller } from "@hotwired/stimulus"
 // The list of valid presets comes from SiteSetting::PRESETS via a value, so
 // Ruby stays the single source of truth.
 export default class extends Controller {
-  static targets = ["swatch", "modeLabel", "modeText"]
+  static targets = ["swatch", "modeButton", "modeLabel"]
   static values = { presets: Array }
 
   connect() {
@@ -84,8 +84,8 @@ export default class extends Controller {
 
     const dark = this.mode === "dark"
     if (this.hasModeLabelTarget) this.modeLabelTarget.textContent = dark ? "☾" : "☀"
-    if (this.hasModeTextTarget) {
-      this.modeTextTarget.textContent = dark ? "Switch to light mode" : "Switch to dark mode"
+    if (this.hasModeButtonTarget) {
+      this.modeButtonTarget.setAttribute("aria-pressed", String(dark))
     }
   }
 
