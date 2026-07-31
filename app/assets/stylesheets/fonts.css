@@ -18,7 +18,7 @@
   /* Workshop: humanist sans over an old-style book serif. */
   @font-face {
     font-family: "Alegreya";
-    src: url("alegreya-var.woff2") format("woff2-variations");
+    src: url("alegreya-var.woff2") format("woff2");
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;
@@ -43,7 +43,7 @@
   /* Console: industrial grotesque plus a geometric mono for values. */
   @font-face {
     font-family: "Archivo";
-    src: url("archivo-var.woff2") format("woff2-variations");
+    src: url("archivo-var.woff2") format("woff2");
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;
@@ -51,7 +51,7 @@
 
   @font-face {
     font-family: "Azeret Mono";
-    src: url("azeret-mono-var.woff2") format("woff2-variations");
+    src: url("azeret-mono-var.woff2") format("woff2");
     font-weight: 400 500;
     font-style: normal;
     font-display: swap;
@@ -60,7 +60,7 @@
   /* Spec: contemporary grotesque at high weight contrast. */
   @font-face {
     font-family: "Schibsted Grotesk";
-    src: url("schibsted-grotesk-var.woff2") format("woff2-variations");
+    src: url("schibsted-grotesk-var.woff2") format("woff2");
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;
@@ -68,7 +68,7 @@
 
   @font-face {
     font-family: "Geist Mono";
-    src: url("geist-mono-var.woff2") format("woff2-variations");
+    src: url("geist-mono-var.woff2") format("woff2");
     font-weight: 400 500;
     font-style: normal;
     font-display: swap;
@@ -77,7 +77,7 @@
   /* Terminal: a wide boxy mono for display, a readable one for text. */
   @font-face {
     font-family: "Martian Mono";
-    src: url("martian-mono-var.woff2") format("woff2-variations");
+    src: url("martian-mono-var.woff2") format("woff2");
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;
@@ -85,7 +85,7 @@
 
   @font-face {
     font-family: "Sometype Mono";
-    src: url("sometype-mono-var.woff2") format("woff2-variations");
+    src: url("sometype-mono-var.woff2") format("woff2");
     font-weight: 400 700;
     font-style: normal;
     font-display: swap;

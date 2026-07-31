@@ -99,6 +99,31 @@ class StylesheetTest < ActiveSupport::TestCase
       "these custom properties are used but never defined (likely a typo)"
   end
 
+  # A misspelled font filename does not error anywhere: the @font-face simply
+  # never loads and every preset quietly falls back to a system stack. The site
+  # looks fine, slightly wrong, forever.
+  test "every declared webfont file exists" do
+    fonts_css = strip_comments(Rails.root.join("app/assets/stylesheets/fonts.css"))
+    referenced = fonts_css.scan(/url\("([^"]+\.woff2)"\)/).flatten
+
+    assert_operator referenced.size, :>=, 8, "expected a webface per preset role"
+
+    missing = referenced.reject { |file| Rails.root.join("app/assets/fonts", file).exist? }
+    assert_empty missing,
+      "declared in fonts.css but absent from app/assets/fonts: #{missing.join(', ')}. " \
+      "Run bin/fetch-fonts."
+  end
+
+  test "every declared webfont family is actually used by a preset" do
+    fonts_css = strip_comments(Rails.root.join("app/assets/stylesheets/fonts.css"))
+    families = fonts_css.scan(/font-family:\s*"([^"]+)"/).flatten.uniq
+    themes = strip_comments(Rails.root.join("app/assets/stylesheets/themes.css"))
+
+    unused = families.reject { |family| themes.include?("\"#{family}\"") }
+    assert_empty unused,
+      "these faces are downloaded and served but no preset asks for them: #{unused.join(', ')}"
+  end
+
   test "every preset in SiteSetting has a token block" do
     css = strip_comments(Rails.root.join("app/assets/stylesheets/themes.css"))
     declared = css.scan(/\[data-theme="([a-z]+)"\]/).flatten.uniq
