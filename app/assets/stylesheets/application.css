@@ -25,7 +25,11 @@
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
-    background: var(--bg);
+    background-color: var(--bg);
+    /* The preset's ground: a drawing grid, a paper grain, or nothing. Always
+       CSS-generated, never an asset. */
+    background-image: var(--texture);
+    background-size: var(--texture-size);
     color: var(--text);
     font-family: var(--font-body);
     font-size: var(--text-base);
@@ -34,19 +38,48 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Switching preset or mode repaints the whole page. A short crossfade on the
-     color properties only keeps that from being a hard cut. Layout properties
-     are never animated. */
+  /* Switching preset or mode repaints the whole page. The crossfade uses the
+     incoming preset's own timing, so arriving at console snaps and arriving at
+     workshop drifts. Layout properties are never animated. */
   body,
   .site-header,
   .card,
   .swatch,
   .btn {
     transition:
-      background-color var(--dur) var(--ease-out),
-      border-color var(--dur) var(--ease-out),
-      color var(--dur) var(--ease-out);
+      background-color var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      color var(--dur) var(--ease);
   }
+
+  /* ---- Entrance ----------------------------------------------------------
+     One orchestrated moment per page rather than motion scattered everywhere.
+     Timing and easing come from the preset, so the same markup arrives
+     differently in each: console clicks on in steps, workshop drifts up.
+
+     `both` fill matters: the element holds its start state through its delay
+     and its end state afterwards, so nothing flickers at either end. */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.7rem);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .enter > * {
+    animation: rise var(--dur-enter) var(--ease) both;
+  }
+
+  .enter > :nth-child(1) { animation-delay: calc(var(--stagger) * 0); }
+  .enter > :nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+  .enter > :nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+  .enter > :nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+  .enter > :nth-child(n + 5) { animation-delay: calc(var(--stagger) * 4); }
 
   h1,
   h2,
@@ -162,6 +195,9 @@
 
   .site-main {
     flex: 1 0 auto;
+    /* Feeds the section numbering that console and spec print in their
+       headings. Reset per page so numbering starts at 01 every time. */
+    counter-reset: section;
   }
 
   /* Vertical rhythm varies on purpose: sections breathe, groups stay tight. */

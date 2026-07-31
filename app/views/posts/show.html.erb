@@ -2,7 +2,7 @@
 <% content_for :description, @post.excerpt if @post.excerpt.present? %>
 
 <article class="container post">
-  <header class="post__header">
+  <header class="post__header enter">
     <h1 class="post__title"><%= @post.title %></h1>
     <p class="post__meta">
       <time datetime="<%= @post.published_at&.iso8601 %>">

@@ -197,6 +197,14 @@
     text-decoration: none;
   }
 
+  /* Press feedback. Transform rather than a layout property, and it inherits
+     the preset's easing, so console's press is a hard click and workshop's is
+     a soft push. */
+  .btn:active {
+    transform: translateY(1px);
+    transition-duration: var(--dur-fast);
+  }
+
   .btn--primary {
     background: var(--accent-fill);
     border-color: var(--accent-fill);
@@ -238,6 +246,21 @@
     max-width: 17ch;
   }
 
+  /* Terminal ends its hero on a blinking block cursor. Every other preset
+     resolves --cursor-content to an empty string, so this generates nothing at
+     all rather than an invisible box with spacing. */
+  .hero__title::after {
+    content: var(--cursor-content);
+    color: var(--accent);
+    animation: blink 1.15s steps(1, end) infinite;
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
   .hero__lead {
     margin-top: var(--space-5);
     max-width: 48ch;
@@ -253,12 +276,33 @@
     margin-top: var(--space-6);
   }
 
-  /* ---- Content sections --------------------------------------------------*/
+  /* ---- Content sections --------------------------------------------------
+     Identical markup in every preset; the punctuation is entirely tokens.
+     Workshop draws no rule and shows no marker, so its sections are separated
+     by air alone. Console prints CH.01 over a panel seam, spec numbers them
+     over a hairline, terminal prefixes a prompt above a dashed rule. */
+  .section {
+    counter-increment: section;
+    padding-top: var(--space-4);
+    border-top: var(--rule-width) var(--rule-style) var(--border);
+  }
+
   .section__heading {
     font-size: var(--text-xl);
-    padding-top: var(--space-4);
-    border-top: var(--border-width) solid var(--border);
     margin-bottom: var(--space-4);
+  }
+
+  .section__heading::before {
+    content: var(--heading-marker);
+    display: var(--heading-marker-display);
+    margin-right: 0.4ch;
+    margin-bottom: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--heading-marker-size);
+    font-weight: 400;
+    letter-spacing: var(--tracking-label);
+    text-transform: var(--case-label);
+    color: var(--accent);
   }
 
   .link-more {

@@ -109,11 +109,35 @@ What this explicitly rejects: the generic SaaS landing page, AI-startup neon, ed
 
 **Key Characteristics:**
 - Two orthogonal axes on `<html>`: `data-theme` for identity, `data-mode` for light and dark
-- Presets vary color, type, and shape. Never spacing, never layout
+- Presets vary color, type, shape, **rhythm, section grammar, ground and motion**. Never structure
 - All color authored in OKLCH, chroma reduced toward the lightness extremes
 - No `#000`, no `#fff`. Every neutral is tinted toward its preset hue
 - WCAG AA is a failing test, not an intention
-- Zero network requests for type: system stacks, with webfont plumbing ready
+- Self-hosted open-licensed type, no third-party request at runtime
+
+### The presentation layer
+
+Palette and typeface alone produced four recolors of one page. What separates a
+design from a color scheme is how it punctuates, how tightly it breathes, what
+ground it sits on, and how it moves. Those are tokens too:
+
+| Token | What it decides | Range across presets |
+|---|---|---|
+| `--density` | multiplier on the whole spacing scale | `0.84` spec to `1.18` workshop |
+| `--rule-width` / `--rule-style` | how sections are separated | none, hairline, double seam, dashed |
+| `--heading-marker` | what precedes a heading | nothing, `CH.01`, `01`, `$ ` |
+| `--texture` | the page's ground, CSS-generated | drawing grid, paper grain, none |
+| `--ease` / `--dur` / `--stagger` | how the preset moves | stepped snap to slow drift |
+
+**The One Structure Rule.** Presets vary rhythm and ornament. They never vary
+markup. A section is the same element in all four; only its punctuation differs.
+This is what keeps a component a single implementation while the designs stay
+genuinely distinct.
+
+**The Earned Ornament Rule.** Every decorative element names the object it comes
+from: spec's grid is a drawing grid, console's seam is a panel seam, terminal's
+`$` is a prompt. Ornament that cannot name its referent is decoration, and it
+does not ship.
 
 ## 2. Colors
 
@@ -145,13 +169,18 @@ Four palettes with four different jobs, sharing one set of role names. The strat
 
 ## 3. Typography
 
-**Display Font:** varies by preset. Humanist sans (workshop), neo-grotesque (console), neutral system sans (spec), mono (terminal).
-**Body Font:** old-style serif (workshop), grotesque (console), system sans (spec), mono (terminal).
-**Label/Mono Font:** a mono stack in every preset, used for dates, metadata, figures, and table headers.
+| Preset | Display | Body | Mono |
+|---|---|---|---|
+| workshop | Alegreya Sans | Alegreya | Sometype Mono |
+| console | Archivo | Archivo | Azeret Mono |
+| spec | Schibsted Grotesk | Schibsted Grotesk | Geist Mono |
+| terminal | Martian Mono | Sometype Mono | Sometype Mono |
 
-**Character:** workshop pairs a humanist sans heading with an old-style serif body, which inverts magazine grammar deliberately: sans over serif reads as a book, serif over sans reads as a magazine, and this site is not a magazine. Console is grotesque for labels and mono for values, the way equipment is actually lettered. Spec is one neutral sans at tight tracking with strong weight contrast. Terminal is mono throughout with no tracking at all.
+**Character:** workshop pairs a humanist sans heading with an old-style book serif, which inverts magazine grammar deliberately: sans over serif reads as a book, serif over sans reads as a magazine, and this site is not a magazine. Console is an industrial grotesque with a geometric mono for values, the way equipment is actually lettered. Spec is one contemporary grotesque at tight tracking with strong weight contrast. Terminal is mono throughout, wide and boxy for display, readable for text.
 
-All four are system stacks. Zero network requests, instant first paint, nothing to license. `@font-face` plumbing and font tokens are in place, so a licensed woff2 drops in by changing one token.
+All open licensed (OFL), self-hosted via `bin/fetch-fonts`, latin subset only. No third-party request at runtime. Every `--font-*` token carries a full system-stack fallback, so a missing file degrades to a system face rather than breaking anything.
+
+None of these appear on the reflex-reject list. That list exists because Inter, Space Grotesk, Fraunces and their neighbours are what training data reaches for first, and a personal site that lands on them is indistinguishable from every other one.
 
 ### Hierarchy
 

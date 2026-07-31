@@ -1,0 +1,93 @@
+/* ==========================================================================
+   ag0osW3b — self-hosted webfaces
+
+   Files are fetched by `bin/fetch-fonts` and committed. All are open licensed
+   (OFL or Apache 2.0), and self-hosting means no third-party request at
+   runtime and no flash of a CDN timing out.
+
+   These declarations are inert until the files exist: `font-display: swap`
+   plus the system-stack fallbacks in every --font-* token mean the site is
+   fully functional and correctly themed before `bin/fetch-fonts` is ever run.
+   Running it is an upgrade, not a prerequisite.
+
+   Only the faces the active preset actually renders get downloaded, so a
+   visitor pays for two families, not eight.
+   ========================================================================== */
+
+@layer tokens {
+  /* Workshop: humanist sans over an old-style book serif. */
+  @font-face {
+    font-family: "Alegreya";
+    src: url("alegreya-var.woff2") format("woff2-variations");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "Alegreya Sans";
+    src: url("alegreya-sans-500.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "Alegreya Sans";
+    src: url("alegreya-sans-700.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* Console: industrial grotesque plus a geometric mono for values. */
+  @font-face {
+    font-family: "Archivo";
+    src: url("archivo-var.woff2") format("woff2-variations");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "Azeret Mono";
+    src: url("azeret-mono-var.woff2") format("woff2-variations");
+    font-weight: 400 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* Spec: contemporary grotesque at high weight contrast. */
+  @font-face {
+    font-family: "Schibsted Grotesk";
+    src: url("schibsted-grotesk-var.woff2") format("woff2-variations");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "Geist Mono";
+    src: url("geist-mono-var.woff2") format("woff2-variations");
+    font-weight: 400 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* Terminal: a wide boxy mono for display, a readable one for text. */
+  @font-face {
+    font-family: "Martian Mono";
+    src: url("martian-mono-var.woff2") format("woff2-variations");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: "Sometype Mono";
+    src: url("sometype-mono-var.woff2") format("woff2-variations");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
+}

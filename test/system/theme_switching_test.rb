@@ -39,6 +39,32 @@ class ThemeSwitchingTest < ApplicationSystemTestCase
       "two design options render identically, so switching between them does nothing visible"
   end
 
+  # Guards the thing that made the first version feel flat: four palettes over
+  # one identical page.
+  #
+  # This measures the space a design puts around a section heading, not the
+  # height of the page. Page height was the obvious metric and it is the wrong
+  # one: different typefaces wrap differently, so it stays varied even when
+  # every spacing lever is neutralised, which makes it a font test wearing a
+  # rhythm test's name.
+  test "designs differ in rhythm, not only in colour" do
+    visit root_path
+
+    spacings = design_options.map do |option|
+      option.click
+      settled_appearance
+      section_spacing
+    end
+
+    spread = (spacings.max - spacings.min) / spacings.min
+
+    assert_operator spacings.uniq.size, :>=, spacings.size - 1,
+      "designs are spacing their sections identically: #{spacings.inspect}"
+    assert_operator spread, :>, 0.15,
+      "the loosest and tightest designs are within #{(spread * 100).round(1)}% of " \
+      "each other, so density is no longer doing any work"
+  end
+
   test "content stays legible in every design" do
     visit root_path
 
@@ -173,6 +199,21 @@ class ThemeSwitchingTest < ApplicationSystemTestCase
 
     def mode_toggle
       find("button[aria-pressed]")
+    end
+
+    # The whitespace a design puts around a section heading. Independent of
+    # typeface, so it isolates rhythm from type. Found via a semantic heading
+    # rather than a class name.
+    def section_spacing
+      evaluate_script(<<~JS).to_f
+        (() => {
+          const heading = document.querySelector("main h2");
+          if (!heading) return 0;
+          const around = getComputedStyle(heading.parentElement);
+          const below = getComputedStyle(heading);
+          return parseFloat(around.paddingTop) + parseFloat(below.marginBottom);
+        })()
+      JS
     end
 
     def appearance

@@ -1,0 +1,84 @@
+#!/usr/bin/env ruby
+# Downloads the self-hosted webfonts into app/assets/fonts.
+#
+# Run once, then commit the .woff2 files. They are open licensed (OFL or
+# Apache 2.0), so redistributing them in this repo is fine, and self-hosting
+# means the site makes no third-party request at runtime.
+#
+#   bin/fetch-fonts
+#
+# Idempotent: existing files are skipped unless --force is passed. The site
+# works without these; every preset falls back to a system stack. Running this
+# is an upgrade, not a prerequisite.
+
+require "fileutils"
+require "net/http"
+require "uri"
+
+FONT_DIR = File.expand_path("../app/assets/fonts", __dir__)
+
+# A modern UA is required, or Google serves ttf instead of woff2.
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " \
+     "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36".freeze
+
+# slug => [google family name, weight spec, weights for static families]
+FONTS = {
+  "alegreya" => [ "Alegreya", "wght@400..700", nil ],
+  "alegreya-sans" => [ "Alegreya Sans", "wght@500;700", [ 500, 700 ] ],
+  "archivo" => [ "Archivo", "wght@400..700", nil ],
+  "azeret-mono" => [ "Azeret Mono", "wght@400..500", nil ],
+  "schibsted-grotesk" => [ "Schibsted Grotesk", "wght@400..700", nil ],
+  "geist-mono" => [ "Geist Mono", "wght@400..500", nil ],
+  "martian-mono" => [ "Martian Mono", "wght@400..700", nil ],
+  "sometype-mono" => [ "Sometype Mono", "wght@400..700", nil ]
+}.freeze
+
+def get(url)
+  uri = URI(url)
+  request = Net::HTTP::Get.new(uri, "User-Agent" => UA)
+
+  Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 15, read_timeout: 30) do |http|
+    response = http.request(request)
+    raise "#{response.code} from #{url}" unless response.is_a?(Net::HTTPSuccess)
+    response.body
+  end
+end
+
+# Google returns one @font-face per unicode-range. Only latin is wanted; the
+# rest would triple the payload for characters this site never renders.
+def latin_sources(css)
+  css.split("/* ").filter_map do |block|
+    next unless block.start_with?("latin */")
+    block[%r{url\((https://[^)]+\.woff2)\)}, 1]
+  end
+end
+
+force = ARGV.include?("--force")
+FileUtils.mkdir_p(FONT_DIR)
+written = 0
+
+FONTS.each do |slug, (family, spec, weights)|
+  css = get("https://fonts.googleapis.com/css2?family=#{family.tr(' ', '+')}:#{spec}&display=swap")
+  sources = latin_sources(css)
+  raise "no latin sources found for #{family}" if sources.empty?
+
+  sources.each_with_index do |url, index|
+    suffix = weights ? weights[index] : "var"
+    path = File.join(FONT_DIR, "#{slug}-#{suffix}.woff2")
+
+    if File.exist?(path) && !force
+      puts "  skip  #{File.basename(path)}"
+      next
+    end
+
+    File.binwrite(path, get(url))
+    written += 1
+    puts format("  ok    %-30s %6.1f KB", File.basename(path), File.size(path) / 1024.0)
+  end
+end
+
+total = Dir[File.join(FONT_DIR, "*.woff2")].sum { |f| File.size(f) }
+puts
+puts "#{written} file(s) written, #{Dir[File.join(FONT_DIR, '*.woff2')].size} total, " \
+     "#{format('%.1f', total / 1024.0)} KB on disk."
+puts "Only the active preset's faces are ever downloaded by a visitor."

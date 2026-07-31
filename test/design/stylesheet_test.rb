@@ -13,9 +13,40 @@ class StylesheetTest < ActiveSupport::TestCase
   # that is not themes.css has no business knowing preset names.
   CONTRACT_CONSUMERS = %w[application.css components.css admin.css].freeze
 
+  # Tokens that make a preset a design rather than a palette. All have defaults
+  # in :root, so omitting one fails silently as "looks like the others" instead
+  # of erroring, which is exactly the kind of thing worth a test.
+  IDENTITY_TOKENS = %w[
+    font-display font-body font-mono
+    density rule-width rule-style heading-marker
+    ease dur dur-enter
+  ].freeze
+
   test "stylesheets exist" do
-    assert_equal %w[admin.css application.css components.css themes.css],
+    assert_equal %w[admin.css application.css components.css fonts.css themes.css],
       STYLESHEETS.map { |path| path.basename.to_s }.sort
+  end
+
+  test "every preset declares its own identity tokens" do
+    preset_blocks.each do |name, body|
+      missing = IDENTITY_TOKENS.reject { |token| body.match?(/^\s*--#{token}:/) }
+
+      assert_empty missing,
+        "preset #{name} does not set: #{missing.join(', ')}. It will silently " \
+        "inherit the defaults and read as a recolour of another preset."
+    end
+  end
+
+  test "no two presets share the same design fingerprint" do
+    fingerprints = preset_blocks.to_h do |name, body|
+      [ name, %w[density rule-style heading-marker font-display].map { |t| body[/^\s*--#{t}:\s*([^;]+);/m, 1].to_s.strip } ]
+    end
+
+    duplicates = fingerprints.group_by { |_, print| print }.select { |_, group| group.size > 1 }
+
+    assert_empty duplicates.values.flatten(1).map(&:first),
+      "these presets are indistinguishable on density, rule style, heading " \
+      "marker and display font, so switching between them barely shows"
   end
 
   test "comments are balanced" do
@@ -83,5 +114,11 @@ class StylesheetTest < ActiveSupport::TestCase
     # Mirrors how a CSS parser handles comments: /* ... */, no nesting.
     def strip_comments(path)
       File.read(path).gsub(%r{/\*.*?\*/}m, "")
+    end
+
+    def preset_blocks
+      @preset_blocks ||= strip_comments(Rails.root.join("app/assets/stylesheets/themes.css"))
+        .scan(/\[data-theme="([a-z]+)"\]\s*\{(.*?)^\s*\}/m)
+        .to_h
     end
 end

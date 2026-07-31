@@ -47,16 +47,20 @@
      eight combinations. */
 
   :root {
-    /* spacing */
-    --space-1: 0.25rem;
-    --space-2: 0.5rem;
-    --space-3: 0.75rem;
-    --space-4: 1rem;
-    --space-5: 1.5rem;
-    --space-6: 2rem;
-    --space-7: 3rem;
-    --space-8: 4.5rem;
-    --space-9: 7rem;
+    /* ---- Rhythm ----------------------------------------------------------
+       The scale is authored once and multiplied at use time, so --density is
+       the only thing a preset sets to become dense or airy. Spec compresses,
+       workshop breathes, and no component has to know which it is in. */
+    --density: 1;
+    --space-1: calc(0.25rem * var(--density));
+    --space-2: calc(0.5rem * var(--density));
+    --space-3: calc(0.75rem * var(--density));
+    --space-4: calc(1rem * var(--density));
+    --space-5: calc(1.5rem * var(--density));
+    --space-6: calc(2rem * var(--density));
+    --space-7: calc(3rem * var(--density));
+    --space-8: calc(4.5rem * var(--density));
+    --space-9: calc(7rem * var(--density));
 
     /* type scale — heading steps stay at or above a 1.25 ratio */
     --text-xs: 0.75rem;
@@ -65,16 +69,43 @@
     --text-lg: 1.35rem;
     --text-xl: clamp(1.7rem, 1.45rem + 1.1vw, 2.1rem);
     --text-2xl: clamp(2.15rem, 1.7rem + 2.1vw, 2.9rem);
-    --text-3xl: clamp(2.7rem, 1.9rem + 3.6vw, 4rem);
+    --text-3xl: calc(clamp(2.7rem, 1.9rem + 3.6vw, 4rem) * var(--display-scale));
+    --display-scale: 1;
+    --weight-body-strong: 700;
 
     /* layout */
     --maxw: 62rem;
     --gutter: clamp(1.25rem, 4vw, 2.5rem);
 
-    /* motion — exponential ease-out, no bounce, no elastic */
-    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    /* ---- Section grammar -------------------------------------------------
+       How a preset punctuates a section. This is what stops all four reading
+       as one page in four palettes: the rule vocabulary and the heading marker
+       differ per preset, while the markup stays identical.
+
+       --heading-marker is substituted into a content: property, so it may hold
+       a string, a counter(), or both. */
+    --rule-width: 1px;
+    --rule-style: solid;
+    --heading-marker: "";
+    --heading-marker-display: none;
+    --heading-marker-size: var(--text-xs);
+    --cursor-content: "";
+
+    /* ---- Ground ----------------------------------------------------------
+       A CSS-generated texture on the page. No images, no external assets, and
+       faint enough to read as material rather than decoration. */
+    --texture: none;
+    --texture-size: auto;
+    --grid-column: 5.5rem;
+
+    /* ---- Motion personality ----------------------------------------------
+       Each preset moves like the thing it is: hardware snaps, paper drifts.
+       All of it is disabled under prefers-reduced-motion. */
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
     --dur-fast: 120ms;
     --dur: 220ms;
+    --dur-enter: 420ms;
+    --stagger: 70ms;
 
     /* derived roles: computed from the preset palette, never hand-authored */
     --surface-hover: color-mix(in oklab, var(--surface) 94%, var(--text));
@@ -145,17 +176,38 @@
     --l-success: oklch(0.47 0.1 150);
     --d-success: oklch(0.74 0.1 150);
 
-    /* type: humanist sans display, old-style serif body */
-    --font-display: Seravek, Optima, Candara, Corbel, "Gill Sans Nova", Ubuntu,
-      "DejaVu Sans", ui-sans-serif, system-ui, sans-serif;
-    --font-body: "Iowan Old Style", Charter, "Palatino Linotype", Palatino,
-      "Book Antiqua", Georgia, ui-serif, serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    /* type: humanist sans display, old-style book serif body */
+    --font-display: "Alegreya Sans", Seravek, Optima, Candara, Corbel,
+      "Gill Sans Nova", Ubuntu, ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Alegreya", "Iowan Old Style", Charter, "Palatino Linotype",
+      Palatino, "Book Antiqua", Georgia, ui-serif, serif;
+    --font-mono: "Sometype Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
+      Consolas, monospace;
     --tracking-display: -0.015em;
     --tracking-label: 0.01em;
     --case-label: none;
-    --weight-display: 600;
+    --weight-display: 700;
     --leading-body: 1.7;
+
+    /* rhythm: unhurried. The most generous of the four. */
+    --density: 1.18;
+
+    /* grammar: no rules at all. Sections are separated by air, which is the
+       entire idea. A hairline here would make it the same page as spec. */
+    --rule-width: 0;
+    --rule-style: none;
+    --heading-marker: "";
+    --heading-marker-display: none;
+
+    /* ground: a faint paper grain, barely above the threshold of noticing */
+    --texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='0.032'/%3E%3C/svg%3E");
+    --texture-size: 140px 140px;
+
+    /* motion: drifts in, the way a page settles */
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur: 260ms;
+    --dur-enter: 620ms;
+    --stagger: 95ms;
 
     /* shape: soft, near-flat, paper-like */
     --radius: 6px;
@@ -220,18 +272,37 @@
     --l-success: oklch(0.46 0.11 150);
     --d-success: oklch(0.75 0.11 150);
 
-    /* type: true grotesque, mono for values */
-    --font-display: "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
+    /* type: industrial grotesque, geometric mono for values */
+    --font-display: "Archivo", "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
       "Liberation Sans", ui-sans-serif, sans-serif;
-    --font-body: "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
+    --font-body: "Archivo", "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
       "Liberation Sans", ui-sans-serif, sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo,
+    --font-mono: "Azeret Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
       Consolas, "Liberation Mono", monospace;
     --tracking-display: -0.022em;
     --tracking-label: 0.09em;
     --case-label: uppercase;
     --weight-display: 700;
     --leading-body: 1.6;
+
+    /* rhythm: tight, the way a rack unit is tight */
+    --density: 0.88;
+
+    /* grammar: channel numbering over a panel seam. `double` renders as two
+       hairlines with a gap, which is a seam between panels, not a border. */
+    --rule-width: 3px;
+    --rule-style: double;
+    --heading-marker: "CH." counter(section, decimal-leading-zero);
+    --heading-marker-display: block;
+
+    --texture: none;
+
+    /* motion: hardware does not ease, it snaps. Stepped easing reads as
+       segments clicking on rather than anything fading. */
+    --ease: steps(2, end);
+    --dur: 90ms;
+    --dur-enter: 150ms;
+    --stagger: 45ms;
 
     /* shape: machined, hard-edged, zero blur */
     --radius: 3px;
@@ -293,18 +364,41 @@
     --l-success: oklch(0.46 0.11 155);
     --d-success: oklch(0.74 0.11 155);
 
-    /* type: neutral system sans, tight, high weight contrast */
-    --font-display: ui-sans-serif, system-ui, -apple-system,
+    /* type: contemporary grotesque, tight, high weight contrast */
+    --font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system,
       "Segoe UI Variable Display", "Segoe UI", Roboto, "Noto Sans", sans-serif;
-    --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text",
-      "Segoe UI", Roboto, "Noto Sans", sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo,
+    --font-body: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI Variable Text", "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
       Consolas, "Liberation Mono", monospace;
     --tracking-display: -0.032em;
     --tracking-label: 0.02em;
     --case-label: none;
     --weight-display: 700;
-    --leading-body: 1.6;
+    --leading-body: 1.55;
+
+    /* rhythm: the densest of the four. A spec sheet does not waste paper. */
+    --density: 0.84;
+    --display-scale: 1.05;
+
+    /* grammar: numbered sections over a hairline. The number is the label. */
+    --rule-width: 1px;
+    --rule-style: solid;
+    --heading-marker: counter(section, decimal-leading-zero);
+    --heading-marker-display: block;
+    --heading-marker-size: var(--text-sm);
+
+    /* ground: the drawing grid itself, faint but genuinely there */
+    --texture: repeating-linear-gradient(to right,
+        color-mix(in oklab, var(--border) 60%, transparent) 0 1px,
+        transparent 1px var(--grid-column));
+    --grid-column: 5.5rem;
+
+    /* motion: measured and quick, like a rule being struck */
+    --ease: cubic-bezier(0.25, 1, 0.5, 1);
+    --dur: 170ms;
+    --dur-enter: 320ms;
+    --stagger: 45ms;
 
     /* shape: sharp, flat, rule-driven */
     --radius: 0;
@@ -371,18 +465,44 @@
     --l-success: oklch(0.46 0.1 145);
     --d-success: oklch(0.78 0.1 145);
 
-    /* type: mono, all of it */
-    --font-display: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
-      "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    --font-body: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
-      "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
-      "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace;
-    --tracking-display: 0;
+    /* type: mono, all of it. A wide boxy face for display, a readable one for
+       everything that is actually read. */
+    --font-display: "Martian Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+      Menlo, Consolas, "Liberation Mono", monospace;
+    --font-body: "Sometype Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+      Menlo, Consolas, "Liberation Mono", monospace;
+    --font-mono: "Sometype Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+      Menlo, Consolas, "Liberation Mono", monospace;
+    --tracking-display: -0.04em;
     --tracking-label: 0.04em;
     --case-label: none;
     --weight-display: 700;
     --leading-body: 1.65;
+
+    /* rhythm: a shade tighter than default, like line spacing in a session */
+    --density: 0.94;
+    --display-scale: 0.82;
+
+    /* grammar: a prompt before every heading, dashed rules between sections.
+       The prompt is the punctuation; nothing else is needed. */
+    --rule-width: 1px;
+    --rule-style: dashed;
+    --heading-marker: "$ ";
+    --heading-marker-display: inline;
+    /* An inline marker sits in the heading's own line, so it takes the
+       heading's size. The block markers in console and spec are labels above a
+       heading and stay small. */
+    --heading-marker-size: 1em;
+    --cursor-content: " ▋";
+
+    --texture: none;
+
+    /* motion: chunky, like a character cell repainting. Stepped, never smooth,
+       and never a glow. */
+    --ease: steps(3, end);
+    --dur: 140ms;
+    --dur-enter: 280ms;
+    --stagger: 60ms;
 
     /* shape: nothing rounded, nothing raised */
     --radius: 0;

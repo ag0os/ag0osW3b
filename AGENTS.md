@@ -103,8 +103,26 @@ both enforced by tests:
 - No `[data-theme="..."]` selector outside `themes.css`. If a component needs to
   differ per preset, the difference belongs in the token contract.
 
-Presets vary color, type, and shape. They never vary spacing or layout, which is
-what keeps a component a single implementation.
+Presets vary color, type, shape, **rhythm, section grammar, ground and motion**.
+They never vary **markup**, which is what keeps a component a single
+implementation. The presentation tokens that carry that:
+
+| Token | Decides |
+|---|---|
+| `--density` | multiplier on the whole spacing scale |
+| `--rule-width` / `--rule-style` | how sections are separated |
+| `--heading-marker` | what precedes a heading (substituted into `content:`) |
+| `--texture` | the page's CSS-generated ground |
+| `--ease` / `--dur` / `--dur-enter` / `--stagger` | how the preset moves |
+
+`test/design/stylesheet_test.rb` fails the build if a preset omits any identity
+token, or if two presets share a design fingerprint.
+
+**Fonts** are self-hosted and open licensed. Run `bin/fetch-fonts` once and
+commit the `.woff2` files; see `app/assets/fonts/README.md`. The site works
+without them, since every `--font-*` token carries a system-stack fallback and
+`assets:precompile` leaves unresolvable `url()` references alone rather than
+raising.
 
 **Adding a preset:** copy a `[data-theme="..."]` block in `themes.css`, fill in
 all 14 `--l-`/`--d-` pairs plus type and shape tokens, add the name to
