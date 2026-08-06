@@ -33,4 +33,5 @@ blocks (toggleable per page), Markdown `Post`s (draft/published), and key/value
 Four theme presets (`workshop`, `console`, `spec`, `terminal`), each shipping
 light and dark. Visitors switch from the header; the site default is set at
 `/admin/settings`. `DESIGN.md` documents the token contract, `PRODUCT.md` the
-strategy behind it, and `test/design/` enforces both.
+strategy behind it, and `test/design/` enforces both. `ROADMAP.md` holds ideas
+that were considered and deliberately parked, with the reasoning.
