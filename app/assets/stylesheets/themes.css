@@ -73,9 +73,44 @@
     --display-scale: 1;
     --weight-body-strong: 700;
 
-    /* layout */
-    --maxw: 62rem;
+    /* ---- Layout ----------------------------------------------------------
+       The page is two columns: a metadata rail and a text column.
+
+       Reading measure is capped in ch and cannot grow, so a container wider
+       than the measure is only justified if something fills the difference.
+       Narrowing the container to match the measure is the other way to resolve
+       that, and it is the weaker one: it leaves a centred column of text with
+       symmetric voids, which is the shape brand work is supposed to avoid.
+
+       So the rail is what earns the width. Everything that annotates the text
+       (section markers, dates, tags, the hero eyebrow) moves out of the text
+       column and into the margin, and the text column holds nothing but text.
+
+       The numbers are locked to spec's drawing grid and to each other:
+
+         content column   960px = 12 x --grid-column
+         rail + rail-gap  160px = 2 columns, so text starts on a grid line
+         text column      800px = 10 columns
+         --maxw           960px + two 2.5rem gutters = 65rem
+
+       The text column is sized by the widest-set preset, not the narrowest.
+       68ch of spec's grotesque is 732px where workshop's old-style serif needs
+       616px for the same count, so a column that fits workshop clips spec below
+       the 65ch floor. It is a legibility floor, so the widest one wins and the
+       narrower presets simply leave slack at the right of the column.
+
+       Change one number and recheck the rest. test/system/layout_test.rb fails
+       if the measure leaves the 65-75ch band in any preset. */
+    --maxw: 65rem;
     --gutter: clamp(1.25rem, 4vw, 2.5rem);
+    --rail: 7.5rem;
+    --rail-gap: 2.5rem;
+    --rail-indent: calc(var(--rail) + var(--rail-gap));
+
+    /* The hero cap is per-preset: 17ch of a humanist sans and 17ch of a wide
+       mono are very different line counts, and text-wrap: balance gives up
+       above six lines. */
+    --hero-measure: 17ch;
 
     /* ---- Section grammar -------------------------------------------------
        How a preset punctuates a section. This is what stops all four reading
@@ -91,12 +126,29 @@
     --heading-marker-size: var(--text-xs);
     --cursor-content: "";
 
+    /* Where rail content sits in its track. Left is the default because a
+       flush left edge is what makes the rail read as a column rather than as
+       text pushed away from the body. Terminal overrides it: a prompt belongs
+       next to its command, not a screen-width away from it. */
+    --rail-align: left;
+
     /* ---- Ground ----------------------------------------------------------
-       A CSS-generated texture on the page. No images, no external assets, and
-       faint enough to read as material rather than decoration. */
+       Two separate grounds, because they answer to different things.
+
+       --texture is full-bleed on <body>: a material the whole page is printed
+       on, which is what a paper grain is.
+
+       --grid is drawn on a layer that tracks the content column, because a
+       drawing grid that nothing is drawn against is just decoration. Painted
+       on <body> it was anchored to the viewport while the content was anchored
+       to a centred container, so the two could never line up: the text started
+       61px into an 88px column, and that offset drifted with every resize.
+
+       Both are CSS-generated. No images, no external assets. */
     --texture: none;
     --texture-size: auto;
-    --grid-column: 5.5rem;
+    --grid: none;
+    --grid-column: 5rem;
 
     /* ---- Motion personality ----------------------------------------------
        Each preset moves like the thing it is: hardware snaps, paper drifts.
@@ -106,6 +158,11 @@
     --dur: 220ms;
     --dur-enter: 420ms;
     --stagger: 70ms;
+
+    /* Only terminal has a cursor to blink. An empty --cursor-content still
+       generates a pseudo-element, so this has to be `none` elsewhere or three
+       presets run a forever-animation on a box that draws nothing. */
+    --cursor-anim: none;
 
     /* derived roles: computed from the preset palette, never hand-authored */
     --surface-hover: color-mix(in oklab, var(--surface) 94%, var(--text));
@@ -388,11 +445,12 @@
     --heading-marker-display: block;
     --heading-marker-size: var(--text-sm);
 
-    /* ground: the drawing grid itself, faint but genuinely there */
-    --texture: repeating-linear-gradient(to right,
+    /* ground: the drawing grid itself, faint but genuinely there. It is drawn
+       on the content layer, not the page, so its lines land on the text edge
+       and every 6.25rem across the column: exactly 8 columns at full width. */
+    --grid: repeating-linear-gradient(to right,
         color-mix(in oklab, var(--border) 60%, transparent) 0 1px,
         transparent 1px var(--grid-column));
-    --grid-column: 5.5rem;
 
     /* motion: measured and quick, like a rule being struck */
     --ease: cubic-bezier(0.25, 1, 0.5, 1);
@@ -483,16 +541,23 @@
     --density: 0.94;
     --display-scale: 0.82;
 
+    /* A wide mono fits far fewer words per ch than a sans does, so the shared
+       17ch cap pushed this hero to seven lines: past the six-line ceiling where
+       Chrome gives up on text-wrap: balance, which is why it was orphaning a
+       word. Widening the measure brings it back under the limit. */
+    --hero-measure: 21ch;
+
     /* grammar: a prompt before every heading, dashed rules between sections.
        The prompt is the punctuation; nothing else is needed. */
     --rule-width: 1px;
     --rule-style: dashed;
-    --heading-marker: "$ ";
-    --heading-marker-display: inline;
-    /* An inline marker sits in the heading's own line, so it takes the
-       heading's size. The block markers in console and spec are labels above a
-       heading and stay small. */
-    --heading-marker-size: 1em;
+    --heading-marker: "$";
+    --heading-marker-display: block;
+    /* Bigger than the other markers because it is a prompt, not a label, and
+       right-aligned so it sits beside the heading the way a prompt sits beside
+       a command rather than stranded at the far edge of the rail. */
+    --heading-marker-size: var(--text-lg);
+    --rail-align: right;
     --cursor-content: " ▋";
 
     --texture: none;
@@ -503,6 +568,7 @@
     --dur: 140ms;
     --dur-enter: 280ms;
     --stagger: 60ms;
+    --cursor-anim: blink 1.15s steps(1, end) infinite;
 
     /* shape: nothing rounded, nothing raised */
     --radius: 0;

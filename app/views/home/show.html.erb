@@ -1,5 +1,6 @@
-<section class="hero container enter">
-  <p class="hero__eyebrow">Agustin Calabrese</p>
+<%# Still .railed with nothing in the rail: it is what keeps the hero's text
+    edge on the same axis as every section below it. %>
+<section class="hero container railed enter">
   <h1 class="hero__title"><%= SiteSetting["tagline"] %></h1>
   <p class="hero__lead">
     Grounded in years of Rails/backend product engineering across fintech,
@@ -17,15 +18,16 @@
   <% end %>
 
   <% if @recent_posts.any? %>
-    <section class="section">
+    <section class="section railed">
+      <span class="section__marker rail" aria-hidden="true"></span>
       <h2 class="section__heading">Writing</h2>
       <ul class="post-list">
         <% @recent_posts.each do |post| %>
-          <li class="post-list__item">
-            <%= link_to post.title, post_path(post), class: "post-list__title" %>
-            <time class="post-list__date" datetime="<%= post.published_at&.iso8601 %>">
+          <li class="post-list__item railed">
+            <time class="post-list__date rail" datetime="<%= post.published_at&.iso8601 %>">
               <%= post.published_at&.strftime("%b %-d, %Y") %>
             </time>
+            <%= link_to post.title, post_path(post), class: "post-list__title" %>
           </li>
         <% end %>
       </ul>

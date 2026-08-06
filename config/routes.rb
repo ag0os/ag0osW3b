@@ -12,6 +12,7 @@ Rails.application.routes.draw do
   # Blog
   get "writing",       to: "posts#index", as: :posts
   get "writing/:slug", to: "posts#show",  as: :post
+  get "feed",          to: "posts#feed",  as: :feed, defaults: { format: "atom" }
 
   # Admin
   namespace :admin do

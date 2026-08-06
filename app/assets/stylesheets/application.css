@@ -38,18 +38,41 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Switching preset or mode repaints the whole page. The crossfade uses the
-     incoming preset's own timing, so arriving at console snaps and arriving at
-     workshop drifts. Layout properties are never animated. */
-  body,
-  .site-header,
-  .card,
+  /* Hover and press feedback on interactive things. Layout properties are
+     never animated.
+
+     This deliberately excludes body. When the theme attributes change on
+     <html>, a transition on body animates `color` and `background-color`
+     toward their new values at the same time, and every paragraph on the page
+     inherits that animating colour. On a light/dark flip the text is moving
+     from cream to near-black while the ground moves from near-black to cream,
+     so the two cross in the middle and contrast collapses to roughly 1:1 for
+     the length of the transition. Components with their own `color` snapped
+     while inherited text faded, so the page came apart as well as dimming.
+
+     The theme change is a view transition instead. See below. */
+  .btn,
   .swatch,
-  .btn {
+  .mode-toggle,
+  .card {
     transition:
       background-color var(--dur) var(--ease),
       border-color var(--dur) var(--ease),
       color var(--dur) var(--ease);
+  }
+
+  /* Switching preset or mode repaints the whole page. A view transition
+     crossfades two complete renderings rather than interpolating colour
+     channels, so every intermediate frame is a blend of two legible states.
+
+     The custom properties here resolve against the incoming preset, because
+     the pseudo-elements are built after the attribute has changed. Arriving at
+     console still snaps in steps and arriving at workshop still drifts, which
+     was the point of having a crossfade at all. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--dur-enter);
+    animation-timing-function: var(--ease);
   }
 
   /* ---- Entrance ----------------------------------------------------------
@@ -182,6 +205,13 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+
+    /* The universal selector does not reach the view-transition pseudo tree,
+       so the theme crossfade needs disabling by name. */
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none !important;
+    }
   }
 }
 
@@ -195,9 +225,33 @@
 
   .site-main {
     flex: 1 0 auto;
+    position: relative;
+    /* Keeps the grid layer's negative z-index inside this element, so it lands
+       behind the content but still in front of the page's own background. */
+    isolation: isolate;
     /* Feeds the section numbering that console and spec print in their
        headings. Reset per page so numbering starts at 01 every time. */
     counter-reset: section;
+  }
+
+  /* The preset's drawing grid, tracking the content column instead of the
+     viewport. Same max-width and gutter as .container, and background-origin
+     plus background-clip pin the lines to the content box, so the first rule
+     lands on the rail's edge and every --grid-column after it: twelve columns
+     at full width, with the text column starting on the third. Only spec
+     resolves --grid to anything. */
+  .site-main::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    max-width: var(--maxw);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+    background-image: var(--grid);
+    background-origin: content-box;
+    background-clip: content-box;
+    z-index: -1;
+    pointer-events: none;
   }
 
   /* Vertical rhythm varies on purpose: sections breathe, groups stay tight. */
@@ -213,14 +267,71 @@
     padding-block: var(--space-7) var(--space-8);
   }
 
+  /* The cap moves onto the children: on the header itself it would have
+     clamped the whole rail grid to 46ch and collapsed both tracks. */
   .page__header {
-    max-width: 46ch;
     margin-bottom: var(--space-6);
+  }
+
+  .page__header > * {
+    max-width: 46ch;
   }
 
   .page__header h1 {
     font-size: var(--text-2xl);
     margin-bottom: var(--space-3);
+  }
+
+  /* ---- The rail ----------------------------------------------------------
+     Two tracks: a metadata margin and the text column.
+
+     Every block that sits directly in the content column declares the same two
+     tracks itself rather than inheriting them through a parent grid. They all
+     live inside .container at the same width, so their columns line up without
+     any nesting, subgrid, or block knowing what the rail is for.
+
+     .rail-indent is for the few blocks that have nothing to put in the margin
+     but still have to start on the text edge. */
+  .railed {
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    column-gap: var(--rail-gap);
+    align-items: baseline;
+  }
+
+  .railed > * {
+    grid-column: 2;
+  }
+
+  .railed > .rail {
+    grid-column: 1;
+    justify-self: var(--rail-align);
+    text-align: var(--rail-align);
+  }
+
+  .rail-indent {
+    padding-left: var(--rail-indent);
+  }
+
+  /* Below this the rail costs more than it gives: the text column would drop
+     under the 65ch floor, so the margin folds back into the flow and its
+     contents sit above what they annotate. 60rem is where 10 columns still
+     hold 68ch in the widest-set preset. */
+  @media (max-width: 60rem) {
+    .railed {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .railed > *,
+    .railed > .rail {
+      grid-column: 1;
+      justify-self: stretch;
+      text-align: left;
+    }
+
+    .rail-indent {
+      padding-left: 0;
+    }
   }
 
   /* Reading measure. Expressed in ch so it self-corrects per preset: the serif

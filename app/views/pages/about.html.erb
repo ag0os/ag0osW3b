@@ -1,7 +1,7 @@
 <% content_for :title, "About · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
-  <header class="page__header enter">
+  <header class="page__header railed enter">
     <h1>About</h1>
   </header>
 
@@ -10,6 +10,6 @@
       <%= render "shared/section", section: section %>
     <% end %>
   <% else %>
-    <p class="muted">About content coming soon.</p>
+    <p class="muted rail-indent">About content coming soon.</p>
   <% end %>
 </div>

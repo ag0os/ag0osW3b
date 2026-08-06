@@ -1,9 +1,9 @@
 <% content_for :title, "Work · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
-  <header class="page__header enter">
+  <header class="page__header railed enter">
     <h1>Work</h1>
-    <p class="muted">Most of my product work is private — here's the public proof.</p>
+    <p class="muted">Most of my product work is private. Here's the public proof.</p>
   </header>
 
   <% if @sections.any? %>
@@ -11,6 +11,6 @@
       <%= render "shared/section", section: section %>
     <% end %>
   <% else %>
-    <p class="muted">Projects coming soon.</p>
+    <p class="muted rail-indent">Projects coming soon.</p>
   <% end %>
 </div>

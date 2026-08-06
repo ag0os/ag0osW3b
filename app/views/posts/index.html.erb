@@ -1,7 +1,7 @@
 <% content_for :title, "Writing · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
-  <header class="page__header enter">
+  <header class="page__header railed enter">
     <h1>Writing</h1>
     <p class="muted">Notes on AI-native workflows, agent orchestration, and product-minded engineering.</p>
   </header>
@@ -9,11 +9,11 @@
   <% if @posts.any? %>
     <ul class="post-list">
       <% @posts.each do |post| %>
-        <li class="post-list__item">
-          <%= link_to post.title, post_path(post), class: "post-list__title" %>
-          <time class="post-list__date" datetime="<%= post.published_at&.iso8601 %>">
+        <li class="post-list__item railed">
+          <time class="post-list__date rail" datetime="<%= post.published_at&.iso8601 %>">
             <%= post.published_at&.strftime("%b %-d, %Y") %>
           </time>
+          <%= link_to post.title, post_path(post), class: "post-list__title" %>
           <% if post.excerpt.present? %>
             <p class="post-list__excerpt"><%= post.excerpt %></p>
           <% end %>
@@ -21,6 +21,6 @@
       <% end %>
     </ul>
   <% else %>
-    <p class="muted">First essays coming soon.</p>
+    <p class="muted rail-indent">First essays coming soon.</p>
   <% end %>
 </div>

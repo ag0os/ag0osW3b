@@ -13,12 +13,16 @@
 
 @layer components {
   /* ---- Header ------------------------------------------------------------*/
+  /* Opaque, not translucent. A backdrop blur here contradicted three of the
+     four presets outright (console is "zero blur", spec calls a shadow a lie
+     about the material, terminal bans glow), and it cost a composited repaint
+     on every scroll frame to produce an effect that was invisible behind a 90%
+     opaque fill. The border-bottom is what separates the bar from the page. */
   .site-header {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: color-mix(in oklab, var(--bg) 90%, transparent);
-    backdrop-filter: blur(10px);
+    background: var(--bg);
     border-bottom: var(--border-width) solid var(--border);
   }
 
@@ -49,9 +53,13 @@
     flex-wrap: wrap;
   }
 
+  /* padding-block lifts the hit area off the 24px floor of WCAG 2.2 SC 2.5.8,
+     which the bare line box sat exactly on. The header already has a 4rem
+     min-height, so this costs no layout. */
   .nav a {
     color: var(--text-muted);
     font-size: var(--text-sm);
+    padding-block: var(--space-2);
   }
 
   .nav a:hover {
@@ -90,10 +98,11 @@
   }
 
   .swatch {
+    position: relative;
     display: grid;
     place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 2rem;
+    height: 2rem;
     padding: 0;
     border: var(--border-width) solid transparent;
     border-radius: var(--radius-sm);
@@ -106,34 +115,47 @@
     border-color: var(--border-strong);
   }
 
-  /* Selected state carries three signals, none of them hue: a border, a ring,
-     and a check glyph. Required by the accessibility contract. */
+  /* Selected state carries three signals, none of them hue: a border on the
+     button, a ring around the badge, and the check glyph itself. Required by
+     the accessibility contract. */
   .swatch[aria-checked="true"] {
     border-color: var(--text);
-    box-shadow: 0 0 0 1px var(--text);
   }
 
   .swatch__chip {
-    position: relative;
     display: block;
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 1.2rem;
+    height: 1.2rem;
     border-radius: calc(var(--radius-sm) - 1px);
     border: 1px solid color-mix(in oklab, var(--text) 25%, transparent);
     background: linear-gradient(135deg, var(--chip-1) 0 50%, var(--chip-2) 50% 100%);
   }
 
-  .swatch[aria-checked="true"] .swatch__chip::after {
+  /* The badge is drawn in --surface with a --text glyph and a --text ring: a
+     pair the contrast test already gates across all eight surfaces, and a ring
+     that separates it from any chip colour underneath.
+
+     It used to be a bare glyph in --chip-2, centred on a chip whose lower half
+     IS --chip-2 — so half of every tick sat on its own colour at 1:1 and the
+     only thing rescuing it was a text-shadow halo, which is the treatment
+     terminal's No Glow Rule bans. Moving it off the chip keeps the Paint Chip
+     Rule intact: the swatch still shows both of the preset's colours. */
+  .swatch[aria-checked="true"]::after {
     content: "✓";
     position: absolute;
-    inset: 0;
+    right: 0;
+    bottom: 0;
     display: grid;
     place-items: center;
-    font-size: 0.7rem;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 0 0 1px var(--text);
+    font-size: 0.55rem;
     font-weight: 700;
     line-height: 1;
-    color: var(--chip-2);
-    text-shadow: 0 0 2px var(--chip-1), 0 0 3px var(--chip-1);
   }
 
   .swatch[data-preset="workshop"] .swatch__chip {
@@ -217,9 +239,13 @@
     color: var(--accent-contrast);
   }
 
+  /* --border-strong, not --border. A ghost button's edge is the only thing
+     identifying it as a control, and --border is a divider token that sits at
+     1.4-2.0:1 in every preset. The transparent background is what makes this
+     read lighter than .btn, not a fainter edge. (SC 1.4.11) */
   .btn--ghost {
     background: transparent;
-    border-color: var(--border);
+    border-color: var(--border-strong);
   }
 
   .btn--sm {
@@ -232,27 +258,27 @@
     padding-block: var(--space-8) var(--space-6);
   }
 
-  .hero__eyebrow {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    letter-spacing: var(--tracking-label);
-    text-transform: var(--case-label);
-    color: var(--text-muted);
-    margin-bottom: var(--space-4);
-  }
-
+  /* There is no eyebrow. It used to sit here reading "Agustin Calabrese",
+     which is the same string the header brand already renders a few rems
+     above it, so it was the name twice in one viewport. A kicker has to say
+     something the page does not already say. */
   .hero__title {
     font-size: var(--text-3xl);
-    max-width: 17ch;
+    max-width: var(--hero-measure);
   }
 
   /* Terminal ends its hero on a blinking block cursor. Every other preset
      resolves --cursor-content to an empty string, so this generates nothing at
-     all rather than an invisible box with spacing. */
+     all rather than an invisible box with spacing.
+
+     --cursor-anim is `none` everywhere but terminal. An empty string still
+     generates a pseudo-element, so hardcoding the animation here left three of
+     the four presets running a perpetual opacity animation on a box that draws
+     nothing, which never lets the compositor idle. */
   .hero__title::after {
     content: var(--cursor-content);
     color: var(--accent);
-    animation: blink 1.15s steps(1, end) infinite;
+    animation: var(--cursor-anim);
   }
 
   @keyframes blink {
@@ -292,17 +318,32 @@
     margin-bottom: var(--space-4);
   }
 
-  .section__heading::before {
-    content: var(--heading-marker);
+  /* The marker lives on a real aria-hidden span rather than on the heading's
+     own ::before. Generated content is part of the accessible name (accname
+     1.2 §4.3.2), so as a pseudo-element it made a screen reader announce
+     "CH.01 What I do" in console, "01 What I do" in spec and "$ What I do" in
+     terminal: decorative ornament changing heading semantics based on a
+     cosmetic preference. The span is rendered unconditionally in every preset,
+     so the One Structure Rule still holds; workshop resolves the marker to an
+     empty string and the display token to none, and it generates nothing. */
+  .section__marker {
     display: var(--heading-marker-display);
-    margin-right: 0.4ch;
-    margin-bottom: var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--heading-marker-size);
     font-weight: 400;
     letter-spacing: var(--tracking-label);
     text-transform: var(--case-label);
     color: var(--accent);
+  }
+
+  @media (max-width: 60rem) {
+    .section__marker {
+      margin-bottom: var(--space-2);
+    }
+  }
+
+  .section__marker::before {
+    content: var(--heading-marker);
   }
 
   .link-more {
@@ -316,19 +357,24 @@
   /* ---- Post list ---------------------------------------------------------
      A rule-separated list, not a card grid. Date sits beside the title on wide
      viewports and above it on narrow ones. */
+  /* Spans both tracks when it sits inside a railed section, so each row's own
+     rail lines up with the section's rather than being carved out of the text
+     column. Ignored when the list is not inside a grid, as on /writing. */
   .post-list {
     list-style: none;
     padding: 0;
     display: grid;
+    grid-column: 1 / -1;
   }
 
+  /* The row carries .railed, so the date sits in the margin and every date on
+     the page stacks into a scannable column instead of floating at the ragged
+     right end of a title. */
   .post-list__item {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-1) var(--space-5);
-    align-items: baseline;
+    row-gap: var(--space-1);
     padding-block: var(--space-4);
     border-bottom: var(--border-width) solid var(--border);
+    min-width: 0;
   }
 
   .post-list__item:first-child {
@@ -357,20 +403,11 @@
   }
 
   .post-list__excerpt {
-    grid-column: 1 / -1;
     max-width: 62ch;
+    min-width: 0;
+    overflow-wrap: break-word;
     color: var(--text-muted);
     font-size: var(--text-sm);
-  }
-
-  @media (max-width: 34rem) {
-    .post-list__item {
-      grid-template-columns: 1fr;
-    }
-
-    .post-list__date {
-      order: -1;
-    }
   }
 
   /* ---- Post --------------------------------------------------------------*/
@@ -383,13 +420,13 @@
     max-width: 24ch;
   }
 
+  /* Stacks down the rail rather than running across under the title, so the
+     date and tags annotate the post from the margin instead of sitting between
+     the reader and the first line of it. */
   .post__meta {
-    display: flex;
-    gap: var(--space-3);
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: var(--space-4);
-    margin-bottom: var(--space-6);
+    display: grid;
+    justify-items: var(--rail-align);
+    gap: var(--space-2);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     letter-spacing: var(--tracking-label);
@@ -402,15 +439,31 @@
     border-radius: var(--radius-lg);
   }
 
+  /* Folded back into the flow: a horizontal row again, under the title. */
+  @media (max-width: 60rem) {
+    .post__meta {
+      grid-auto-flow: column;
+      justify-content: start;
+      justify-items: start;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+      margin-bottom: var(--space-5);
+    }
+  }
+
   .post__footer {
     margin-top: var(--space-8);
     padding-top: var(--space-5);
     border-top: var(--border-width) solid var(--border);
   }
 
-  /* ---- Prose (rendered markdown) -----------------------------------------*/
+  /* ---- Prose (rendered markdown) -----------------------------------------
+     overflow-wrap matters more here than anywhere else: the renderer has
+     autolink on, so any bare URL an author writes becomes a link, and a
+     repository URL measured 522px inside a 310px column before this. */
   .prose {
     max-width: 68ch;
+    overflow-wrap: break-word;
   }
 
   .prose > * + * {
@@ -461,6 +514,20 @@
 
   .prose img {
     border-radius: var(--radius);
+  }
+
+  /* Cells wrap, so column count alone is safe; one unbreakable token (an env
+     var name, a long identifier) is what bursts the column. The wrapper is
+     added by MarkdownRenderer and is focusable so the scroll region is
+     reachable from the keyboard. */
+  .prose .table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .prose .table-scroll:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 
   .prose table {

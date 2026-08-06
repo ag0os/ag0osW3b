@@ -27,10 +27,17 @@ class ContrastTest < ActiveSupport::TestCase
     [ "danger",      "bg",        AA_TEXT,  "destructive action text" ]
   ].freeze
 
+  # --border-strong is the boundary token for anything interactive, and it is
+  # checked against all three grounds a control can sit on. --border is not in
+  # here on purpose: it is a divider, it sits at 1.4-2.0:1 by design, and WCAG
+  # does not ask a decorative separator to clear 3:1. That distinction is the
+  # whole reason both tokens exist, so a control must never reach for --border
+  # to draw its edge. .btn--ghost used to, which is what prompted this note.
   UI_PAIRS = [
     [ "accent-contrast", "accent-fill", AA_TEXT,  "label on a filled button" ],
     [ "border-strong",   "bg",          AA_LARGE, "input and button boundaries" ],
     [ "border-strong",   "surface",     AA_LARGE, "boundaries against a raised surface" ],
+    [ "border-strong",   "bg-subtle",   AA_LARGE, "boundaries against a recessed surface" ],
     [ "accent",          "bg",          AA_LARGE, "the focus ring, which is var(--accent)" ],
     [ "success",         "bg",          AA_LARGE, "status indicator" ]
   ].freeze

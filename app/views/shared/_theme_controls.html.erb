@@ -2,12 +2,24 @@
 
     Hidden until the `js` class lands on <html> (set by the pre-paint script in
     the layout, so there is no flash). Without JavaScript these controls cannot
-    do anything, and a dead control is worse than an absent one. %>
+    do anything, and a dead control is worse than an absent one.
+
+    The checked swatch and the group's single tab stop are rendered server-side
+    against the same value that goes on <html data-theme>. That `js` class is
+    added by the pre-paint script, which is independent of Stimulus, so the
+    controls become visible whether or not the controller ever connects. With
+    every swatch shipped as aria-checked="false" and tabindex="-1", a failed
+    controller left a visible radiogroup with nothing selected and no way to
+    reach it from the keyboard. The controller corrects this on connect if the
+    visitor's stored choice differs. %>
+<% current_preset = SiteSetting.theme_preset %>
 <div class="theme-controls" data-controller="theme"
      data-theme-presets-value="<%= SiteSetting::PRESETS.to_json %>">
   <div class="theme-switcher" role="radiogroup" aria-label="Design theme">
     <% SiteSetting::PRESETS.each do |preset| %>
-      <button type="button" class="swatch" role="radio" aria-checked="false" tabindex="-1"
+      <% selected = preset == current_preset %>
+      <button type="button" class="swatch" role="radio"
+              aria-checked="<%= selected %>" tabindex="<%= selected ? 0 : -1 %>"
               aria-label="<%= SiteSetting::PRESET_LABELS[preset] %> theme"
               data-preset="<%= preset %>"
               data-theme-target="swatch"

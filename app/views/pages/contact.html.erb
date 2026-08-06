@@ -1,7 +1,7 @@
 <% content_for :title, "Contact · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
-  <header class="page__header enter">
+  <header class="page__header railed enter">
     <h1>Contact</h1>
   </header>
 
@@ -9,7 +9,7 @@
     <%= render "shared/section", section: section %>
   <% end %>
 
-  <ul class="contact-links">
+  <ul class="contact-links rail-indent">
     <li><%= mail_to SiteSetting["email"], SiteSetting["email"], class: "btn btn--primary" %></li>
     <li><%= link_to "LinkedIn", SiteSetting["linkedin_url"], class: "btn", target: "_blank", rel: "noopener" %></li>
     <li><%= link_to "GitHub", SiteSetting["github_url"], class: "btn", target: "_blank", rel: "noopener" %></li>

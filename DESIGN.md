@@ -92,7 +92,7 @@ components:
   swatch:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.sm}"
-    size: "1.75rem"
+    size: "2rem"
 ---
 
 # Design System: ag0osW3b
@@ -126,13 +126,54 @@ ground it sits on, and how it moves. Those are tokens too:
 | `--density` | multiplier on the whole spacing scale | `0.84` spec to `1.18` workshop |
 | `--rule-width` / `--rule-style` | how sections are separated | none, hairline, double seam, dashed |
 | `--heading-marker` | what precedes a heading | nothing, `CH.01`, `01`, `$ ` |
-| `--texture` | the page's ground, CSS-generated | drawing grid, paper grain, none |
+| `--texture` | the page's ground, CSS-generated | paper grain, none |
+| `--grid` | a structural grid over the content column | drawing grid, none |
+| `--rail-align` | which edge rail content sits on | left, right |
 | `--ease` / `--dur` / `--stagger` | how the preset moves | stepped snap to slow drift |
+
+`--texture` and `--grid` are separate on purpose. A texture is a material the
+whole page is printed on, so it is full-bleed on `<body>`. A grid is something
+drawn against, so it tracks the content column: `--maxw` is exactly 8 columns of
+`--grid-column` plus both gutters, and the first rule lands on the text edge.
+Painted full-bleed it was anchored to the viewport while the content was
+anchored to a centred container, so the two never aligned at any width.
 
 **The One Structure Rule.** Presets vary rhythm and ornament. They never vary
 markup. A section is the same element in all four; only its punctuation differs.
 This is what keeps a component a single implementation while the designs stay
 genuinely distinct.
+
+### The rail
+
+The page is two columns: a metadata rail and a text column. Everything that
+annotates the text (section markers, post dates, tags, the hero eyebrow) sits in
+the margin, and the text column holds nothing but text.
+
+The rail exists because the reading measure is capped in `ch` and cannot grow.
+A container wider than the measure is only honest if something fills the
+difference; the alternative, shrinking the container to the measure, leaves a
+centred column of text with symmetric voids, which is the shape brand work is
+supposed to avoid. So the width has to be earned rather than removed.
+
+The numbers are interlocked and all live in `:root`:
+
+| | |
+|---|---|
+| content column | `960px` = 12 x `--grid-column` |
+| rail + `--rail-gap` | `160px` = 2 columns, so text starts on a grid line |
+| text column | `800px` = 10 columns |
+| `--maxw` | `960px` + two `2.5rem` gutters = `65rem` |
+
+**The Widest Preset Wins Rule.** The text column is sized by the widest-set
+body font, not the narrowest. 68ch of spec's grotesque needs `732px` where
+workshop's old-style serif needs `616px` for the same count, so a column fitted
+to workshop clips spec below the 65ch floor. It is a legibility floor, so the
+widest preset sets the column and narrower ones leave slack at the right.
+
+**The Fold Rule.** Below `60rem` the rail costs more than it gives, because the
+text column would drop under 65ch. It folds back into the flow and its contents
+sit above what they annotate. `test/system/layout_test.rb` fails if the measure
+leaves the 65-75ch band in any preset, at either width.
 
 **The Earned Ornament Rule.** Every decorative element names the object it comes
 from: spec's grid is a drawing grid, console's seam is a panel seam, terminal's
