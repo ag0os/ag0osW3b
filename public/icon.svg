@@ -1,3 +1,48 @@
-<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="256" cy="256" r="256" fill="red"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="512" height="512" role="img" aria-label="A marked line on a page">
+  <!--
+    The site's own device at 16 pixels: three lines of type on toned stock, the
+    middle one under a marker swipe. It is the workshop preset's grammar and
+    the argument the site makes, which is why it is not a letterform. An "a"
+    would need a webfont a favicon cannot load, and a monogram would say who
+    rather than what.
+
+    The swipe sits UNDER the ink and overshoots the line at both ends, because
+    a highlighter does not obscure what it marks and a hand does not stop
+    square. Laid 1.4 degrees off level, the same angle the mark-image token
+    uses in themes.css. (Token names are written without their leading dashes
+    here: a double hyphen is not legal inside an XML comment, and an SVG that
+    fails to parse renders as an empty tab.)
+
+    Colours are the workshop tokens converted to sRGB. Hex rather than oklch()
+    on purpose: a favicon is decoded outside the page's colour pipeline and a
+    format the decoder rejects leaves a blank tab. See themes.css for the
+    authored values.
+
+    Theme-aware: Chrome, Safari and Firefox all honour prefers-color-scheme
+    inside an SVG favicon, so the page ships on stock in a light tab and on
+    walnut in a dark one, and the marker holds in both.
+  -->
+  <style>
+    .stock { fill: #f8f4e9 }
+    .ink   { fill: #2b2018 }
+    .mark  { fill: #fbdc2f }
+    @media (prefers-color-scheme: dark) {
+      .stock { fill: #1f1812 }
+      .ink   { fill: #ece7de }
+      .mark  { fill: #c98f12 }
+    }
+  </style>
+
+  <rect class="stock" width="32" height="32" rx="5"/>
+
+  <!-- Weights are set for 16px, not for the 512 this renders at. A line an
+       honest 2.6 units tall is one anti-aliased pixel in a tab and greys out;
+       these are heavy enough to stay black. The short last line is what makes
+       three bars read as a paragraph rather than as a menu icon. -->
+  <g transform="rotate(-1.4 16 16)">
+    <rect class="ink"  x="7"   y="7.6"  width="18"   height="3.2" rx="1.6"/>
+    <rect class="mark" x="5.4" y="13.1" width="20.2" height="5.2" rx="1.2"/>
+    <rect class="ink"  x="7"   y="14"   width="18"   height="3.2" rx="1.6"/>
+    <rect class="ink"  x="7"   y="20.4" width="11"   height="3.2" rx="1.6"/>
+  </g>
 </svg>

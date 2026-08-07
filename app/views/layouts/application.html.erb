@@ -54,7 +54,20 @@
 
     <%= yield :head %>
 
+    <%# The icon is the site's device rather than the visitor's chosen preset:
+        three lines of type with the middle one under a marker. It is drawn in
+        the workshop palette and carries its own prefers-color-scheme rule, so
+        it follows the tab's light or dark, not data-theme.
+
+        iOS ignores SVG icons entirely, so a home-screen bookmark without the
+        apple-touch PNG gets a screenshot of the page instead of a mark. Both
+        PNGs are rasterised from the SVG: bin/render-icons. %>
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <%# Tints the browser chrome on mobile to the same stock the page is on. %>
+    <meta name="theme-color" content="#f8f4e9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1f1812" media="(prefers-color-scheme: dark)">
     <%= stylesheet_link_tag "themes", "fonts", "application", "components", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>

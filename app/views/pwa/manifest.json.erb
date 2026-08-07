@@ -1,5 +1,6 @@
 {
-  "name": "Ag0osW3b",
+  "name": "<%= SiteSetting["site_title"] %>",
+  "short_name": "<%= SiteSetting["site_title"].split.first %>",
   "icons": [
     {
       "src": "/icon.png",
@@ -16,7 +17,7 @@
   "start_url": "/",
   "display": "standalone",
   "scope": "/",
-  "description": "Ag0osW3b.",
-  "theme_color": "red",
-  "background_color": "red"
+  "description": "<%= MarkdownRenderer.unmark(SiteSetting["tagline"]) %>",
+  "theme_color": "#f8f4e9",
+  "background_color": "#f8f4e9"
 }
