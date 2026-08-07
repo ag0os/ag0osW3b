@@ -1,7 +1,10 @@
-<%# Still .railed with nothing in the rail: it is what keeps the hero's text
-    edge on the same axis as every section below it. %>
+<%# The note comes first so it lands in the rail's first row, beside the
+    title rather than below the buttons. %>
 <section class="hero container railed enter">
-  <h1 class="hero__title"><%= SiteSetting["tagline"] %></h1>
+  <% if SiteSetting["hero_note"].present? %>
+    <p class="note rail"><%= SiteSetting["hero_note"] %></p>
+  <% end %>
+  <h1 class="hero__title"><%= marked(SiteSetting["tagline"]) %></h1>
   <p class="hero__lead">
     Grounded in years of Rails/backend product engineering across fintech,
     video streaming, and enterprise systems.
@@ -19,7 +22,9 @@
 
   <% if @recent_posts.any? %>
     <section class="section railed">
-      <span class="section__marker rail" aria-hidden="true"></span>
+      <div class="rail">
+        <span class="section__marker" aria-hidden="true"></span>
+      </div>
       <h2 class="section__heading">Writing</h2>
       <ul class="post-list">
         <% @recent_posts.each do |post| %>

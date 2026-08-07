@@ -6,40 +6,42 @@ colors:
   # The other three presets redefine these same semantic roles. See section 2.
   # Authored in OKLCH by doctrine; Stitch's linter warns on non-hex, which is
   # accepted here rather than splitting the source of truth.
-  bg: "oklch(0.975 0.008 85)"
-  bg-subtle: "oklch(0.945 0.012 85)"
-  surface: "oklch(0.99 0.005 85)"
-  border: "oklch(0.87 0.012 80)"
-  border-strong: "oklch(0.62 0.02 80)"
-  text: "oklch(0.27 0.018 60)"
-  text-muted: "oklch(0.5 0.02 60)"
-  text-faint: "oklch(0.61 0.018 60)"
-  accent: "oklch(0.5 0.135 35)"
-  accent-contrast: "oklch(0.985 0.006 85)"
+  bg: "oklch(0.967 0.015 88)"
+  bg-subtle: "oklch(0.936 0.02 88)"
+  surface: "oklch(0.988 0.008 88)"
+  border: "oklch(0.862 0.017 84)"
+  border-strong: "oklch(0.608 0.025 84)"
+  text: "oklch(0.253 0.022 58)"
+  text-muted: "oklch(0.482 0.024 58)"
+  text-faint: "oklch(0.6 0.02 58)"
+  accent: "oklch(0.485 0.16 33)"
+  accent-contrast: "oklch(0.985 0.008 88)"
+  # The marker. One per preset; body text on it is contrast-tested.
+  mark: "oklch(0.895 0.175 98)"
   danger: "oklch(0.47 0.17 22)"
   success: "oklch(0.47 0.1 150)"
   # Preset identity accents, for the switcher chips.
-  accent-workshop: "oklch(0.5 0.135 35)"
+  accent-workshop: "oklch(0.485 0.16 33)"
   accent-console: "oklch(0.66 0.19 48)"
   accent-spec: "oklch(0.5 0.21 27)"
   accent-terminal: "oklch(0.8 0.145 78)"
 typography:
   display:
-    fontFamily: "Seravek, Optima, Candara, Corbel, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2.7rem, 1.9rem + 3.6vw, 4rem)"
-    fontWeight: 600
+    fontFamily: "Bricolage Grotesque, ui-sans-serif, system-ui, Segoe UI Variable Display, Ubuntu, sans-serif"
+    fontSize: "clamp(3.08rem, 2.17rem + 4.1vw, 4.56rem)"
+    fontWeight: 750
     lineHeight: 1.15
-    letterSpacing: "-0.015em"
+    letterSpacing: "-0.022em"
   headline:
     fontFamily: "{typography.display.fontFamily}"
     fontSize: "clamp(2.15rem, 1.7rem + 2.1vw, 2.9rem)"
-    fontWeight: 600
+    fontWeight: 750
     lineHeight: 1.15
-    letterSpacing: "-0.015em"
+    letterSpacing: "-0.022em"
   title:
     fontFamily: "{typography.display.fontFamily}"
     fontSize: "clamp(1.7rem, 1.45rem + 1.1vw, 2.1rem)"
-    fontWeight: 600
+    fontWeight: 750
     lineHeight: 1.15
   body:
     fontFamily: "Iowan Old Style, Charter, Palatino Linotype, Georgia, ui-serif, serif"
@@ -51,6 +53,11 @@ typography:
     fontSize: "0.75rem"
     fontWeight: 400
     letterSpacing: "0.01em"
+  note:
+    fontFamily: "Shantell Sans, Bradley Hand, Segoe Print, ui-rounded, cursive"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.35
 rounded:
   sm: "4px"
   md: "6px"
@@ -103,7 +110,7 @@ components:
 
 One signal, many routings. A patchbay does not change what runs through it; it changes where the signal goes and what colors it on the way out. This system works the same way. There is exactly one semantic contract, roughly forty named roles, and every component in the codebase is wired to that contract and to nothing else. Four presets sit behind the patchbay and answer those roles differently. Flip a jack and the whole site becomes a different design without a single component being rewritten.
 
-The presets are not skins and they are not moods. Each is a complete design identity with its own palette, typeface stack, and shape language: **workshop** (ink on warm paper, the default), **console** (studio-hardware panel), **spec** (Swiss technical grid), and **terminal** (amber phosphor, mono). Each ships light and dark. Eight finished surfaces, no drafts. A visitor can operate the switcher from the header, which makes the system itself a portfolio piece rather than a settings screen.
+The presets are not skins and they are not moods. Each is a complete design identity with its own palette, typeface stack, and shape language: **workshop** (a marked-up proof, the default), **console** (studio-hardware panel), **spec** (Swiss technical grid), and **terminal** (amber phosphor, mono). Each ships light and dark. Eight finished surfaces, no drafts. A visitor can operate the switcher from the header, which makes the system itself a portfolio piece rather than a settings screen.
 
 What this explicitly rejects: the generic SaaS landing page, AI-startup neon, editorial-magazine affectation, and the recruiter CV template. It also rejects anything requiring a Node toolchain. This is plain CSS custom properties served by Propshaft, and the restraint is the same argument the writing makes.
 
@@ -129,6 +136,8 @@ ground it sits on, and how it moves. Those are tokens too:
 | `--texture` | the page's ground, CSS-generated | paper grain, none |
 | `--grid` | a structural grid over the content column | drawing grid, none |
 | `--rail-align` | which edge rail content sits on | left, right |
+| `--mark-image` / `--mark-radius` | what a marked phrase is drawn with | marker swipe, tape, ruled line, filled cell |
+| `--font-hand` / `--note-*` | how a margin note is written | a hand, a panel label, a callout, a comment |
 | `--ease` / `--dur` / `--stagger` | how the preset moves | stepped snap to slow drift |
 | `--ink-stroke` / `--lamp-*` / `--dimension-*` / `--endmark-*` | the preset's one delight | answered by exactly one preset each |
 
@@ -209,14 +218,14 @@ Four palettes with four different jobs, sharing one set of role names. The strat
 
 ### Primary
 
-- **Oxide Red** (workshop, `oklch(0.5 0.135 35)`): the default accent. Restrained strategy, held under about 10% of any screen. Links, the primary button, the focus ring. Lifts to a warm rust in dark mode so it stays legible without turning neon.
+- **Oxide Red** (workshop, `oklch(0.485 0.16 33)`): the default accent. Restrained strategy, held under about 10% of any screen. Links, the primary button, the focus ring. Lifts to a warm rust in dark mode so it stays legible without turning neon. It shares the surface with a second ink that is not an accent at all: **Marker Yellow** (`oklch(0.895 0.175 98)`), which only ever appears where an author marked a phrase.
 - **Signal Orange** (console, `oklch(0.66 0.19 48)`): Committed strategy. The only preset where the accent carries real surface area, because a hardware panel earns one loud control. Note the split: the vivid orange is the *fill*, while links use a darker burnt orange, since high-chroma orange cannot clear 4.5:1 as text on a light panel.
 - **Signal Red** (spec, `oklch(0.5 0.21 27)`): Restrained, near-monochrome. One red against near-white, used the way a spec sheet uses red: to mark the thing that matters, never to decorate.
 - **Amber Phosphor** (terminal, `oklch(0.8 0.145 78)`): Committed, dark-first. Amber and not green, deliberately. Green on black is the AI-startup cliché this site exists to argue against; amber reads as a 1970s terminal manual and as the hardware lineage behind it.
 
 ### Neutral
 
-- **Warm Paper / Walnut** (workshop, `oklch(0.975 0.008 85)` light, `oklch(0.21 0.014 60)` dark): warmth comes from here, not from typography. The dark mode is walnut rather than charcoal.
+- **Toned Stock / Walnut** (workshop, `oklch(0.967 0.015 88)` light, `oklch(0.215 0.016 62)` dark): warmth comes from here, not from typography. The stock is toned rather than white, and the dark mode is walnut rather than charcoal.
 - **Panel Grey** (console, `oklch(0.895 0.006 95)` light): a mid-grey page ground, not a white one. The page is the equipment face.
 - **Cool White / Slate** (spec, `oklch(0.98 0.003 250)` light): the only cool-neutral preset. Hairline rules read as drawn on it.
 - **Warm Black / Fanfold** (terminal, `oklch(0.135 0.012 65)` dark, `oklch(0.955 0.01 90)` light): terminal's light mode is a line printer on fanfold paper, and it is finished work, not a fallback.
@@ -235,12 +244,14 @@ Four palettes with four different jobs, sharing one set of role names. The strat
 
 | Preset | Display | Body | Mono |
 |---|---|---|---|
-| workshop | Alegreya Sans | Alegreya | Sometype Mono |
+| workshop | Bricolage Grotesque | Alegreya | Sometype Mono, plus **Shantell Sans** for the hand |
 | console | Archivo | Archivo | Azeret Mono |
 | spec | Schibsted Grotesk | Schibsted Grotesk | Geist Mono |
 | terminal | Martian Mono | Sometype Mono | Sometype Mono |
 
-**Character:** workshop pairs a humanist sans heading with an old-style book serif, which inverts magazine grammar deliberately: sans over serif reads as a book, serif over sans reads as a magazine, and this site is not a magazine. Console is an industrial grotesque with a geometric mono for values, the way equipment is actually lettered. Spec is one contemporary grotesque at tight tracking with strong weight contrast. Terminal is mono throughout, wide and boxy for display, readable for text.
+**Character:** workshop is a printed document with a hand on it, so it carries three instruments rather than two. Bricolage Grotesque sets the document: a grotesque whose joints and terminals visibly do not line up, drawn in a workshop rather than a foundry, which is the only display face here that is not smooth. Alegreya carries the reading, since a proof is still something you read. Shantell Sans is the hand, drawn with a marker rather than imitating one, and its INFM axis is what stops the marginalia reading as a set label. Console is an industrial grotesque with a geometric mono for values, the way equipment is actually lettered. Spec is one contemporary grotesque at tight tracking with strong weight contrast. Terminal is mono throughout, wide and boxy for display, readable for text.
+
+The workshop pairing before this one was a humanist sans over that same serif on cream, which is the aesthetic every considered personal site converges on: correct, warm, and indistinguishable. Being on nobody's ban list is not the same as being distinctive.
 
 All open licensed (OFL), self-hosted via `bin/fetch-fonts`, latin subset only. No third-party request at runtime. Every `--font-*` token carries a full system-stack fallback, so a missing file degrades to a system face rather than breaking anything.
 
@@ -278,6 +289,25 @@ Flat by default, and flatter as the presets get more technical. Depth is carried
 **The Flat Default Rule.** A new component gets no shadow until someone can name the physical reason it is off the page. If the audit test is "would this look like a 2014 app", the answer is usually yes, and the fix is a border.
 
 ## 5. Components
+
+### The mark and the note (the hand)
+
+Two primitives that let a person appear on the page. Both are **content**, written in the admin rather than applied as a class, and both are answered by all four presets.
+
+**The mark.** `==phrase==` in any body text, in a section, or in the tagline renders a real `<mark>`. `MarkdownRenderer` applies it to the rendered tree rather than to the source, so `==this==` inside a code span or a fenced block stays literal, and a plain string goes through `MarkdownRenderer.mark`, which escapes first. `unmark` strips it back to words for `<title>`, meta descriptions and the feed, which take text and not markup.
+
+| Preset | Instrument |
+|---|---|
+| workshop | a marker swipe: band laid 1.4° off level, four disagreeing corner radii, overshooting the words |
+| console | a strip of tape, level and hard-edged, cut to the height of the lettering |
+| spec | a red line ruled under the clause, not over it |
+| terminal | a filled character cell, the way a terminal selects a run of text |
+
+**The note.** `Section#note` and the `hero_note` setting put a short line in the rail. Workshop writes it by hand and tilts it off level with a stroke curving out toward what it annotates; console sets it as a panel label; spec hangs it under a callout rule; terminal marks it as a `#` comment. The rail is `7.5rem`, so a note is a handful of words: marginalia, not a paragraph that happens to live in the margin.
+
+**The Instrument Rule.** A mark is drawn with a background image and a border radius, never with `clip-path` or `transform`. A marked phrase wraps, and on a wrapped inline both of those resolve against the union of the line fragments, so a two-line mark gets one rectangle spanning both lines and the gap between them. Backgrounds and radii are the only decoration `box-decoration-break: clone` can repeat per line.
+
+**The Contrast Pair Rule.** `--mark` is a solid colour, not a translucent wash, so `text` on `mark` is a pair in `contrast_test.rb` like any other. A highlighter does not obscure the ink under it, which makes the opaque model the honest one as well as the testable one.
 
 ### Buttons
 

@@ -29,13 +29,18 @@
     <%= form.text_field :heading %>
   </label>
 
+  <label class="field">
+    <span>Margin note <small class="muted">(optional, sits in the margin beside this section)</small></span>
+    <%= form.text_field :note %>
+  </label>
+
   <label class="field field--checkbox">
     <%= form.check_box :visible %>
     <span>Visible on the live site</span>
   </label>
 
   <label class="field">
-    <span>Body <small class="muted">(Markdown)</small></span>
+    <span>Body <small class="muted">(Markdown. Wrap a phrase in ==equals== to mark it.)</small></span>
     <%= form.text_area :body, rows: 14, class: "mono" %>
   </label>
 

@@ -132,6 +132,37 @@
        next to its command, not a screen-width away from it. */
     --rail-align: left;
 
+    /* ---- The hand --------------------------------------------------------
+       Two pieces of grammar that let a person appear on the page: a mark over
+       a phrase and a note in the margin. Both are content, written in the
+       admin, so this layer only decides what the marks are made of.
+
+       Every preset answers both, because both carry meaning that must survive
+       a switch: a marked phrase stays marked and a note stays a note. What
+       changes is the instrument. Workshop is a marker and a hand; console
+       labels its panel; spec annotates a drawing; terminal writes a comment.
+
+       --mark is a real background colour rather than a translucent wash, and
+       it is in the contrast test as a pair with --text. A highlighter does
+       not obscure the ink under it, so a solid fill behind the text is the
+       honest model as well as the testable one.
+
+       The instrument is drawn with a background image rather than a clipped or
+       rotated box, and that is not a stylistic choice. A marked phrase wraps,
+       and on a wrapped inline both clip-path and transform resolve against the
+       union of the line fragments, so a two-line mark gets one rectangle
+       spanning both lines and the space between them. Backgrounds and radii
+       are the only decoration that box-decoration-break can clone per line, so
+       the swipe has to live in those. */
+    --font-hand: var(--font-mono);
+    --hand-variation: normal;
+    --mark-image: linear-gradient(var(--mark) 0 0);
+    --mark-radius: 0;
+    --note-prefix: "";
+    --note-rotate: 0deg;
+    --note-rule: 0;
+    --note-leader: none;
+
     /* ---- Ground ----------------------------------------------------------
        Two separate grounds, because they answer to different things.
 
@@ -208,8 +239,8 @@
        render right now, so it does not change under you when you flip modes.
        Each pair is the preset's characteristic surface and accent. Terminal
        shows its dark home, because that is what terminal is. */
-    --chip-workshop-1: oklch(0.975 0.008 85);
-    --chip-workshop-2: oklch(0.5 0.135 35);
+    --chip-workshop-1: oklch(0.967 0.015 88);
+    --chip-workshop-2: oklch(0.485 0.16 33);
     --chip-console-1: oklch(0.895 0.006 95);
     --chip-console-2: oklch(0.66 0.19 48);
     --chip-spec-1: oklch(0.98 0.003 250);
@@ -221,60 +252,99 @@
   /* ======================================================================
      PRESET: workshop  (default)
 
-     Ink on warm paper. Restrained: tinted neutrals plus one oxide-red accent
-     held under ~10% of the surface. Humanist sans headings over an old-style
-     serif body, which inverts magazine grammar on purpose. Warmth here comes
-     from palette, space and type, never from editorial affectation: no drop
-     caps, no display-serif italic headlines, no tracked uppercase labels.
+     A marked-up proof. The page is a printed document and somebody has been
+     working on it: the operative phrase is under a marker, and there is a note
+     in the margin in their own hand.
 
-     Scene: reading a long post on a laptop at a kitchen table, mid-morning.
+     That is the argument the site makes, drawn rather than stated. Proof over
+     claims means showing the work on the page, and the margin is where the
+     thinking sits.
+
+     Three instruments, three faces. The document is set in a grotesque with
+     visibly irregular joints over an old-style book serif; the marks are a
+     marker and a hand. The previous version of this preset was a humanist sans
+     over that same serif on cream, which is the exact aesthetic every
+     considered personal site converges on. Nothing here is doing that job by
+     reflex any more.
+
+     Still no rules and no chapter numbers: sections are separated by air, and
+     the only thing in the margin is a person's note.
+
+     Scene: the printout of a long post on a workbench, marker uncapped,
+     mid-morning.
      ====================================================================== */
 
   [data-theme="workshop"] {
-    --l-bg: oklch(0.975 0.008 85);
-    --d-bg: oklch(0.21 0.014 60);
-    --l-bg-subtle: oklch(0.945 0.012 85);
-    --d-bg-subtle: oklch(0.175 0.012 60);
-    --l-surface: oklch(0.99 0.005 85);
-    --d-surface: oklch(0.255 0.014 60);
-    --l-border: oklch(0.87 0.012 80);
-    --d-border: oklch(0.36 0.016 60);
-    --l-border-strong: oklch(0.62 0.02 80);
-    --d-border-strong: oklch(0.56 0.02 60);
-    --l-text: oklch(0.27 0.018 60);
-    --d-text: oklch(0.93 0.012 85);
-    --l-text-muted: oklch(0.5 0.02 60);
-    --d-text-muted: oklch(0.73 0.016 75);
-    --l-text-faint: oklch(0.61 0.018 60);
-    --d-text-faint: oklch(0.61 0.016 75);
-    --l-accent: oklch(0.5 0.135 35);
-    --d-accent: oklch(0.74 0.12 45);
-    --l-accent-hover: oklch(0.42 0.14 35);
-    --d-accent-hover: oklch(0.83 0.1 48);
-    --l-accent-fill: oklch(0.5 0.135 35);
-    --d-accent-fill: oklch(0.74 0.12 45);
-    --l-accent-contrast: oklch(0.985 0.006 85);
-    --d-accent-contrast: oklch(0.19 0.014 60);
+    --l-bg: oklch(0.967 0.015 88);
+    --d-bg: oklch(0.215 0.016 62);
+    --l-bg-subtle: oklch(0.936 0.02 88);
+    --d-bg-subtle: oklch(0.178 0.014 62);
+    --l-surface: oklch(0.988 0.008 88);
+    --d-surface: oklch(0.258 0.016 62);
+    --l-border: oklch(0.862 0.017 84);
+    --d-border: oklch(0.365 0.018 62);
+    --l-border-strong: oklch(0.608 0.025 84);
+    --d-border-strong: oklch(0.56 0.022 62);
+    --l-text: oklch(0.253 0.022 58);
+    --d-text: oklch(0.93 0.014 86);
+    --l-text-muted: oklch(0.482 0.024 58);
+    --d-text-muted: oklch(0.73 0.018 76);
+    --l-text-faint: oklch(0.6 0.02 58);
+    --d-text-faint: oklch(0.61 0.017 76);
+    --l-accent: oklch(0.485 0.16 33);
+    --d-accent: oklch(0.75 0.13 45);
+    --l-accent-hover: oklch(0.405 0.16 33);
+    --d-accent-hover: oklch(0.84 0.11 48);
+    --l-accent-fill: oklch(0.485 0.16 33);
+    --d-accent-fill: oklch(0.75 0.13 45);
+    --l-accent-contrast: oklch(0.985 0.008 88);
+    --d-accent-contrast: oklch(0.19 0.016 62);
     --l-danger: oklch(0.47 0.17 22);
     --d-danger: oklch(0.72 0.15 22);
     --l-success: oklch(0.47 0.1 150);
     --d-success: oklch(0.74 0.1 150);
+    /* the marker. Yellow on stock, and a burnt swipe on the dark one, since a
+       highlighter on dark paper is a stain rather than a glow. */
+    --l-mark: oklch(0.895 0.175 98);
+    --d-mark: oklch(0.44 0.115 72);
 
-    /* type: humanist sans display, old-style book serif body */
-    --font-display: "Alegreya Sans", Seravek, Optima, Candara, Corbel,
-      "Gill Sans Nova", Ubuntu, ui-sans-serif, system-ui, sans-serif;
+    /* type: an irregular grotesque for the document, an old-style book serif
+       for reading, a marker face for the hand. Bricolage is drawn with joints
+       that do not quite line up, which is the point: it is a face made in a
+       workshop rather than a foundry. */
+    --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui,
+      "Segoe UI Variable Display", Ubuntu, "Helvetica Neue", sans-serif;
     --font-body: "Alegreya", "Iowan Old Style", Charter, "Palatino Linotype",
       Palatino, "Book Antiqua", Georgia, ui-serif, serif;
     --font-mono: "Sometype Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
       Consolas, monospace;
-    --tracking-display: -0.015em;
+    --font-hand: "Shantell Sans", "Bradley Hand", "Segoe Print", "Comic Sans MS",
+      ui-rounded, cursive;
+    /* Informality and bounce, so the margin reads as written rather than set.
+       Ignored by every fallback face, which is why the fallbacks are hands. */
+    --hand-variation: "INFM" 62, "BNCE" 22;
+    --tracking-display: -0.022em;
     --tracking-label: 0.01em;
     --case-label: none;
-    --weight-display: 700;
+    --weight-display: 750;
     --leading-body: 1.7;
+
+    /* the marker: a swipe, not a rectangle. The band is laid at a degree and a
+       half off level, it stops short of the line box top and bottom the way a
+       nib narrower than the type does, and the four corner radii disagree with
+       each other so no end lands square. */
+    --mark-image: linear-gradient(1.4deg,
+        transparent 0 14%,
+        var(--mark) 14% 97%,
+        transparent 97%);
+    --mark-radius: 0.26em 0.08em 0.32em 0.1em / 0.45em 0.16em 0.28em 0.2em;
+    --note-rotate: -1.2deg;
+    --note-leader: block;
 
     /* rhythm: unhurried. The most generous of the four. */
     --density: 1.18;
+    /* the document's title is set to be read across a room */
+    --display-scale: 1.14;
 
     /* grammar: no rules at all. Sections are separated by air, which is the
        entire idea. A hairline here would make it the same page as spec. */
@@ -361,6 +431,11 @@
     --d-danger: oklch(0.72 0.16 25);
     --l-success: oklch(0.46 0.11 150);
     --d-success: oklch(0.75 0.11 150);
+    /* the mark: a strip of tape across the panel. Level, hard-edged, cut to
+       the height of the lettering rather than the line. */
+    --l-mark: oklch(0.815 0.15 62);
+    --d-mark: oklch(0.415 0.105 55);
+    --mark-image: linear-gradient(transparent 0 9%, var(--mark) 9% 89%, transparent 89%);
 
     /* type: industrial grotesque, geometric mono for values */
     --font-display: "Archivo", "Helvetica Neue", Helvetica, "Nimbus Sans", Arial,
@@ -462,6 +537,9 @@
     --d-danger: oklch(0.68 0.19 27);
     --l-success: oklch(0.46 0.11 155);
     --d-success: oklch(0.74 0.11 155);
+    /* the mark: the red wash a checker lays over the clause in question */
+    --l-mark: oklch(0.855 0.085 25);
+    --d-mark: oklch(0.375 0.105 25);
 
     /* type: contemporary grotesque, tight, high weight contrast */
     --font-display: "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system,
@@ -479,6 +557,14 @@
     /* rhythm: the densest of the four. A spec sheet does not waste paper. */
     --density: 0.84;
     --display-scale: 1.05;
+
+    /* a note on a drawing is a callout: it sits under its own hairline, in the
+       same hand as every other figure on the sheet. */
+    --note-rule: var(--border-width) solid var(--border);
+
+    /* the mark: drawn along a straightedge under the words, not over them.
+       A checker rules the clause in question; they do not colour it in. */
+    --mark-image: linear-gradient(transparent 0 58%, var(--mark) 58% 100%);
 
     /* grammar: numbered sections over a hairline. The number is the label. */
     --rule-width: 1px;
@@ -575,6 +661,11 @@
     --d-danger: oklch(0.74 0.16 25);
     --l-success: oklch(0.46 0.1 145);
     --d-success: oklch(0.78 0.1 145);
+    /* the mark: a filled character cell, the way a terminal selects a run of
+       text. It is the one preset that wants the plain fill, so it inherits the
+       default image rather than drawing its own. */
+    --l-mark: oklch(0.862 0.115 88);
+    --d-mark: oklch(0.418 0.105 78);
 
     /* type: mono, all of it. A wide boxy face for display, a readable one for
        everything that is actually read. */
@@ -599,6 +690,9 @@
        Chrome gives up on text-wrap: balance, which is why it was orphaning a
        word. Widening the measure brings it back under the limit. */
     --hero-measure: 21ch;
+
+    /* a note in a session is a comment, and it is marked as one. */
+    --note-prefix: "# ";
 
     /* grammar: a prompt before every heading, dashed rules between sections.
        The prompt is the punctuation; nothing else is needed. */
@@ -677,6 +771,7 @@
     --accent-hover: var(--l-accent-hover);
     --accent-fill: var(--l-accent-fill);
     --accent-contrast: var(--l-accent-contrast);
+    --mark: var(--l-mark);
     --danger: var(--l-danger);
     --success: var(--l-success);
   }
@@ -697,6 +792,7 @@
       --accent-hover: var(--d-accent-hover);
       --accent-fill: var(--d-accent-fill);
       --accent-contrast: var(--d-accent-contrast);
+      --mark: var(--d-mark);
       --danger: var(--d-danger);
       --success: var(--d-success);
     }
@@ -717,6 +813,7 @@
     --accent-hover: var(--d-accent-hover);
     --accent-fill: var(--d-accent-fill);
     --accent-contrast: var(--d-accent-contrast);
+    --mark: var(--d-mark);
     --danger: var(--d-danger);
     --success: var(--d-success);
   }

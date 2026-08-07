@@ -22,6 +22,7 @@ class ContrastTest < ActiveSupport::TestCase
     [ "text-muted",  "bg",        AA_TEXT,  "secondary text on the page" ],
     [ "text-muted",  "bg-subtle", AA_TEXT,  "secondary text on a recessed surface" ],
     [ "text-faint",  "bg",        AA_LARGE, "placeholder and tertiary text" ],
+    [ "text",        "mark",      AA_TEXT,  "a marked phrase, which is body text with a marker under it" ],
     [ "accent",      "bg",        AA_TEXT,  "links" ],
     [ "accent-hover", "bg",       AA_TEXT,  "links on hover" ],
     [ "danger",      "bg",        AA_TEXT,  "destructive action text" ]

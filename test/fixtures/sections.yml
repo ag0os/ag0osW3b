@@ -4,7 +4,8 @@ home_intro:
   key: home_intro
   page: home
   heading: Intro
-  body: "Hello from **home**."
+  note: A note in the margin.
+  body: "Hello from ==home==."
   visible: true
   position: 1
 

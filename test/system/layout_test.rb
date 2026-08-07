@@ -63,6 +63,39 @@ class LayoutTest < ApplicationSystemTestCase
     assert_not scrolls_horizontally?, "the page scrolls sideways on a phone"
   end
 
+  # The two things an author can put on a page that are not plain prose: a
+  # marked phrase and a note in the margin. Both are content, so both have to
+  # survive every design rather than being drawn in one and dropped in three.
+  test "a marked phrase is drawn in every design" do
+    visit root_path
+
+    design_options.each do |option|
+      option.click
+      name = option[:"aria-label"]
+
+      assert_selector "main mark", text: "home"
+      assert drawn_mark?,
+        "#{name} renders a marked phrase with nothing drawn behind it, so the " \
+        "emphasis the author wrote is invisible here"
+    end
+  end
+
+  test "a margin note sits beside its section and folds above it on a phone" do
+    visit root_path
+
+    note = rect("main .section .note")
+    heading = rect("main .section h2")
+
+    assert_operator note["right"], :<=, heading["left"],
+      "the note is in the text column rather than in the margin"
+
+    resize(*NARROW)
+    assert_operator rect("main .section .note")["bottom"], :<=,
+      rect("main .section h2")["top"] + 1,
+      "the note did not fold above its heading on a phone"
+    assert_not scrolls_horizontally?, "the page scrolls sideways on a phone"
+  end
+
   test "the reading measure stays inside the legible band in every design" do
     visit root_path
 
@@ -101,6 +134,18 @@ class LayoutTest < ApplicationSystemTestCase
             width: Math.round(box.width)
           };
         })
+      JS
+    end
+
+    # A mark whose instrument resolved to nothing computes to background-image:
+    # none, because an invalid custom-property substitution drops the whole
+    # declaration back to its initial value rather than erroring.
+    def drawn_mark?
+      evaluate_script(<<~JS)
+        (() => {
+          const mark = document.querySelector("main mark");
+          return !!mark && getComputedStyle(mark).backgroundImage !== "none";
+        })()
       JS
     end
 

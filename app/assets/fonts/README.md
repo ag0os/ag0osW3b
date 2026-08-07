@@ -11,13 +11,18 @@ self-hosting means the site makes no third-party request at runtime.
 
 | Preset | Display | Body | Mono | License |
 |---|---|---|---|---|
-| workshop | Alegreya Sans | Alegreya | Sometype Mono | OFL 1.1 |
+| workshop | Bricolage Grotesque | Alegreya | Sometype Mono | OFL 1.1 |
 | console | Archivo | Archivo | Azeret Mono | OFL 1.1 |
 | spec | Schibsted Grotesk | Schibsted Grotesk | Geist Mono | OFL 1.1 |
 | terminal | Martian Mono | Sometype Mono | Sometype Mono | OFL 1.1 |
 
-All are variable fonts except Alegreya Sans, which ships as two static weights.
-Only the latin subset is fetched.
+Workshop carries a fourth face: **Shantell Sans** (OFL 1.1), the hand that
+writes its margin notes. It is fetched with its `BNCE` and `INFM` axes intact,
+because `--hand-variation` sets informality on it; requesting weight alone
+returns a face pinned to the axis defaults and the marginalia comes out set
+rather than written.
+
+All are variable fonts. Only the latin subset is fetched.
 
 **The site works without them.** Every `--font-*` token in `themes.css` carries a
 full system-stack fallback, and `fonts.css` declarations for missing files are

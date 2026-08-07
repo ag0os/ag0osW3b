@@ -1,12 +1,24 @@
-<%# The marker is a sibling of the heading, not a child of it, so it can sit in
-    the rail. Keeping it out of the heading is also what keeps it out of the
-    accessible name: generated content counts toward that name, so as a
-    pseudo-element on the h2 it made the heading announce differently in every
-    preset. Rendered unconditionally in all four; workshop resolves it to
-    display: none. %>
+<%# Everything that annotates the section shares one rail cell: the preset's
+    marker and the author's margin note. They have to be one element rather
+    than two siblings, because grid auto-placement never moves backwards, so a
+    second .rail child would be pushed to the row below the prose instead of
+    sitting beside the heading it belongs to.
+
+    The marker is a span rather than a pseudo-element on the h2 because
+    generated content counts toward the accessible name: as a ::before it made
+    the heading announce "CH.01 What I do" in console and "$ What I do" in
+    terminal, so a cosmetic preference changed heading semantics. Rendered
+    unconditionally in all four presets; workshop resolves it to display: none. %>
 <section class="section railed" id="<%= section.key %>">
+  <% if section.heading.present? || section.note.present? %>
+    <div class="rail">
+      <span class="section__marker" aria-hidden="true"></span>
+      <% if section.note.present? %>
+        <p class="note"><%= section.note %></p>
+      <% end %>
+    </div>
+  <% end %>
   <% if section.heading.present? %>
-    <span class="section__marker rail" aria-hidden="true"></span>
     <h2 class="section__heading"><%= section.heading %></h2>
   <% end %>
   <div class="prose">

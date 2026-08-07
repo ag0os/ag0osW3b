@@ -19,19 +19,19 @@ end
 # ---- Sections (static, toggleable content blocks) ---------------------------
 sections = [
   # Home
-  { page: "home", key: "home_what_i_do", position: 1, heading: "What I do", body: <<~MD },
+  { page: "home", key: "home_what_i_do", position: 1, note: "The tools are new. The judgment is not.", heading: "What I do", body: <<~MD },
     - I build **AI-native software workflows and agent orchestration tools**, not just AI as autocomplete.
-    - I turn vague product intent into **planned, tested, maintainable systems**.
+    - I turn vague product intent into ==planned, tested, maintainable systems==.
     - I'm senior across **backend, full-stack, cloud, and AI-assisted delivery**.
   MD
-  { page: "home", key: "home_featured", position: 2, heading: "Featured: Cosmonauts", body: <<~MD },
+  { page: "home", key: "home_featured", position: 2, note: "Built it because I needed it.", heading: "Featured: Cosmonauts", body: <<~MD },
     **Cosmonauts** is an agent-first AI orchestration framework built on Pi. Declare agents,
     compose prompts and skills, and wire workflows that run automatically: as chains, drive
     runs, or side-by-side sessions.
 
     [View on GitHub →](https://github.com/ag0os/cosmonauts)
   MD
-  { page: "home", key: "home_proof", position: 3, heading: "Selected proof", body: <<~MD },
+  { page: "home", key: "home_proof", position: 3, note: "Numbers, not adjectives.", heading: "Selected proof", body: <<~MD },
     - Secure payment workflows for **hundreds of sports organizations**, thousands of daily transactions.
     - Expanded an **AWS SQS→Kafka** migration pattern for video platform workflows.
     - Cross-team Kanban features for an internal platform with **10,000+ daily active users**.
@@ -39,7 +39,7 @@ sections = [
   MD
 
   # About
-  { page: "about", key: "about_bio", position: 1, heading: nil, body: <<~MD },
+  { page: "about", key: "about_bio", position: 1, note: "San Isidro, GMT-3.", heading: nil, body: <<~MD },
     I'm a senior full-stack, product-minded software engineer based in San Isidro, Buenos Aires
     (GMT-3). My core background is Ruby/Rails, backend systems, cloud platforms, and product
     engineering across fintech/payments, video streaming, and enterprise tools.
@@ -52,8 +52,8 @@ sections = [
     I'm most interested in AI-forward product engineering, developer tools, agentic workflow
     consulting, and early-stage / founding engineering work.
   MD
-  { page: "about", key: "about_how_i_work", position: 2, heading: "How I work", body: <<~MD },
-    > AI doesn't remove the need for engineering judgment. It moves the judgment earlier:
+  { page: "about", key: "about_how_i_work", position: 2, note: "This is the whole argument.", heading: "How I work", body: <<~MD },
+    > AI doesn't remove the need for engineering judgment. It ==moves the judgment earlier==:
     > into planning, architecture, tests, boundaries, and feedback loops.
 
     I care about both codebase health and agent workflow design: context, constraints, tests,
@@ -66,20 +66,20 @@ sections = [
   MD
 
   # Work
-  { page: "work", key: "work_open_source", position: 1, heading: "Open source", body: <<~MD },
+  { page: "work", key: "work_open_source", position: 1, note: "All of it public.", heading: "Open source", body: <<~MD },
     - **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent-first AI orchestration framework built on Pi.
     - **[Claude Forge](https://github.com/ag0os/claude-forge)**. Earlier Bun-based agent harness; predecessor to Cosmonauts.
     - **[Bright Tauri](https://github.com/ag0os/bright-tauri)**. Early-stage React + Rust/Tauri app.
   MD
-  { page: "work", key: "work_experience", position: 2, heading: "Selected experience", body: <<~MD },
-    - **Senior Full-Stack Engineer**. Rails-based fintech/payment systems for a large sports technology platform; secure payment workflows for hundreds of organizations and thousands of daily transactions.
+  { page: "work", key: "work_experience", position: 2, note: "Most of the rest is private.", heading: "Selected experience", body: <<~MD },
+    - **Senior Full-Stack Engineer**. Rails-based fintech/payment systems for a large sports technology platform; secure payment workflows for ==hundreds of organizations== and thousands of daily transactions.
     - **Software Engineer, video streaming**. Expanded an AWS SQS→Kafka migration pattern; improved subscription services (Apple/Google Play receipt validation, AWS Marketplace integrations).
     - **Full-Stack Developer, IBM**. Internal platform with 10,000+ daily active users; reusable Vue components; 45% frontend bundle reduction.
     - **Mainframe automation / compliance lead, IBM**. 30% storage reduction, ~$50K/year saved.
   MD
 
   # Contact
-  { page: "contact", key: "contact_intro", position: 1, heading: nil, body: <<~MD }
+  { page: "contact", key: "contact_intro", position: 1, note: "I answer email.", heading: nil, body: <<~MD }
     I'm open to senior / founding product-engineering roles and AI-workflow consulting.
     The fastest way to reach me is email, or find me on LinkedIn and GitHub below.
   MD

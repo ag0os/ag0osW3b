@@ -51,11 +51,12 @@ bin/rubocop           # rails-omakase style — keep it clean
 
 - **`Section`** — static content blocks (Markdown `body`), grouped by `page`
   (`home`/`about`/`work`/`contact`), ordered by `position`, shown when
-  `visible`. Public pages render `Section.for_page(x).visible.ordered`.
+  `visible`. An optional `note` puts a short line in the page margin. Public pages render `Section.for_page(x).visible.ordered`.
 - **`Post`** — Markdown blog posts, `draft`/`published` (enum), public at
   `/writing/:slug`. `published_at` is set automatically on publish.
-- **`SiteSetting`** — key/value site-wide values (title, tagline, links). Read
-  via `SiteSetting["key"]`, which falls back to `SiteSetting::DEFAULTS`.
+- **`SiteSetting`** — key/value site-wide values (title, tagline, links,
+  `hero_note`). Read via `SiteSetting["key"]`, which falls back to
+  `SiteSetting::DEFAULTS`.
 
 ### Public vs admin
 
@@ -75,6 +76,13 @@ sanitized HTML. It **disables Commonmarker's built-in (inline-style) highlighter
 and applies **Rouge** with CSS classes instead, so code blocks are themeable via
 plain CSS (see the `.highlight .*` rules in `application.css`). Use the
 `markdown(text)` helper in views.
+
+It also turns **`==phrase==` into `<mark>`**, the site's emphasis primitive, which
+every preset draws with its own instrument (a marker swipe, a strip of tape, a
+ruled red line, a filled cell). It is applied to the rendered tree, so `==this==`
+inside code stays literal. For plain strings use the `marked(text)` helper, and
+`unmarked(text)` for anywhere that takes text rather than markup: `<title>`, meta
+descriptions, the feed.
 
 ### Design system
 
@@ -114,6 +122,8 @@ implementation. The presentation tokens that carry that:
 | `--heading-marker` | what precedes a heading (substituted into `content:`) |
 | `--texture` | the page's CSS-generated ground |
 | `--ease` / `--dur` / `--dur-enter` / `--stagger` | how the preset moves |
+| `--mark-image` / `--mark-radius` | what a marked phrase is drawn with |
+| `--font-hand` / `--note-*` | how a margin note is written |
 | `--ink-stroke`, `--lamp-*`, `--dimension-*`, `--endmark-*` | the preset's one delight |
 
 **One delight per preset.** Each of those slots is inert in `:root` and answered

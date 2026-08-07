@@ -16,7 +16,16 @@ class SiteSetting < ApplicationRecord
   # Fallback values used until/unless overridden in the admin.
   DEFAULTS = {
     "site_title"   => "Agustin Calabrese",
-    "tagline"      => "Senior Software Engineer building AI-native software workflows and agent orchestration tools.",
+    # ==phrase== marks a phrase; see MarkdownRenderer::MARK. The mark is the
+    # site's emphasis primitive, so it lives in the content, not in a class.
+    # The hyphen in AI-native is U+2011, a non-breaking hyphen. A marked phrase
+    # that breaks mid-word gets two swipes with a hyphen stranded at the end of
+    # the first, which reads as a mistake rather than as emphasis.
+    "tagline"      => "Senior Software Engineer building ==AI‑native== software workflows and agent orchestration tools.",
+    # The note in the margin of the hero, in the visitor's chosen hand. The
+    # rail is 7.5rem wide, so a note is a handful of words: marginalia, not a
+    # paragraph that happens to live in the margin.
+    "hero_note"    => "Thirteen years in audio first. Same job.",
     "email"        => "agoos@hey.com",
     "github_url"   => "https://github.com/ag0os",
     "linkedin_url" => "https://www.linkedin.com/in/agustincalabrese",

@@ -464,6 +464,92 @@
     font-size: var(--text-sm);
   }
 
+  /* ---- The mark ----------------------------------------------------------
+     Written as ==phrase== in any body text or in the tagline, and rendered as
+     a real <mark>, so the emphasis is in the content rather than in a class
+     somebody remembered to add. Every preset draws it with its own instrument
+     and every one of them is contrast-tested against --text.
+
+     box-decoration-break is what makes this survive a wrap: without it a
+     phrase broken over two lines gets one background sized to the union of
+     both fragments, which paints a block across the gap between the lines.
+
+     The negative margin lets the mark overshoot the words slightly, because a
+     swipe that stops exactly at the first and last glyph looks like a
+     rectangle someone typed rather than a mark someone made. */
+  mark {
+    padding: 0.08em 0.26em;
+    margin-inline: -0.12em;
+    background-color: transparent;
+    background-image: var(--mark-image);
+    border-radius: var(--mark-radius);
+    color: inherit;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* ---- The margin note ---------------------------------------------------
+     A person in the margin. The text is content (Section#note, or the
+     hero_note setting), and the preset decides the instrument: workshop
+     writes it by hand and tilts it off level, console sets it as a panel
+     label, spec hangs it under a callout rule, terminal marks it as a
+     comment.
+
+     It sits in the rail, which in workshop was otherwise empty: air between
+     sections is that preset's grammar, so the margin was the only place left
+     where a person could show up. */
+  .note {
+    font-family: var(--font-hand);
+    font-variation-settings: var(--hand-variation);
+    font-size: var(--text-sm);
+    line-height: 1.35;
+    /* Deliberately not --tracking-label. A note is prose, and console tracks
+       its labels at 0.09em, which in a 7.5rem margin costs about three
+       characters a line. The case still follows the preset. */
+    text-transform: var(--case-label);
+    color: var(--text-muted);
+    text-wrap: pretty;
+    padding-top: var(--space-2);
+    border-top: var(--note-rule);
+    transform: rotate(var(--note-rotate));
+  }
+
+  .note::before {
+    content: var(--note-prefix);
+  }
+
+  /* The leader: a stroke curving out of the note toward what it annotates.
+     Two borders and a lopsided radius, which is a quarter of an ellipse and
+     reads as drawn rather than plotted. Only workshop resolves --note-leader
+     to anything; a panel label, a drawing callout and a shell comment all
+     point at the thing above them without needing a line. */
+  .note::after {
+    content: "";
+    display: var(--note-leader);
+    width: 2.6rem;
+    height: 1rem;
+    margin-top: var(--space-2);
+    margin-left: auto;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    border-bottom-right-radius: 90% 75%;
+    opacity: 0.55;
+    transform: rotate(-7deg);
+  }
+
+  /* Folded: the rail is in the flow, so the note sits above what it annotates
+     and the leader would point at the wrong thing. */
+  @media (max-width: 60rem) {
+    .note {
+      transform: none;
+      margin-bottom: var(--space-2);
+    }
+
+    .note::after {
+      display: none;
+    }
+  }
+
   /* ---- Post list ---------------------------------------------------------
      A rule-separated list, not a card grid. Date sits beside the title on wide
      viewports and above it on narrow ones. */

@@ -2,7 +2,9 @@
 <html lang="en" data-theme="<%= SiteSetting.theme_preset %>">
   <%
     page_title = content_for(:title).presence || SiteSetting["site_title"]
-    page_description = content_for(:description).presence || SiteSetting["tagline"]
+    # unmarked: the tagline carries ==marks== for the hero, and a link preview
+    # takes text, not markup.
+    page_description = unmarked(content_for(:description).presence || SiteSetting["tagline"])
     canonical_url = request.base_url + request.path
   %>
   <head>

@@ -15,7 +15,10 @@
    ========================================================================== */
 
 @layer tokens {
-  /* Workshop: humanist sans over an old-style book serif. */
+  /* Workshop: a printed page with a hand on it. The document is set in a
+     grotesque with visibly irregular joints over an old-style book serif; the
+     marks a reader left on it are drawn with a marker. Three roles, three
+     different tools, which is the whole preset. */
   @font-face {
     font-family: "Alegreya";
     src: url("alegreya-var.woff2") format("woff2");
@@ -25,17 +28,21 @@
   }
 
   @font-face {
-    font-family: "Alegreya Sans";
-    src: url("alegreya-sans-500.woff2") format("woff2");
-    font-weight: 500;
+    font-family: "Bricolage Grotesque";
+    src: url("bricolage-grotesque-var.woff2") format("woff2");
+    font-weight: 200 800;
+    font-stretch: 75% 100%;
     font-style: normal;
     font-display: swap;
   }
 
+  /* The hand. Shantell Sans is drawn with a marker rather than imitating one,
+     and it carries an INFM (informality) axis, so the marginalia can be set
+     loose without the face itself being a novelty script. */
   @font-face {
-    font-family: "Alegreya Sans";
-    src: url("alegreya-sans-700.woff2") format("woff2");
-    font-weight: 700;
+    font-family: "Shantell Sans";
+    src: url("shantell-sans-var.woff2") format("woff2");
+    font-weight: 300 800;
     font-style: normal;
     font-display: swap;
   }
