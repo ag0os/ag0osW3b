@@ -22,6 +22,20 @@ class StylesheetTest < ActiveSupport::TestCase
     ease dur dur-enter
   ].freeze
 
+  # One delight per preset, and exactly one. Each is a token slot that is inert
+  # in :root and answered by a single preset, the way --cursor-content is: the
+  # mechanism ships in all four, the performance belongs to one.
+  #
+  # Both halves matter. A slot two presets answer stops being either one's
+  # signature, and a preset collecting several is how delight turns into the
+  # noise it is supposed to be the opposite of.
+  DELIGHTS = {
+    "workshop" => "ink-stroke",
+    "console"  => "lamp-display",
+    "spec"     => "dimension-display",
+    "terminal" => "endmark-display"
+  }.freeze
+
   test "stylesheets exist" do
     assert_equal %w[admin.css application.css components.css fonts.css themes.css],
       STYLESHEETS.map { |path| path.basename.to_s }.sort
@@ -47,6 +61,42 @@ class StylesheetTest < ActiveSupport::TestCase
     assert_empty duplicates.values.flatten(1).map(&:first),
       "these presets are indistinguishable on density, rule style, heading " \
       "marker and display font, so switching between them barely shows"
+  end
+
+  test "each delight belongs to exactly one preset" do
+    DELIGHTS.each do |owner, token|
+      answering = preset_blocks.select { |_, body| body.match?(/^\s*--#{token}:/) }.keys
+
+      assert_equal [ owner ], answering,
+        "--#{token} is #{owner}'s delight. Answered by #{answering.join(', ').presence || 'nobody'}, " \
+        "it is either site furniture or a preset that has stopped being quiet."
+    end
+  end
+
+  test "every preset answers a delight, and only its own" do
+    owed = preset_blocks.keys.to_h { |name| [ name, DELIGHTS.fetch(name, "") ] }
+
+    owed.each do |name, own|
+      strays = DELIGHTS.values.reject { |token| token == own }
+        .select { |token| preset_blocks.fetch(name).match?(/^\s*--#{token}:/) }
+
+      assert_not_equal "", own,
+        "preset #{name} has no delight of its own. Give it one that names the " \
+        "object it is built on, and add it to DELIGHTS."
+      assert_empty strays,
+        "preset #{name} also answers #{strays.join(', ')}, which belongs to another preset"
+    end
+  end
+
+  test "every delight slot is inert by default" do
+    css = strip_comments(Rails.root.join("app/assets/stylesheets/themes.css"))
+
+    DELIGHTS.each_value do |token|
+      assert_equal 2, css.scan(/^\s*--#{token}:/).length,
+        "--#{token} should be declared exactly twice: an inert default in :root " \
+        "and the one preset that answers it. Without the default the other " \
+        "three presets resolve it to nothing at all, which is not the same thing."
+    end
   end
 
   test "comments are balanced" do

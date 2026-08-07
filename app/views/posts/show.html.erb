@@ -21,5 +21,9 @@
 
   <footer class="post__footer">
     <%= link_to "← All writing", posts_path, class: "link-more" %>
+    <%# Rendered in every preset, drawn by one: terminal ends a post the way a
+        session ends, on a prompt and a waiting cursor. Everywhere else the
+        tokens resolve to display: none and nothing is generated. %>
+    <p class="post__endmark" aria-hidden="true"></p>
   </footer>
 </article>

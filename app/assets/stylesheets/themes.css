@@ -164,6 +164,33 @@
        presets run a forever-animation on a box that draws nothing. */
     --cursor-anim: none;
 
+    /* ---- Delight ---------------------------------------------------------
+       One per preset, and exactly one.
+
+       Every slot is inert here and answered by a single preset, the same way
+       --cursor-content is: the mechanism ships in all four, the performance
+       belongs to one. That is what keeps a delight a signature instead of site
+       furniture. Two presets answering the same slot would make it neither's,
+       and a preset answering several is where delight turns into noise.
+
+       Each one names the object its preset is built on, which is the Earned
+       Ornament Rule applied to behaviour rather than to decoration:
+
+         --ink-stroke    workshop  a pen stroke laid under a title, unhurried
+         --lamp-*        console   a channel's tally lamp, lit while it is live
+         --dimension-*   spec      a drawing dimensioning its own object
+         --endmark-*     terminal  the prompt returning at the end of a session
+
+       test/design/stylesheet_test.rb fails the build if a slot loses its inert
+       default or is answered by more than one preset. */
+    --ink-stroke: transparent;
+    --lamp-display: none;
+    --lamp-timeline: auto;
+    --dimension-display: none;
+    --dimension-label: "";
+    --endmark-display: none;
+    --endmark-content: "";
+
     /* derived roles: computed from the preset palette, never hand-authored */
     --surface-hover: color-mix(in oklab, var(--surface) 94%, var(--text));
     --accent-subtle: color-mix(in oklab, var(--accent) 14%, var(--bg));
@@ -266,6 +293,12 @@
     --dur-enter: 620ms;
     --stagger: 95ms;
 
+    /* delight: the ink stroke. A post title's underline is laid down rather
+       than switched on, at this preset's own unhurried drift, and it lifts off
+       to the right the way a pen leaves the page. The quietest of the four
+       delights, which is right for the quietest preset. */
+    --ink-stroke: var(--accent);
+
     /* shape: soft, near-flat, paper-like */
     --radius: 6px;
     --radius-sm: 4px;
@@ -360,6 +393,15 @@
     --dur: 90ms;
     --dur-enter: 150ms;
     --stagger: 45ms;
+
+    /* delight: the tally lamp. Every channel on a desk carries one and it
+       states exactly one thing: this channel is live. Here it lights while its
+       section is on screen, which is the same claim about the same object.
+
+       It is not a meter. No levels, no bars, no invented signal: a portfolio
+       with a fake VU on it is the failure mode this preset exists to avoid. */
+    --lamp-display: inline-block;
+    --lamp-timeline: --section-view;
 
     /* shape: machined, hard-edged, zero blur */
     --radius: 3px;
@@ -457,6 +499,17 @@
     --dur: 170ms;
     --dur-enter: 320ms;
     --stagger: 45ms;
+
+    /* delight: the drawing dimensions itself. An overall width, ticked at both
+       ends, sitting under the object it measures, exactly where a drawing puts
+       one. The figure is checkable against the grid lines behind it: the text
+       column is ten of the twelve columns.
+
+       The label restates --rail and --grid-column, so those three move
+       together or the annotation starts lying. Components hide it below the
+       width where the container stops being twelve whole columns. */
+    --dimension-display: block;
+    --dimension-label: "10 COL";
 
     /* shape: sharp, flat, rule-driven */
     --radius: 0;
@@ -569,6 +622,14 @@
     --dur-enter: 280ms;
     --stagger: 60ms;
     --cursor-anim: blink 1.15s steps(1, end) infinite;
+
+    /* delight: the prompt returns. Finishing a post is the end of a session,
+       so the shell comes back and waits for the next command. It reuses the
+       cursor this preset already blinks in the hero rather than inventing a
+       second piece of vocabulary, and the two never share a page: a post has
+       no hero. */
+    --endmark-display: block;
+    --endmark-content: "$";
 
     /* shape: nothing rounded, nothing raised */
     --radius: 0;

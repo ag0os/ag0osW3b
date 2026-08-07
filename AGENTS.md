@@ -114,6 +114,14 @@ implementation. The presentation tokens that carry that:
 | `--heading-marker` | what precedes a heading (substituted into `content:`) |
 | `--texture` | the page's CSS-generated ground |
 | `--ease` / `--dur` / `--dur-enter` / `--stagger` | how the preset moves |
+| `--ink-stroke`, `--lamp-*`, `--dimension-*`, `--endmark-*` | the preset's one delight |
+
+**One delight per preset.** Each of those slots is inert in `:root` and answered
+by exactly one preset (workshop's drawn underline, console's tally lamp, spec's
+dimension line, terminal's returning prompt), so the mechanism ships everywhere
+and the performance belongs to one. `stylesheet_test.rb` fails the build if a
+slot is answered twice, a preset answers two, or a slot loses its inert default.
+See DESIGN.md for what each names.
 
 `test/design/stylesheet_test.rb` fails the build if a preset omits any identity
 token, or if two presets share a design fingerprint.

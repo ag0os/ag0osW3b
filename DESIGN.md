@@ -130,6 +130,7 @@ ground it sits on, and how it moves. Those are tokens too:
 | `--grid` | a structural grid over the content column | drawing grid, none |
 | `--rail-align` | which edge rail content sits on | left, right |
 | `--ease` / `--dur` / `--stagger` | how the preset moves | stepped snap to slow drift |
+| `--ink-stroke` / `--lamp-*` / `--dimension-*` / `--endmark-*` | the preset's one delight | answered by exactly one preset each |
 
 `--texture` and `--grid` are separate on purpose. A texture is a material the
 whole page is printed on, so it is full-bleed on `<body>`. A grid is something
@@ -179,6 +180,28 @@ leaves the 65-75ch band in any preset, at either width.
 from: spec's grid is a drawing grid, console's seam is a panel seam, terminal's
 `$` is a prompt. Ornament that cannot name its referent is decoration, and it
 does not ship.
+
+### The delights
+
+One per preset, and exactly one:
+
+| Preset | Delight | Where | Referent |
+|---|---|---|---|
+| workshop | the ink stroke: a title's underline is drawn from the left and lifts off to the right | post lists | a pen laid on the page |
+| console | the tally lamp: lit while its section is on screen, dim once it has passed | section markers | a live channel on a desk |
+| spec | the dimension: `\|— 10 COL —\|` under the hero, countable against the grid | home hero | a drawing stating its overall width |
+| terminal | the prompt returns | end of a post | a session going idle |
+
+**The One Delight Rule.** Each is a token slot that is inert in `:root` and
+answered by a single preset, the same way `--cursor-content` is: the mechanism
+ships in all four, the performance belongs to one. A slot two presets answer is
+site furniture rather than anyone's signature, and a preset collecting several
+is where delight turns into the noise it is meant to be the opposite of.
+`test/design/stylesheet_test.rb` fails the build on either.
+
+Consequently none of them needs a component to know which preset it is in, and
+the volume of each matches the volume of its preset: workshop's is a slow
+underline, terminal's blinks.
 
 ## 2. Colors
 

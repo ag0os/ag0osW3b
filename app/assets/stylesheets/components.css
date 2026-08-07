@@ -287,6 +287,51 @@
     }
   }
 
+  /* Spec's delight: the hero is dimensioned.
+     A drawing states its overall width under the object, ticked at both ends,
+     with the figure sitting in a gap in the rule. That is all this is: two
+     borders for the ticks, two background segments for the rule, and the
+     label as content.
+
+     It spans grid-column 2, so the dimension is the text column itself, and
+     the grid lines spec paints behind it make the figure countable. Every
+     other preset resolves --dimension-display to none and generates nothing.
+
+     Only true at 65rem and up. Below that the container is narrower than
+     twelve whole columns, so the count stops being an integer and a drawing
+     that misstates its own dimensions is worse than one that omits them. */
+  .hero::after {
+    content: var(--dimension-label);
+    display: none;
+    grid-column: 2;
+    height: 0.8rem;
+    margin-top: var(--space-7);
+    border-left: var(--border-width) solid var(--border-strong);
+    border-right: var(--border-width) solid var(--border-strong);
+    background-image:
+      linear-gradient(var(--border-strong) 0 0),
+      linear-gradient(var(--border-strong) 0 0);
+    background-size: calc(50% - 5ch) 1px, calc(50% - 5ch) 1px;
+    background-position: left center, right center;
+    background-repeat: no-repeat;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    line-height: 0.8rem;
+    text-align: center;
+    color: var(--text-muted);
+    /* Arrives after the last real child, the way an annotation is added once
+       the drawing is done. .enter only reaches element children. */
+    animation: rise var(--dur-enter) var(--ease) both;
+    animation-delay: calc(var(--stagger) * 3);
+  }
+
+  @media (min-width: 65rem) {
+    .hero::after {
+      display: var(--dimension-display);
+    }
+  }
+
   .hero__lead {
     margin-top: var(--space-5);
     max-width: 48ch;
@@ -311,6 +356,10 @@
     counter-increment: section;
     padding-top: var(--space-4);
     border-top: var(--rule-width) var(--rule-style) var(--border);
+    /* Named so console's tally can be driven by the section's own pass across
+       the viewport rather than by the marker's, which is a few pixels tall and
+       would flash rather than hold. Unsupported browsers drop the property. */
+    view-timeline-name: --section-view;
   }
 
   .section__heading {
@@ -344,6 +393,67 @@
 
   .section__marker::before {
     content: var(--heading-marker);
+  }
+
+  /* Console's delight: the tally lamp.
+     A lamp beside a channel number means the channel is live, so this one is
+     lit while its section is on screen and dim once it has passed. The state
+     is true rather than decorative, and it is the section's own position that
+     drives it.
+
+     Decorative in the accessibility sense (the marker is aria-hidden and the
+     section is visible anyway), so hue alone carrying it is fine here.
+
+     Three presets resolve --lamp-display to none, so nothing is generated and
+     nothing animates. In console without scroll-driven animation support the
+     lamp is simply lit: a panel indicator that does not track, rather than a
+     dead one. */
+  .section__marker::after {
+    content: "";
+    display: var(--lamp-display);
+    width: 0.5em;
+    height: 0.5em;
+    margin-left: 0.6em;
+    /* --accent-fill, not currentColor. The marker's own colour is the link
+       accent, which is darkened in light mode so it can carry text; a lamp
+       that inherited it read as a dim square rather than as something lit.
+       --accent-fill is the signal role, and it is the same orange the one
+       loud control on the panel already uses. */
+    background: var(--accent-fill);
+  }
+
+  @supports (animation-timeline: view()) {
+    .section__marker::after {
+      animation-name: tally;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: var(--lamp-timeline);
+    }
+  }
+
+  /* Held through the middle of the pass and dropped at both ends, so a section
+     entering and a section leaving are both dim while the one being read is
+     lit. `both` fill is what makes the off-screen ends resolve to the dim
+     endpoints instead of the last value. */
+  @keyframes tally {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+
+    14%,
+    86% {
+      opacity: 1;
+    }
+  }
+
+  /* A scroll-linked fade is still motion the visitor did not ask for. Killing
+     the animation outright leaves the lamp at its static value, which is lit:
+     the same fallback an unsupporting browser gets. */
+  @media (prefers-reduced-motion: reduce) {
+    .section__marker::after {
+      animation: none;
+    }
   }
 
   .link-more {
@@ -381,17 +491,47 @@
     border-top: var(--border-width) solid var(--border);
   }
 
+  /* Workshop's delight: the ink stroke.
+     The underline is drawn rather than switched on. It grows from the left at
+     the preset's own pace, and because the anchor flips back to the right at
+     rest it retracts the way a pen lifts off the page instead of rewinding.
+
+     background-size is a paint-only property, so nothing here is a layout
+     animation. The three presets that resolve --ink-stroke to transparent
+     paint nothing and keep the plain colour change they have now.
+
+     justify-self is what makes it a stroke rather than a rule. The title is a
+     grid item, so it is blockified and its box fills the whole text column:
+     the underline ran the full 800px with the words sitting in the first
+     third of it. Sizing the item to its content puts the stroke under the
+     title, and it also stops the link's hit area from extending across empty
+     column for every row in the list.
+
+     The y offset is a fraction of the box rather than its bottom edge, since
+     a title inherits the body's leading and the bottom of that line box sits
+     well under the descenders. */
   .post-list__title {
+    justify-self: start;
+    max-width: 100%;
     font-family: var(--font-display);
     font-size: var(--text-lg);
     font-weight: var(--weight-display);
     letter-spacing: var(--tracking-display);
     color: var(--text);
+    background-image: linear-gradient(var(--ink-stroke) 0 0);
+    background-repeat: no-repeat;
+    background-position-x: right;
+    background-position-y: calc(100% - 0.38em);
+    background-size: 0 1px;
+    transition: background-size var(--dur) var(--ease);
   }
 
-  .post-list__title:hover {
+  .post-list__title:hover,
+  .post-list__title:focus-visible {
     color: var(--accent);
     text-decoration: none;
+    background-position-x: left;
+    background-size: 100% 1px;
   }
 
   .post-list__date {
@@ -455,6 +595,32 @@
     margin-top: var(--space-8);
     padding-top: var(--space-5);
     border-top: var(--border-width) solid var(--border);
+  }
+
+  /* Terminal's delight: the prompt returns.
+     Reaching the end of a post is the end of a session, so the shell comes
+     back and waits. The prompt is --endmark-content and the block after it is
+     the same --cursor-content this preset blinks in the hero, which the other
+     three resolve to nothing.
+
+     The element is rendered in every preset and collapses to display: none in
+     three of them, so the markup stays identical across presets. It is
+     aria-hidden in the view: a prompt is punctuation, not content. */
+  .post__endmark {
+    display: var(--endmark-display);
+    margin-top: var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--accent);
+  }
+
+  .post__endmark::before {
+    content: var(--endmark-content);
+  }
+
+  .post__endmark::after {
+    content: var(--cursor-content);
+    animation: var(--cursor-anim);
   }
 
   /* ---- Prose (rendered markdown) -----------------------------------------
