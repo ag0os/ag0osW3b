@@ -1,0 +1,9 @@
+<% if sections.empty? %>
+  <p class="shell__muted"><%= t("shell.cat.empty") %></p>
+<% end %>
+<% sections.each do |section| %>
+  <% if section.heading.present? %>
+    <p class="shell__heading"><%= section.heading %></p>
+  <% end %>
+  <div class="shell__prose"><%= markdown(section.body) %></div>
+<% end %>

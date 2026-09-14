@@ -16,3 +16,11 @@ home_hidden:
   body: A hidden block.
   visible: false
   position: 2
+
+home_proof:
+  key: home_proof
+  page: home
+  heading: Selected proof
+  body: "- Hundreds of organizations, thousands of daily transactions."
+  visible: true
+  position: 3

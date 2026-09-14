@@ -1,7 +1,9 @@
 # ag0osW3b
 
 Agustin Calabrese's personal website — a small, vanilla Rails app with a
-Markdown blog and a simple admin for managing content.
+Markdown blog and a simple admin for managing content. The home page opens on
+a shell that types its own greeting and answers commands, in English or
+Spanish; `SHELL.md` is the spec, including the agent it is growing into.
 
 ## Stack
 
@@ -31,7 +33,8 @@ blocks (toggleable per page), Markdown `Post`s (draft/published), and key/value
 ## Design
 
 Four theme presets (`workshop`, `console`, `spec`, `terminal`), each shipping
-light and dark. Visitors switch from the header; the site default is set at
-`/admin/settings`. `DESIGN.md` documents the token contract, `PRODUCT.md` the
-strategy behind it, and `test/design/` enforces both. `ROADMAP.md` holds ideas
-that were considered and deliberately parked, with the reasoning.
+light and dark. Visitors switch from the header or from the shell (`theme
+spec`, `dark`); the site default is set at `/admin/settings`. `DESIGN.md`
+documents the token contract, `PRODUCT.md` the strategy behind it, and
+`test/design/` enforces both. `ROADMAP.md` holds ideas that were considered
+and deliberately parked, with the reasoning.

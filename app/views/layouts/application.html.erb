@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="<%= SiteSetting.theme_preset %>">
+<html lang="<%= I18n.locale %>" data-theme="<%= SiteSetting.theme_preset %>">
   <%
     page_title = content_for(:title).presence || SiteSetting["site_title"]
     # unmarked: the tagline carries ==marks== for the hero, and a link preview
     # takes text, not markup.
-    page_description = unmarked(content_for(:description).presence || SiteSetting["tagline"])
+    page_description = unmarked(content_for(:description).presence || SiteSetting.localized("tagline"))
     canonical_url = request.base_url + request.path
   %>
   <head>
@@ -73,7 +73,7 @@
   </head>
 
   <body class="site">
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main"><%= t("skip_link") %></a>
     <%= render "shared/header" %>
     <main class="site-main" id="main">
       <%= render "shared/flash" %>

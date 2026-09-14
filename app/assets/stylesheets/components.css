@@ -255,16 +255,23 @@
 
   /* ---- Hero --------------------------------------------------------------*/
   .hero {
-    padding-block: var(--space-8) var(--space-6);
+    padding-block: var(--space-7) var(--space-6);
   }
 
   /* There is no eyebrow. It used to sit here reading "Agustin Calabrese",
      which is the same string the header brand already renders a few rems
      above it, so it was the name twice in one viewport. A kicker has to say
-     something the page does not already say. */
+     something the page does not already say.
+
+     Headline size, not display. The title used to be the loudest thing on
+     the page; now the shell under it is the hero, and at display size the
+     title pushed the shell's first line under the fold of a laptop. It keeps
+     the preset's display scale so terminal still sets it smaller and workshop
+     larger, and the measure widens in step with the smaller type so it still
+     breaks into three or four lines rather than a column of single words. */
   .hero__title {
-    font-size: var(--text-3xl);
-    max-width: var(--hero-measure);
+    font-size: calc(var(--text-2xl) * var(--display-scale));
+    max-width: calc(var(--hero-measure) * 1.5);
   }
 
   /* Terminal ends its hero on a blinking block cursor. Every other preset
@@ -332,19 +339,146 @@
     }
   }
 
-  .hero__lead {
-    margin-top: var(--space-5);
-    max-width: 48ch;
-    font-size: var(--text-lg);
-    color: var(--text-muted);
-    line-height: 1.45;
+  /* ---- The shell ---------------------------------------------------------
+     The front door: a command line under the title that types its own
+     greeting and answers what a visitor enters. See SHELL.md.
+
+     One component, every preset. It reads the same surface, boundary, radius
+     and shadow tokens a card does, so terminal renders it as the thing itself,
+     workshop as a transcript typed on the stock, console as a screen set into
+     the panel and spec as a box on the grid. No preset gets a branch.
+
+     Focus is the one deliberate exception to "components never restyle
+     focus": the ring is still the global token at the global width, but it is
+     drawn on the frame through :focus-within rather than around the text
+     field inside it, because a rectangle around a bare input inside a
+     terminal reads as a second, smaller terminal. */
+  .shell {
+    margin-top: var(--space-6);
+    padding: var(--space-4) var(--space-5);
+    min-height: 19rem;
+    background: var(--surface);
+    border: var(--border-width) solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    color: var(--text);
+    cursor: text;
+    overflow-wrap: anywhere;
   }
 
-  .hero__actions {
+  .shell:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .shell__input:focus,
+  .shell__input:focus-visible {
+    outline: none;
+  }
+
+  .shell__exchange + .shell__exchange,
+  .shell__exchange + .shell__form {
+    margin-top: var(--space-3);
+  }
+
+  .shell__echo,
+  .shell__form {
     display: flex;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-    margin-top: var(--space-6);
+    gap: 1ch;
+    align-items: baseline;
+  }
+
+  .shell__prompt {
+    flex: none;
+    color: var(--accent);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .shell__cmd {
+    font: inherit;
+    font-weight: 600;
+  }
+
+  .shell__input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: var(--text);
+    caret-color: var(--accent);
+  }
+
+  .shell__input::placeholder {
+    color: var(--text-faint);
+  }
+
+  .shell__out {
+    margin-top: var(--space-1);
+  }
+
+  .shell__out > * + *,
+  .shell__prose > * + * {
+    margin-top: var(--space-2);
+  }
+
+  .shell__muted {
+    color: var(--text-muted);
+  }
+
+  .shell__heading {
+    font-weight: 700;
+  }
+
+  .shell__pre {
+    margin: 0;
+    font: inherit;
+    white-space: pre-wrap;
+  }
+
+  .shell__list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .shell__out a {
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .shell__prose ul,
+  .shell__prose ol {
+    padding-left: 2ch;
+  }
+
+  .shell__prose li + li {
+    margin-top: var(--space-1);
+  }
+
+  .shell__prose blockquote {
+    padding-left: 1.5ch;
+    border-left: 2px solid var(--border-strong);
+    color: var(--text-muted);
+  }
+
+  .shell__prose code {
+    font-size: 0.95em;
+    background: var(--bg-subtle);
+    border: var(--border-width) solid var(--border);
+    padding: 0.05em 0.3em;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (max-width: 40rem) {
+    .shell {
+      padding: var(--space-3) var(--space-4);
+      min-height: 15rem;
+    }
   }
 
   /* ---- Content sections --------------------------------------------------

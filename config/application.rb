@@ -23,5 +23,10 @@ module Ag0osW3b
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # The public site speaks English and Spanish; SiteController picks one per
+    # request. The admin stays English.
+    config.i18n.available_locales = [ :en, :es ]
+    config.i18n.default_locale = :en
   end
 end

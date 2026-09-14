@@ -9,6 +9,10 @@ Rails.application.routes.draw do
   get "work",    to: "pages#work"
   get "contact", to: "pages#contact"
 
+  # The shell on the home page submits here. GET, so a command is a URL and
+  # the page works without JavaScript.
+  get "shell", to: "shell#show", as: :shell
+
   # Blog
   get "writing",       to: "posts#index", as: :posts
   get "writing/:slug", to: "posts#show",  as: :post

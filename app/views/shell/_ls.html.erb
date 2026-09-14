@@ -1,0 +1,6 @@
+<%
+  lines = pages.map { |page, count| page.ljust(10) + t("shell.ls.sections", count: count) }
+  lines << "writing".ljust(10) + t("shell.ls.writing", count: posts)
+%>
+<p class="shell__muted"><%= t("shell.ls.intro") %></p>
+<pre class="shell__pre"><%= lines.join("\n") %></pre>

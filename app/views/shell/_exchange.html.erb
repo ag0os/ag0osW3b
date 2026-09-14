@@ -1,0 +1,9 @@
+<%# One command and what it printed. The prompt glyph is decoration, so it is
+    hidden from assistive tech and the echoed line is a <kbd>, which is what
+    it is: something the visitor typed. %>
+<div class="shell__exchange"<% if local_assigns[:opening] %> data-shell-target="opening"<% end %>>
+  <p class="shell__echo"><span class="shell__prompt" aria-hidden="true"><%= t("shell.prompt") %></span><kbd class="shell__cmd"><%= result.line %></kbd></p>
+  <div class="shell__out">
+    <%= render partial: "shell/#{result.view}", locals: result.locals %>
+  </div>
+</div>

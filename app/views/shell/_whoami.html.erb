@@ -1,0 +1,8 @@
+<%# Who the visitor is talking to. The copy is a setting so it can change
+    without a deploy, and it honours ==marks== like the tagline does. %>
+<p><strong><%= SiteSetting["site_title"] %></strong></p>
+<p><%= marked(SiteSetting.localized("shell_whoami")) %></p>
+<p class="shell__muted">
+  <%= t("shell.whoami.mail") %> <%= mail_to SiteSetting["email"] %>
+  · <%= t("shell.whoami.github") %> <%= link_to SiteSetting["github_url"].sub(%r{\Ahttps?://(?:www\.)?}, ""), SiteSetting["github_url"], target: "_blank", rel: "me noopener" %>
+</p>

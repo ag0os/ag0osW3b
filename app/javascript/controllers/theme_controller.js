@@ -31,10 +31,15 @@ export default class extends Controller {
   }
 
   toggleMode() {
-    const next = this.mode === "dark" ? "light" : "dark"
-    this.render({ mode: next })
-    this.store("mode", next)
-    this.swap(() => { document.documentElement.dataset.mode = next })
+    this.setMode(this.mode === "dark" ? "light" : "dark")
+  }
+
+  // Also called by the shell (`light`, `dark`), so the switch has one path.
+  setMode(mode) {
+    if (mode !== "light" && mode !== "dark") return
+    this.render({ mode })
+    this.store("mode", mode)
+    this.swap(() => { document.documentElement.dataset.mode = mode })
   }
 
   // Arrow keys move between swatches, as a radiogroup is expected to.

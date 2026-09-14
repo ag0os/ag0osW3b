@@ -58,9 +58,38 @@ bin/rubocop           # rails-omakase style — keep it clean
   `hero_note`). Read via `SiteSetting["key"]`, which falls back to
   `SiteSetting::DEFAULTS`.
 
+### The shell
+
+The home page opens on a command line. Read **`SHELL.md`** before touching it:
+it is the spec for the whole surface, including the FAQ matcher and grounded
+model it is staged to grow into.
+
+- **`Shell`** (`app/services/shell.rb`) interprets one line and returns a
+  `Result` naming a partial under `app/views/shell/` plus its locals. It knows
+  nothing about HTTP. Free text lands in `:unknown`, which is where later
+  routes plug in.
+- **`ShellController#show`** answers `GET /shell?line=...`: a Turbo Stream
+  appending the exchange when JavaScript asked for one, otherwise a redirect
+  to `/?line=...` so the home page renders the exchange after the opening.
+  `open` and `lang` redirect instead.
+- **The opening** is the `shell_opening` setting, `;`-separated commands run
+  at render time. `whoami` prints `shell_whoami` (and `shell_whoami_es`).
+- **`shell_controller.js`** plays the opening typed once per session, keeps
+  history and Tab completion, and answers `theme`, `light`, `dark`, `clear`
+  and `open` in the browser by calling the theme controller, so the switch
+  has one code path. `Shell::CLIENT_SIDE` lists them so the server can say
+  they need JavaScript when it is off.
+- **Two languages.** `SiteController` picks the locale per request: the
+  `locale` cookie set by `lang es`, then `Accept-Language`, then English. The
+  chrome strings live in `config/locales/en.yml` and `es.yml` under one
+  matching tree; a test fails if the two files disagree. Localised settings
+  are sibling keys with a `_es` suffix read through `SiteSetting.localized`.
+  The admin never switches.
+
 ### Public vs admin
 
-- Public controllers inherit **`SiteController`** (`allow_unauthenticated_access`).
+- Public controllers inherit **`SiteController`** (`allow_unauthenticated_access`,
+  and the locale switch above).
   The `Authentication` concern makes the app login-required by default, so public
   controllers opt out there.
 - Admin controllers live under `Admin::` and inherit **`Admin::BaseController`**
@@ -179,9 +208,11 @@ unstyled HTML. `test/design/stylesheet_test.rb` catches it.
 ## Testing
 
 Minitest with fixtures (`test/fixtures/*.yml`). `test/integration/site_flow_test.rb`
-covers public rendering, auth redirects, and admin CRUD. Add or adjust tests when
-you change behavior, and keep `bin/rails test` and `bin/rubocop` green before
-finishing.
+covers public rendering, auth redirects, and admin CRUD;
+`test/integration/shell_test.rb` covers the shell over HTTP, both with and
+without JavaScript, and `test/system/shell_test.rb` covers it as typed. Add or
+adjust tests when you change behavior, and keep `bin/rails test` and
+`bin/rubocop` green before finishing.
 
 `test/design/` holds the design system's guards, and they are not optional:
 

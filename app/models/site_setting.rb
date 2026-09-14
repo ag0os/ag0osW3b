@@ -26,6 +26,16 @@ class SiteSetting < ApplicationRecord
     # rail is 7.5rem wide, so a note is a handful of words: marginalia, not a
     # paragraph that happens to live in the margin.
     "hero_note"    => "Thirteen years in audio first. Same job.",
+    # Spanish copy is a sibling key with the locale as suffix, read through
+    # SiteSetting.localized. Absent, the English value is used.
+    "tagline_es"   => "Ingeniero de software senior; construyo flujos de trabajo ==AI‑native== y herramientas de orquestación de agentes.",
+    "hero_note_es" => "Trece años en audio primero. El mismo trabajo.",
+    # The shell on the home page. See SHELL.md. The opening is the session
+    # typed out on load, as `;`-separated commands; whoami is what the first
+    # of them prints.
+    "shell_opening"   => "whoami; cat proof; help",
+    "shell_whoami"    => "Senior software engineer in San Isidro, Buenos Aires, GMT-3. Rails and backend systems, cloud, ==AI‑native delivery==. Thirteen years as a DJ, producer and sound engineer before that.",
+    "shell_whoami_es" => "Ingeniero de software senior en San Isidro, Buenos Aires, GMT-3. Rails y sistemas backend, cloud, ==entrega AI‑native==. Antes de eso, trece años como DJ, productor e ingeniero de sonido.",
     "email"        => "agoos@hey.com",
     "github_url"   => "https://github.com/ag0os",
     "linkedin_url" => "https://www.linkedin.com/in/agustincalabrese",
@@ -44,6 +54,13 @@ class SiteSetting < ApplicationRecord
     def [](key)
       record = find_by(key: key.to_s)
       record&.value.presence || DEFAULTS[key.to_s]
+    end
+
+    # The value for the current locale when one exists (`tagline_es` while
+    # the locale is Spanish), else the plain key. English has no suffix, so
+    # for :en this is the same as [].
+    def localized(key)
+      self["#{key}_#{I18n.locale}"].presence || self[key]
     end
 
     def []=(key, value)

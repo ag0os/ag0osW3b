@@ -1,18 +1,15 @@
 <%# The note comes first so it lands in the rail's first row, beside the
-    title rather than below the buttons. %>
+    title rather than below the shell.
+
+    The hero is the tagline and the shell. There is no lead paragraph and no
+    button row any more: the shell's opening says who this is and prints the
+    email, and the nav is a line above. See SHELL.md. %>
 <section class="hero container railed enter">
-  <% if SiteSetting["hero_note"].present? %>
-    <p class="note rail"><%= SiteSetting["hero_note"] %></p>
+  <% if SiteSetting.localized("hero_note").present? %>
+    <p class="note rail"><%= SiteSetting.localized("hero_note") %></p>
   <% end %>
-  <h1 class="hero__title"><%= marked(SiteSetting["tagline"]) %></h1>
-  <p class="hero__lead">
-    Grounded in years of Rails/backend product engineering across fintech,
-    video streaming, and enterprise systems.
-  </p>
-  <div class="hero__actions">
-    <%= link_to "Get in touch", contact_path, class: "btn btn--primary" %>
-    <%= link_to "See my work", work_path, class: "btn" %>
-  </div>
+  <h1 class="hero__title"><%= marked(SiteSetting.localized("tagline")) %></h1>
+  <%= render "shell/shell", opening: @opening, exchanges: @exchanges %>
 </section>
 
 <div class="container stack">
@@ -25,7 +22,7 @@
       <div class="rail">
         <span class="section__marker" aria-hidden="true"></span>
       </div>
-      <h2 class="section__heading">Writing</h2>
+      <h2 class="section__heading"><%= t("home.writing") %></h2>
       <ul class="post-list">
         <% @recent_posts.each do |post| %>
           <li class="post-list__item railed">
@@ -36,7 +33,7 @@
           </li>
         <% end %>
       </ul>
-      <%= link_to "All writing →", posts_path, class: "link-more" %>
+      <%= link_to t("home.all_writing"), posts_path, class: "link-more" %>
     </section>
   <% end %>
 </div>

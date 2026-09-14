@@ -259,8 +259,8 @@ None of these appear on the reflex-reject list. That list exists because Inter, 
 
 ### Hierarchy
 
-- **Display** (600 to 700, `clamp(2.7rem, 1.9rem + 3.6vw, 4rem)`, 1.15): the hero title only. Capped at 17ch so it breaks into a shape rather than a paragraph.
-- **Headline** (600 to 700, `clamp(2.15rem, 1.7rem + 2.1vw, 2.9rem)`, 1.15): page titles and post titles.
+- **Display** (600 to 700, `clamp(2.7rem, 1.9rem + 3.6vw, 4rem)`, 1.15): currently unused. It set the hero title until the shell became the hero; at that size the title pushed the shell's first line under a laptop's fold. The step stays in the scale for whatever next earns it.
+- **Headline** (600 to 700, `clamp(2.15rem, 1.7rem + 2.1vw, 2.9rem)`, 1.15): the hero title, page titles and post titles. The hero title keeps the preset's display scale and a measure of one and a half times `--hero-measure`, so it still breaks into a shape of three or four lines rather than a paragraph or a column of single words.
 - **Title** (600 to 700, `clamp(1.7rem, 1.45rem + 1.1vw, 2.1rem)`, 1.15): section headings, each sitting under a hairline rule.
 - **Body** (400, `1.0625rem`, 1.6 to 1.7): prose. Measure is capped at **68ch**, expressed in `ch` rather than `rem` so it self-corrects per preset: workshop's serif and terminal's mono need different pixel widths for the same character count.
 - **Label** (400 to 600, `0.75rem`, tracking varies): dates, tags, table headers, metadata.
@@ -308,6 +308,38 @@ Two primitives that let a person appear on the page. Both are **content**, writt
 **The Instrument Rule.** A mark is drawn with a background image and a border radius, never with `clip-path` or `transform`. A marked phrase wraps, and on a wrapped inline both of those resolve against the union of the line fragments, so a two-line mark gets one rectangle spanning both lines and the gap between them. Backgrounds and radii are the only decoration `box-decoration-break: clone` can repeat per line.
 
 **The Contrast Pair Rule.** `--mark` is a solid colour, not a translucent wash, so `text` on `mark` is a pair in `contrast_test.rb` like any other. A highlighter does not obscure the ink under it, which makes the opaque model the honest one as well as the testable one.
+
+### The shell (the front door)
+
+The home page opens on a command line under the title. It types its own
+greeting, then waits; a visitor can read what it printed, or enter a command,
+or ask it something. `SHELL.md` is the spec, and the argument: a theme
+switcher demonstrates craft once, a shell that answers only from what the site
+says demonstrates it every time.
+
+It is one component in every preset, and it reads the same surface, boundary,
+radius and shadow tokens a card does. Terminal renders the thing itself.
+Workshop renders a transcript typed on the stock, with the same hand in the
+margin beside it. Console renders a screen set into the panel. Spec renders a
+box on the grid. Nothing in it branches on a preset.
+
+- **Type:** `--font-mono` at body size throughout, including the input, so
+  what is typed and what is printed are the same instrument.
+- **The prompt** is drawn in `--accent` and hidden from assistive tech; the
+  echoed command is a `<kbd>`, which is what it is.
+- **Output** is `--text`, system lines are `--text-muted`, and Markdown
+  printed from a section keeps its marks and its links.
+- **Focus** is the one deliberate exception to the no-restyling rule: the
+  global ring, at the global width, drawn on the frame through `:focus-within`
+  rather than around the text field inside it. A rectangle around a bare input
+  inside a terminal reads as a second, smaller terminal.
+- **Motion:** the opening types at a human cadence, once per session, and any
+  keypress skips it. Under `prefers-reduced-motion` it never animates.
+
+**The Scanner Rule.** The thirty-second visitor never types. The opening has
+to carry the pitch on its own: who this is, the proof, how to reach him. If a
+change to the opening leaves those out, it is a regression however good it
+looks.
 
 ### Buttons
 
