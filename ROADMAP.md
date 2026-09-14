@@ -13,6 +13,28 @@ remembers.
 
 ## Open
 
+### The shell becomes `ag0os`
+
+*Raised 2026-09-14. PRD in `SHELL.md`; v0 (commands only) built the same day.*
+
+The home page is now a shell, and free text is answered with "not live yet".
+The PRD turns it into a program: the terminal types `ag0os`, the program that
+launches is a conversation, `!` runs the shell underneath and `/` talks to the
+program. Two stages remain, in cost order, both specified in `SHELL.md`, so
+this entry is only the pointer.
+
+1. **v1, no model, the launch candidate.** The boot and banner, the prefix
+   grammar, tappable suggestions, an FAQ table with admin and seeds, a
+   transcript table with "promote to FAQ", Spanish section bodies.
+2. **v2, the grounded model.** Called only on a miss, answering through a
+   schema, cited against real section keys, rendered as escaped text, behind
+   a per-IP rate limit and a global daily budget in Solid Cache. The model is
+   not chosen yet; the cost table in `SHELL.md` is the input to that decision.
+
+**Why it is staged:** a conversational prompt that answers nothing is worse
+than a shell that never claimed to, so the FAQ ships with the conversation;
+and v1 collects the real questions v2 would otherwise have to guess at.
+
 ### Link previews have no image
 
 *Raised 2026-08-05, during the design audit.*
@@ -103,5 +125,27 @@ experiment. It would also give spec's drawing grid a second thing to align to.
 
 ## Rejected
 
-Nothing yet. Entries move here when a decision is made *against* them, with the
-reason, so the same idea does not get re-proposed every six months.
+Entries move here when a decision is made *against* them, with the reason, so
+the same idea does not get re-proposed every six months.
+
+### A self-hosted small model behind the shell
+
+*Rejected 2026-09-14, while planning the shell's agent.*
+
+The appeal was zero per-question cost. It does not survive the numbers: on a
+CPU box a few-billion-parameter model produces a short answer in tens of
+seconds, which fails the thirty-second visitor outright, and a GPU box costs
+more per month than a year of API misses would at the traffic this site can
+expect. Quality in Spanish and resistance to injection are also worse than the
+hosted models at the size that would fit. The honest cost lever is not a
+cheaper model, it is not calling one, which is what the FAQ route in
+`SHELL.md` is for.
+
+### A model running in the visitor's browser
+
+*Rejected 2026-09-14, same discussion.*
+
+WebGPU inference would move the cost to the visitor. It also moves a download
+of the order of a gigabyte to the visitor, before the greeting, which is the
+opposite of a front door. It would need a JavaScript toolchain this repo does
+not have, and it fails the same scanner the self-hosted option fails.
