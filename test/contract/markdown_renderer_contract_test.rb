@@ -6,6 +6,8 @@ require "test_helper"
 # change request "a mark may span inline formatting", and MR-21 makes any input
 # render.
 class MarkdownRendererContractTest < ActiveSupport::TestCase
+  cover "MarkdownRenderer*" if respond_to?(:cover)
+
   # --- What it renders ------------------------------------------------------
 
   test "MR-1 renders GitHub-flavoured Markdown" do
@@ -145,6 +147,18 @@ class MarkdownRendererContractTest < ActiveSupport::TestCase
     end
   end
 
+  test "MR-8 a block whose author named no language has no class on its code" do
+    [ "```\nplain\n```", "    plain" ].each do |md|
+      assert_nil render(md).at_css("pre.highlight > code")["class"], md
+    end
+  end
+
+  test "MR-8 the pre carries no lang attribute" do
+    [ "```ruby\nx = 1\n```", "```nosuchlang\nx\n```" ].each do |md|
+      assert_empty render(md).css("pre[lang]"), md
+    end
+  end
+
   test "MR-9 code shows exactly what the author typed" do
     assert_equal "<b>x</b> & ==y==\n", render("```\n<b>x</b> & ==y==\n```").at_css("pre code").text
     assert_equal "<script>", render("`<script>`").at_css("code").text
@@ -203,6 +217,14 @@ class MarkdownRendererContractTest < ActiveSupport::TestCase
     assert_equal "<i>x & y", mark.text
   end
 
+  test "MR-13 marking removes the equals signs and nothing else" do
+    { "a ==b== c" => "a b c",
+      "==a== and ==b==" => "a and b",
+      "==a *b* c== d" => "a b c d" }.each do |md, shown|
+      assert_equal shown, text(md), md
+    end
+  end
+
   test "MR-14 a mark never crosses a block boundary" do
     [ "==one\n\ntwo==", "- ==one\n- two==", "> ==one\n\ntwo==" ].each do |md|
       html = render(md)
@@ -210,6 +232,14 @@ class MarkdownRendererContractTest < ActiveSupport::TestCase
       assert_empty html.css("mark"), md
       assert_equal 2, html.text.scan("==").size, md
     end
+  end
+
+  test "MR-14 a mark never crosses a block inside a tight list item" do
+    md = "- ==a\n  ```\n  x\n  ```\n  b=="
+    html = render(md)
+
+    assert_empty html.css("mark"), md
+    assert_equal 2, html.text.scan("==").size, md
   end
 
   # --- Plain strings ----------------------------------------------------------
@@ -241,12 +271,20 @@ class MarkdownRendererContractTest < ActiveSupport::TestCase
     assert_equal "", MarkdownRenderer.mark(nil)
   end
 
+  test "MR-15 every pair in a plain string is marked, not only the first" do
+    assert_equal "<mark>a</mark> and <mark>b</mark>", MarkdownRenderer.mark("==a== and ==b==").to_s
+  end
+
   test "MR-16 unmark keeps the words, drops the marks and stays plain text" do
     unmarked = MarkdownRenderer.unmark("Senior engineer building ==AI-native workflows==, x == y.")
 
     assert_equal "Senior engineer building AI-native workflows, x == y.", unmarked
     assert_not_predicate unmarked, :html_safe?
     assert_equal "", MarkdownRenderer.unmark(nil)
+  end
+
+  test "MR-16 unmark drops every mark, not only the first" do
+    assert_equal "a and b", MarkdownRenderer.unmark("==a== and ==b==")
   end
 
   # --- Change request: a mark may span inline formatting --------------------
@@ -374,6 +412,13 @@ class MarkdownRendererContractTest < ActiveSupport::TestCase
 
   test "MR-21 bytes that are not valid text become replacement characters" do
     assert_equal "bad \u{FFFD} byte", text("bad \xFF byte".b)
+  end
+
+  test "MR-21 bytes invalid or undefined in the string's own encoding become replacement characters" do
+    { "bad \x81".dup.force_encoding("Shift_JIS") => "bad \u{FFFD}",
+      "bad \x81 byte".dup.force_encoding("Windows-1252") => "bad \u{FFFD} byte" }.each do |input, shown|
+      assert_equal shown, text(input), input.encoding.name
+    end
   end
 
   test "MR-20 omitted raw HTML between two equals signs does not make a delimiter" do
