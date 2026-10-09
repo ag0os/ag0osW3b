@@ -68,3 +68,52 @@ One more, from the repo's own rules: nothing that requires a Node toolchain. Tai
 - Focus is always visible, and visible against every preset in both modes. Focus styling is a token, not a per-component afterthought.
 - Theme and mode choices persist and apply before first paint, so no visitor gets a flash of the wrong surface.
 - The site must remain usable and legible with JavaScript unavailable; theme switching is an enhancement layered on a working default.
+
+## Contract: the Markdown renderer
+
+`MarkdownRenderer` and its three helpers (`markdown`, `marked`, `unmarked`) turn what an author writes in the admin into what a visitor reads. Every obligation below has a test of the same number in `test/contract/markdown_renderer_contract_test.rb`. MR-17 to MR-20 are the change request "a mark may span inline formatting", and MR-21 makes any input render. Decisions and their derivations are in `DECISIONS.md`.
+
+**What it renders**
+
+- **MR-1** It renders GitHub-flavoured Markdown: emphasis, strong, strikethrough, tables, bare-URL and `www.` autolinks, task lists and footnotes. *Because* authors write posts and sections the way they write a README, and a construct that renders as literal punctuation is lost content.
+- **MR-2** It sets typographic punctuation: curly quotes, `--` as an en dash, `...` as an ellipsis. *Because* the default preset is a printed proof, and straight quotes are a typewriter's.
+- **MR-3** A single newline inside a paragraph is not a line break. *Because* a source wrapped at a fixed width must read as one paragraph.
+
+**Safety.** The output goes into the page without escaping, and the shell plan will send visitor-derived text through it. So the only markup that comes out is the markup Markdown itself makes.
+
+- **MR-4** Raw HTML in the source never reaches the output: no element, no attribute, no event handler. Inline tags are dropped and the words between them stay; a raw HTML block (a tag that starts a line, such as `<div>` or `<script>`) is dropped whole, words included.
+- **MR-5** A link or image whose URL uses `javascript:`, `vbscript:` or `file:` loses its URL and keeps its text, and so does one using `data:`, unless its media type starts with `image/png`, `image/gif`, `image/jpeg` or `image/webp`. That is Commonmarker's safe-URL rule, and it is a prefix: `data:image/pngx` is kept too. Every match ignores case. Ordinary URLs (`https:`, `mailto:`, relative paths, fragments) are kept as written. *Because* those schemes can run script or read the visitor's machine. A kept `data:` URL can do neither, whatever follows the prefix. Its media type is an image type, which a browser decodes as an image or not at all and never runs as a document or script. The `data:` types that can carry script, `image/svg+xml` and `text/html`, don't match the prefix and stay emptied.
+- **MR-6** The output is trusted markup, which a view inserts as it is.
+
+**Tables**
+
+- **MR-7** Every table sits in its own scroll region (class `table-scroll`), which is keyboard-focusable, has the role of a region and has an accessible name. *Because* one unbreakable token in a cell gives the whole page a horizontal scrollbar on a phone, and a region that scrolls must be reachable from the keyboard (WCAG 2.1.1). The class name is shared with the stylesheet.
+
+**Code**
+
+- **MR-8** A code block (fenced or indented) is a `pre.highlight` with a `code` inside, carrying `language-<name>` when the author named one. Tokens are spans with the short Pygments-style classes (`k`, `c1`, `s2`...) and no inline style anywhere. A block with no language or an unknown one is plain text in the same frame. *Because* highlighting is themed by plain CSS: seven rules serve all eight surfaces, and an inline colour would be right on one of them.
+- **MR-9** Code shows exactly what the author typed, escaped. *Because* code is quoted, not interpreted.
+
+**The mark.** `==phrase==` is the site's emphasis primitive (see DESIGN.md, "The mark and the note").
+
+- **MR-10** `==phrase==` becomes a `<mark>` wherever prose appears: paragraphs, headings, quotes, list items, table cells, inside emphasis and inside links. A paragraph may hold several.
+- **MR-11** A mark is never applied inside code, inline or block. *Because* `==` there is code (an operator, a test), not emphasis.
+- **MR-12** An opening `==` must be followed by a character that is neither ASCII whitespace (a space, tab or line break) nor `=`, and a closing `==` preceded by one; equals signs that fail this stay as typed. Other Unicode spaces, such as a non-breaking space, count as content here, so `==`, a non-breaking space and `==` form a mark around that space. *Because* a line of `====` and an operator written in prose (`x == y`) are not marks.
+- **MR-13** Marking never turns text into markup: what is inside a mark is as escaped as it was outside.
+- **MR-14** A mark never crosses a block boundary (paragraph, list item, quote, cell).
+
+**Plain strings** (the tagline, `whoami`, a page lead: single lines that are not Markdown)
+
+- **MR-15** `mark` escapes everything and the only markup it outputs is the `<mark>` it adds, by the same delimiter rule as MR-12. It does not interpret Markdown. The result is trusted markup; `nil` gives an empty string. A newline is ordinary text here, so a mark may span lines; MR-14 is about Markdown blocks.
+- **MR-16** `unmark` returns the same string with the delimiters removed and the words kept, for places that take text rather than markup: `<title>`, meta descriptions, the feed. Equals signs that are not a mark stay. The result is plain, untrusted text, which its caller escapes. `nil` gives an empty string. *Because* otherwise the tagline ships its own equals signs to every link preview.
+
+**A mark may span inline formatting** (change request)
+
+- **MR-17** A mark may contain any inline content: emphasis, strong, strikethrough, links and autolinks, inline code, images, footnote references and line breaks. That content keeps its formatting inside the mark, links keep their URL, code stays literal, and MR-13 still holds. A mark may itself sit inside formatting. *Because* `==a *b* c==` is how an author marks a phrase with a word stressed in it, and today it shows its equals signs.
+- **MR-18** Equals signs inside code never open or close a mark. A mark with one end inside a code span and the other outside does not form.
+- **MR-19** Both ends of a mark sit in the same element. A pair split by an element boundary (a link, emphasis) does not form: both stay as typed and the element is untouched. A stray `==` inside an element does not stop a mark around that element.
+- **MR-20** An unpartnered `==` stays as typed and the formatting around it is untouched. Delimiters pair one element at a time, by the `mark` rule (MR-12: first opener to the nearest closer). Within an element, each child element and each piece of omitted raw HTML counts as one non-space character, whatever it contains, so the two equals signs of a delimiter never join across omitted HTML; delimiters outside a child never pair with delimiters inside it. Delimiters inside a child pair among themselves, unless a mark has formed around that child: then they stay as typed, because a mark never contains another mark.
+
+**Any input renders** (settled 2026-10-08)
+
+- **MR-21** `nil`, an empty string and a blank string (only whitespace, Unicode spaces such as U+00A0 included) render nothing. A string in any encoding renders rather than raising: it is read as the text it encodes; a binary string, or one in an encoding that has no converter to UTF-8, is read as UTF-8 bytes; and a byte sequence that is not valid text becomes U+FFFD (the replacement character). The caller's string is never changed, and a frozen string is accepted. *Because* the renderer sits in page templates, so a raise is a broken page. A section's body may be missing: the field is optional.

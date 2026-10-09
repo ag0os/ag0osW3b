@@ -296,6 +296,8 @@ Two primitives that let a person appear on the page. Both are **content**, writt
 
 **The mark.** `==phrase==` in any body text, in a section, or in the tagline renders a real `<mark>`. `MarkdownRenderer` applies it to the rendered tree rather than to the source, so `==this==` inside a code span or a fenced block stays literal, and a plain string goes through `MarkdownRenderer.mark`, which escapes first. `unmark` strips it back to words for `<title>`, meta descriptions and the feed, which take text and not markup.
 
+**The Phrase Rule.** A mark goes around a phrase, and a phrase can have a stressed word, a link or a bit of code in it. So a mark may span inline formatting and keeps it (`==a *b* c==` is one mark with an emphasis inside), but it never crosses a paragraph, never starts or ends inside code, and never straddles a link or emphasis edge. When an author's `==` cannot form a mark, the equals signs stay on the page, where the author can see the mistake. The obligations are MR-10 to MR-20 in `PRODUCT.md`.
+
 | Preset | Instrument |
 |---|---|
 | workshop | a marker swipe: band laid 1.4° off level, four disagreeing corner radii, overshooting the words |
@@ -308,6 +310,14 @@ Two primitives that let a person appear on the page. Both are **content**, writt
 **The Instrument Rule.** A mark is drawn with a background image and a border radius, never with `clip-path` or `transform`. A marked phrase wraps, and on a wrapped inline both of those resolve against the union of the line fragments, so a two-line mark gets one rectangle spanning both lines and the gap between them. Backgrounds and radii are the only decoration `box-decoration-break: clone` can repeat per line.
 
 **The Contrast Pair Rule.** `--mark` is a solid colour, not a translucent wash, so `text` on `mark` is a pair in `contrast_test.rb` like any other. A highlighter does not obscure the ink under it, which makes the opaque model the honest one as well as the testable one.
+
+### Tables and code in prose
+
+Both come out of `MarkdownRenderer`, so their markup is fixed by its Contract (MR-7, MR-8 in `PRODUCT.md`) and the stylesheet hooks onto it.
+
+**The Scroll Region Rule.** Wide content scrolls inside its own box; the page body never scrolls sideways. Every table sits in a `.table-scroll` region and every code block is a `pre.highlight`, each with its own `overflow-x`. The table region is focusable and named, because a region that scrolls has to be reachable from the keyboard, and it shows the global focus ring like any other control.
+
+**The Token Class Rule.** Syntax highlighting is class names, never inline colour. Rouge's short token classes (`.k`, `.c1`, `.s2`...) are coloured by a handful of `.highlight` rules that read `--hl-*` tokens, so one set of rules serves all eight surfaces. An inline style would be right on one surface and wrong on seven.
 
 ### The shell (the front door)
 

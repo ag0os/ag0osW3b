@@ -17,20 +17,29 @@ class MarkdownRenderer
   end
 
   def initialize(text)
-    @text = text.to_s
+    @text = text.to_s.dup
+    @text.force_encoding(Encoding::UTF_8) if @text.encoding == Encoding::BINARY
+    @text = begin
+      @text.encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+    rescue Encoding::ConverterNotFoundError
+      @text.force_encoding(Encoding::UTF_8)
+    end.scrub
   end
 
   # ==phrase== marks a phrase the way a highlighter does. Every preset draws
   # the mark with its own instrument; see the --mark tokens in themes.css.
   #
-  # The lookarounds keep it off "== " and " ==", so a line of ==== used as a
-  # setext rule or an operator written in prose is left alone.
-  MARK = /==(?=\S)(.+?)(?<=\S)==/
+  # The lookarounds keep a space or = off the inner side of each delimiter,
+  # so a run of = or an operator written in prose is left alone.
+  MARK = /==(?=[^\s=])(.+?)(?<=[^\s=])==/m
+
+  # Everything else counts as one inline character when pairing delimiters.
+  BLOCKS = %w[ p h1 h2 h3 h4 h5 h6 blockquote ul ol li table thead tbody tr th td div hr pre ].freeze
 
   # For plain strings that are not Markdown, like the tagline. Escapes first,
   # so the only markup that can come out of it is the <mark> this puts in.
   def self.mark(text)
-    ERB::Util.html_escape(text.to_s).gsub(MARK) { "<mark>#{$1}</mark>" }.html_safe
+    ERB::Util.html_escape(String.new(text.to_s)).gsub(MARK) { "<mark>#{$1}</mark>" }.html_safe
   end
 
   # The same string with the marks taken out, for the places that take text
@@ -41,6 +50,8 @@ class MarkdownRenderer
   end
 
   def render
+    return "".html_safe if @text.blank?
+
     html = Commonmarker.to_html(@text, options: OPTIONS, plugins: { syntax_highlighter: nil })
     highlight(html).html_safe
   end
@@ -64,16 +75,52 @@ class MarkdownRenderer
     end
   end
 
-  # Applied to the rendered tree rather than to the source, so ==this== inside
-  # a code span or a fenced block stays literal: it is code there, not
-  # emphasis. Text nodes are escaped before being reparsed, so nothing a
-  # visitor or an author writes can turn into markup by going through here.
-  def apply_marks(fragment)
-    fragment.xpath(".//text()[not(ancestor::code) and not(ancestor::pre)]").each do |node|
-      next unless node.content.match?(MARK)
+  # Each inline element is atomic here; its own delimiters are considered
+  # separately. Moving the existing nodes keeps decoded text out of HTML parsing.
+  def apply_marks(element)
+    return if %w[ code pre ].include?(element.name)
 
-      node.replace(self.class.mark(node.content))
+    children = element.children.to_a
+    children.chunk { |node| BLOCKS.include?(node.name) }.each do |block, nodes|
+      mark_inline(nodes) unless block
     end
+    children.select { |child| child.element? && child.parent == element }.each { |child| apply_marks(child) }
+  end
+
+  def mark_inline(nodes)
+    positions = []
+    text = nodes.map do |node|
+      content = node.text? ? node.content : "\uFFFC"
+      content.length.times { |offset| positions << [ node, offset ] }
+      content
+    end.join
+
+    matches = text.enum_for(:scan, MARK).map { Regexp.last_match }
+    matches.reverse_each do |match|
+      first, start = positions[match.begin(0)]
+      last, finish = positions[match.end(0) - 1]
+      wrap_mark(first, start, last, finish + 1)
+    end
+  end
+
+  def wrap_mark(first, start, last, finish)
+    mark = first.document.create_element("mark")
+    first.add_next_sibling(mark)
+    if first == last
+      mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2...finish - 2], first.document))
+      mark.add_next_sibling(Nokogiri::XML::Text.new(first.content[finish..], first.document))
+    else
+      mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2..], first.document))
+      node = mark.next_sibling
+      until node == last
+        following = node.next_sibling
+        mark.add_child(node)
+        node = following
+      end
+      mark.add_child(Nokogiri::XML::Text.new(last.content[...finish - 2], last.document))
+      last.content = last.content[finish..]
+    end
+    first.content = first.content[...start]
   end
 
   def highlight(html)
