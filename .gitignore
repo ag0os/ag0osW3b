@@ -30,6 +30,9 @@
 
 /public/assets
 
+# mutant's session store
+/.mutant
+
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 

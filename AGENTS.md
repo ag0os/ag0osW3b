@@ -231,3 +231,26 @@ adjust tests when you change behavior, and keep `bin/rails test` and
   stylesheet.
 
 If a token change fails one of these, the token is wrong. Do not relax the test.
+
+### Mutation testing
+
+[mutant](https://github.com/mbj/mutant) checks that a Contract's tests would
+notice the code changing. It is configured in `config/mutant.yml`:
+
+```bash
+bundle exec mutant run                      # every subject listed under matcher.subjects
+bundle exec mutant run 'MarkdownRenderer*'  # one subject; also 'MarkdownRenderer#render'
+```
+
+A mutant left alive is a change no test noticed, and mutant exits nonzero while
+any survive. Mutant only runs tests that declare what they cover, so a new
+contract test opens with
+
+```ruby
+cover "Subject*" if respond_to?(:cover)
+```
+
+The guard matters: `cover` exists only under mutant, so without it
+`bin/rails test` raises. Add the subject to `matcher.subjects` too. Mutant loads
+only test files with a `cover` line (`test/mutant/boot.rb`), and gives each
+worker its own copy of the test database (`test/mutant/hooks.rb`).
