@@ -1,15 +1,9 @@
-<%# The note comes first so it lands in the rail's first row, beside the
-    title rather than below the shell.
-
-    The hero is the tagline and the shell. There is no lead paragraph and no
-    button row any more: the shell's opening says who this is and prints the
-    email, and the nav is a line above. See SHELL.md. %>
 <section class="hero container railed enter">
+  <%# The note precedes the h1 so it sits in the rail's first row, beside the title. %>
   <% if SiteSetting.localized("hero_note").present? %>
     <p class="note rail"><%= SiteSetting.localized("hero_note") %></p>
   <% end %>
   <h1 class="hero__title"><%= marked(SiteSetting.localized("tagline")) %></h1>
-  <%= render "shell/shell", opening: @opening, exchanges: @exchanges %>
 </section>
 
 <div class="container stack">

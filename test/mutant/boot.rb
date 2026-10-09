@@ -3,9 +3,8 @@
 require_relative "../../config/environment"
 Rails.application.eager_load!
 
-# The integration requires every test file, and test/system and
-# test/integration both define ShellTest with different superclasses. Only tests
-# with a `cover` declaration are ever selected, so load just those files.
+# Load only tests that declare the subjects they cover, keeping unrelated
+# suites and the Chrome system-test driver out of mutant's test discovery.
 require "mutant/integration/minitest"
 Mutant::Integration::Minitest.prepend(Module.new do
   def setup

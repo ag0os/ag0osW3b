@@ -1,7 +1,3 @@
-# Spanish mirror of en.yml. Every key here exists there; a missing one falls
-# back to English rather than raising, which is the wrong kind of quiet, so
-# test/integration/shell_test.rb checks the two files agree.
-
 es:
   skip_link: "Ir al contenido"
   nav:
@@ -15,58 +11,4 @@ es:
     all_writing: "Todos los escritos →"
   footer:
     cta: "Abierto a roles senior / founding de product engineering y consultoría en flujos de trabajo con IA."
-  shell:
-    prompt: "$"
-    label: "Línea de comandos"
-    placeholder: "escribí help, o hacé una pregunta"
-    run: "Ejecutar"
-    help:
-      intro: "Comandos:"
-      lines:
-        - "help            esta lista"
-        - "whoami          con quién estás hablando"
-        - "cat <página>    imprime una página: about, work, contact, home"
-        - "ls              qué hay para leer"
-        - "writing         últimos escritos"
-        - "open <página>   ir ahí"
-        - "lang en | es    cambiar idioma"
-        - "theme <nombre>  workshop, console, spec, terminal"
-        - "light | dark    cambiar modo"
-        - "clear           limpiar la pantalla"
-      outro: "O escribí una pregunta. Las respuestas todavía no están activas."
-    whoami:
-      mail: "mail"
-      github: "github"
-    ls:
-      intro: "páginas:"
-      sections:
-        one: "%{count} sección"
-        other: "%{count} secciones"
-      writing:
-        one: "%{count} escrito"
-        other: "%{count} escritos"
-    cat:
-      empty: "todavía no hay nada acá"
-      not_found: "cat: %{name}: no existe esa página o sección"
-      usage: "uso: cat <página o clave de sección>"
-    writing:
-      empty: "todavía no hay nada publicado"
-      all: "todos los escritos"
-    open:
-      usage: "uso: open about | work | writing | contact"
-      not_found: "open: %{name}: no existe esa página"
-    lang:
-      current: "idioma: %{name}. disponibles: %{names}"
-      switched: "idioma: %{name}"
-      unknown: "lang: %{name}: no disponible. probá: %{names}"
-      names:
-        en: "English"
-        es: "Español"
-    needs_js: "%{name} funciona en el navegador y necesita JavaScript"
-    client:
-      theme_switched: "tema: %{name}"
-      theme_unknown: "tema: %{name}: no es uno de %{names}"
-      theme_usage: "uso: theme workshop | console | spec | terminal"
-      mode_switched: "modo: %{name}"
-      cleared: ""
-    unknown: "%{line}: no es un comando, y las preguntas todavía no están activas. probá: help"
+    language: "Idioma"

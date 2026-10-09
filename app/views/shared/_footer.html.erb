@@ -6,6 +6,10 @@
       <%= link_to "LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "me noopener" %>
       <%= mail_to SiteSetting["email"], "Email" %>
     </nav>
+    <div class="language-controls" role="group" aria-label="<%= t("footer.language") %>">
+      <%= button_to "English", locale_path, method: :patch, params: { locale: "en" }, lang: "en", aria: { pressed: I18n.locale == :en } %>
+      <%= button_to "Español", locale_path, method: :patch, params: { locale: "es" }, lang: "es", aria: { pressed: I18n.locale == :es } %>
+    </div>
     <p class="site-footer__legal">© <%= Date.current.year %> <%= SiteSetting["site_title"] %></p>
   </div>
 </footer>

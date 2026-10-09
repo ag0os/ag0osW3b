@@ -15,5 +15,8 @@ requires:
 matcher:
   subjects:
     - MarkdownRenderer*
+    - SiteController*
+    - LocalesController*
+    - HomeController*
 hooks:
   - test/mutant/hooks.rb

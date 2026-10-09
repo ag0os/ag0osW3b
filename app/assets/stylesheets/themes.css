@@ -718,7 +718,7 @@
     --cursor-anim: blink 1.15s steps(1, end) infinite;
 
     /* delight: the prompt returns. Finishing a post is the end of a session,
-       so the shell comes back and waits for the next command. It reuses the
+       so it comes back and waits for the next command. It reuses the
        cursor this preset already blinks in the hero rather than inventing a
        second piece of vocabulary, and the two never share a page: a post has
        no hero. */

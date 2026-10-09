@@ -383,6 +383,15 @@ Cards are deliberately rare. The public site has none: post lists are rule-separ
 
 Text links at `--text-muted`, rising to `--text` on hover. The current page carries weight plus a 2px inset rule under the label plus `aria-current="page"`. Three signals, none of them hue. On narrow viewports the brand wraps to its own line and the nav sits below it.
 
+### Language Control
+
+Two buttons in the footer, "English" and "Español", which replace the shell's `lang` command (`PRODUCT.md`, "Contract: the language"). It is a quiet control for the exception: Spanish browsers already get Spanish.
+
+- **Style:** text, not buttons in the Buttons sense. They sit with the footer's links at `--text-sm`, in `--text-muted`, and carry no fill, border or radius of their own.
+- **State:** the current language carries `--text`, weight and a 2px inset rule under the label, plus `aria-pressed="true"`: the Navigation pattern, three signals and none of them hue alone.
+- **Always visible.** Unlike the theme switcher it is never hidden behind the `js` class, because it works without JavaScript: each button is a plain form.
+- **Focus** comes from the global `:focus-visible` rule, as for every other control.
+
 ### Theme Switcher (signature component)
 
 The one component that is also the argument. Four swatch buttons in a `radiogroup`, each a diagonal two-tone chip showing that preset's characteristic surface and accent. Arrow keys move between them, roving `tabindex` keeps the group to a single tab stop, and the selection carries border, ring, and check glyph. It sits beside a light/dark toggle that is a separate control on a separate axis.

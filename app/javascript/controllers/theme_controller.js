@@ -34,7 +34,6 @@ export default class extends Controller {
     this.setMode(this.mode === "dark" ? "light" : "dark")
   }
 
-  // Also called by the shell (`light`, `dark`), so the switch has one path.
   setMode(mode) {
     if (mode !== "light" && mode !== "dark") return
     this.render({ mode })

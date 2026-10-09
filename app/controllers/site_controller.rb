@@ -1,9 +1,9 @@
 # Base controller for the public-facing site. The auth concern requires a
 # session by default, so public pages opt out here.
 #
-# It also picks the language. A choice made in the shell (`lang es`) is a
-# cookie and wins; otherwise the browser's Accept-Language decides; otherwise
-# English. The admin does not go through here and stays English.
+# It also picks the language. A choice saved in the locale cookie wins;
+# otherwise the browser's Accept-Language decides; otherwise English.
+# The admin does not go through here and stays English.
 class SiteController < ApplicationController
   allow_unauthenticated_access
   around_action :switch_locale
@@ -22,6 +22,6 @@ class SiteController < ApplicationController
     # "es-AR,es;q=0.9,en;q=0.8" => ["es", "es", "en"]. Browsers already list
     # these in order of preference, so the q values are not re-sorted.
     def accept_language
-      request.env["HTTP_ACCEPT_LANGUAGE"].to_s.split(",").filter_map { |entry| entry.strip[/\A([a-zA-Z]{2})/, 1] }
+      request.env["HTTP_ACCEPT_LANGUAGE"].to_s.split(",").filter_map { |entry| entry.split(";").first.to_s.strip.split("-").first }
     end
 end

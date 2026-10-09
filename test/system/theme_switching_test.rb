@@ -198,7 +198,7 @@ class ThemeSwitchingTest < ApplicationSystemTestCase
     end
 
     def mode_toggle
-      find("button[aria-pressed]")
+      find("button[aria-pressed][aria-label='Dark mode']")
     end
 
     # The whitespace a design puts around a section heading. Independent of

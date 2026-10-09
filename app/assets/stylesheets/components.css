@@ -258,17 +258,6 @@
     padding-block: var(--space-7) var(--space-6);
   }
 
-  /* There is no eyebrow. It used to sit here reading "Agustin Calabrese",
-     which is the same string the header brand already renders a few rems
-     above it, so it was the name twice in one viewport. A kicker has to say
-     something the page does not already say.
-
-     Headline size, not display. The title used to be the loudest thing on
-     the page; now the shell under it is the hero, and at display size the
-     title pushed the shell's first line under the fold of a laptop. It keeps
-     the preset's display scale so terminal still sets it smaller and workshop
-     larger, and the measure widens in step with the smaller type so it still
-     breaks into three or four lines rather than a column of single words. */
   .hero__title {
     font-size: calc(var(--text-2xl) * var(--display-scale));
     max-width: calc(var(--hero-measure) * 1.5);
@@ -336,148 +325,6 @@
   @media (min-width: 65rem) {
     .hero::after {
       display: var(--dimension-display);
-    }
-  }
-
-  /* ---- The shell ---------------------------------------------------------
-     The front door: a command line under the title that types its own
-     greeting and answers what a visitor enters. See SHELL.md.
-
-     One component, every preset. It reads the same surface, boundary, radius
-     and shadow tokens a card does, so terminal renders it as the thing itself,
-     workshop as a transcript typed on the stock, console as a screen set into
-     the panel and spec as a box on the grid. No preset gets a branch.
-
-     Focus is the one deliberate exception to "components never restyle
-     focus": the ring is still the global token at the global width, but it is
-     drawn on the frame through :focus-within rather than around the text
-     field inside it, because a rectangle around a bare input inside a
-     terminal reads as a second, smaller terminal. */
-  .shell {
-    margin-top: var(--space-6);
-    padding: var(--space-4) var(--space-5);
-    min-height: 19rem;
-    background: var(--surface);
-    border: var(--border-width) solid var(--border-strong);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    font-family: var(--font-mono);
-    font-size: var(--text-base);
-    line-height: 1.6;
-    color: var(--text);
-    cursor: text;
-    overflow-wrap: anywhere;
-  }
-
-  .shell:focus-within {
-    outline: 2px solid var(--focus);
-    outline-offset: 2px;
-  }
-
-  .shell__input:focus,
-  .shell__input:focus-visible {
-    outline: none;
-  }
-
-  .shell__exchange + .shell__exchange,
-  .shell__exchange + .shell__form {
-    margin-top: var(--space-3);
-  }
-
-  .shell__echo,
-  .shell__form {
-    display: flex;
-    gap: 1ch;
-    align-items: baseline;
-  }
-
-  .shell__prompt {
-    flex: none;
-    color: var(--accent);
-    font-weight: 700;
-    user-select: none;
-  }
-
-  .shell__cmd {
-    font: inherit;
-    font-weight: 600;
-  }
-
-  .shell__input {
-    flex: 1;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    font: inherit;
-    color: var(--text);
-    caret-color: var(--accent);
-  }
-
-  .shell__input::placeholder {
-    color: var(--text-faint);
-  }
-
-  .shell__out {
-    margin-top: var(--space-1);
-  }
-
-  .shell__out > * + *,
-  .shell__prose > * + * {
-    margin-top: var(--space-2);
-  }
-
-  .shell__muted {
-    color: var(--text-muted);
-  }
-
-  .shell__heading {
-    font-weight: 700;
-  }
-
-  .shell__pre {
-    margin: 0;
-    font: inherit;
-    white-space: pre-wrap;
-  }
-
-  .shell__list {
-    list-style: none;
-    padding: 0;
-  }
-
-  .shell__out a {
-    text-decoration: underline;
-    text-underline-offset: 0.18em;
-  }
-
-  .shell__prose ul,
-  .shell__prose ol {
-    padding-left: 2ch;
-  }
-
-  .shell__prose li + li {
-    margin-top: var(--space-1);
-  }
-
-  .shell__prose blockquote {
-    padding-left: 1.5ch;
-    border-left: 2px solid var(--border-strong);
-    color: var(--text-muted);
-  }
-
-  .shell__prose code {
-    font-size: 0.95em;
-    background: var(--bg-subtle);
-    border: var(--border-width) solid var(--border);
-    padding: 0.05em 0.3em;
-    border-radius: var(--radius-sm);
-  }
-
-  @media (max-width: 40rem) {
-    .shell {
-      padding: var(--space-3) var(--space-4);
-      min-height: 15rem;
     }
   }
 
@@ -655,7 +502,7 @@
   /* The leader: a stroke curving out of the note toward what it annotates.
      Two borders and a lopsided radius, which is a quarter of an ellipse and
      reads as drawn rather than plotted. Only workshop resolves --note-leader
-     to anything; a panel label, a drawing callout and a shell comment all
+     to anything; a panel label, a drawing callout and a terminal comment all
      point at the thing above them without needing a line. */
   .note::after {
     content: "";
@@ -818,8 +665,8 @@
   }
 
   /* Terminal's delight: the prompt returns.
-     Reaching the end of a post is the end of a session, so the shell comes
-     back and waits. The prompt is --endmark-content and the block after it is
+     Reaching the end of a post is the end of a session, so it comes back
+     and waits for the next command. The prompt is --endmark-content and the block after it is
      the same --cursor-content this preset blinks in the hero, which the other
      three resolve to nothing.
 
@@ -1061,6 +908,33 @@
     gap: var(--space-5);
     flex-wrap: wrap;
     font-size: var(--text-sm);
+  }
+
+  .language-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+  }
+
+  .language-controls button {
+    padding: var(--space-2) 0;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    font: inherit;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .language-controls button:hover {
+    color: var(--text);
+  }
+
+  .language-controls [aria-pressed="true"] {
+    color: var(--text);
+    font-weight: 650;
+    box-shadow: inset 0 -2px 0 0 var(--accent);
   }
 
   .site-footer__legal {

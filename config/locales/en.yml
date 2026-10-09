@@ -1,7 +1,3 @@
-# The public site's chrome and the shell's strings. Content (sections, posts,
-# settings) lives in the database; only the fixed copy is here. Keys are
-# mirrored in es.yml, and the shell's `lang` command switches between them.
-
 en:
   skip_link: "Skip to content"
   nav:
@@ -15,58 +11,4 @@ en:
     all_writing: "All writing →"
   footer:
     cta: "Open to senior / founding product-engineering roles and AI-workflow consulting."
-  shell:
-    prompt: "$"
-    label: "Command line"
-    placeholder: "type help, or ask a question"
-    run: "Run"
-    help:
-      intro: "Commands:"
-      lines:
-        - "help            this list"
-        - "whoami          who you are talking to"
-        - "cat <page>      print a page: about, work, contact, home"
-        - "ls              what there is to read"
-        - "writing         recent posts"
-        - "open <page>     go there"
-        - "lang en | es    switch language"
-        - "theme <name>    workshop, console, spec, terminal"
-        - "light | dark    switch mode"
-        - "clear           clear the screen"
-      outro: "Or type a question. Answers are not live yet."
-    whoami:
-      mail: "mail"
-      github: "github"
-    ls:
-      intro: "pages:"
-      sections:
-        one: "%{count} section"
-        other: "%{count} sections"
-      writing:
-        one: "%{count} post"
-        other: "%{count} posts"
-    cat:
-      empty: "nothing here yet"
-      not_found: "cat: %{name}: no such page or section"
-      usage: "usage: cat <page or section key>"
-    writing:
-      empty: "nothing published yet"
-      all: "all writing"
-    open:
-      usage: "usage: open about | work | writing | contact"
-      not_found: "open: %{name}: no such page"
-    lang:
-      current: "language: %{name}. available: %{names}"
-      switched: "language: %{name}"
-      unknown: "lang: %{name}: not available. try: %{names}"
-      names:
-        en: "English"
-        es: "Español"
-    needs_js: "%{name} works in the browser and needs JavaScript"
-    client:
-      theme_switched: "theme: %{name}"
-      theme_unknown: "theme: %{name}: not one of %{names}"
-      theme_usage: "usage: theme workshop | console | spec | terminal"
-      mode_switched: "mode: %{name}"
-      cleared: ""
-    unknown: "%{line}: not a command, and questions are not live yet. try: help"
+    language: "Language"

@@ -117,3 +117,43 @@ One more, from the repo's own rules: nothing that requires a Node toolchain. Tai
 **Any input renders** (settled 2026-10-08)
 
 - **MR-21** `nil`, an empty string and a blank string (only whitespace, Unicode spaces such as U+00A0 included) render nothing. A string in any encoding renders rather than raising: it is read as the text it encodes; a binary string, or one in an encoding that has no converter to UTF-8, is read as UTF-8 bytes; and a byte sequence that is not valid text becomes U+FFFD (the replacement character). That holds in the string's own encoding too: a byte sequence invalid in it, or a byte it leaves undefined (0x81 in Windows-1252), also becomes U+FFFD. The caller's string is never changed, and a frozen string is accepted. *Because* the renderer sits in page templates, so a raise is a broken page. A section's body may be missing: the field is optional.
+
+## Contract: the language
+
+Which language a public page is in, and how a visitor changes it. Resolution lives in `SiteController`, which every public controller inherits; the control is `LocalesController#update` at `PATCH /locale` and a pair of buttons in the footer. Every obligation below has a test of the same number in `test/contract/locale_contract_test.rb`. LC-1 to LC-5 shipped with the shell and survive its removal; LC-6 to LC-11 are the footer control that replaces the shell's `lang` command (`ASK.md` §4.8). Decisions and their derivations are in `DECISIONS.md`.
+
+**Which language a page is in** (shipped)
+
+- **LC-1** A `locale` cookie naming a site language (`en` or `es`) decides, whatever the browser asks for, on every public page, and the page says which on `<html lang>`. *Because* the cookie is a choice the visitor made on this site, and the browser's setting is a guess made for every site.
+- **LC-2** Without that cookie, `Accept-Language` decides: the first entry, in the order the browser sent them, whose language (the part before any region, `es` in `es-AR`, case ignored) is a site language. Entries are separated by commas, with or without whitespace: `fr,es` and `fr, es` both give Spanish. The `q` weights are not used to re-sort. *Because* browsers already send entries in their order of preference.
+- **LC-3** Otherwise English. A cookie or an entry naming a language the site does not have is skipped as if it were absent, so an unknown cookie still lets `Accept-Language` decide. A malformed header renders the page in English rather than failing. *Because* no request is refused or broken over its language.
+- **LC-4** The login, password-reset and admin pages are in English whatever the cookie or the browser says, and the admin offers no language control. *Because* the admin has one user, who writes in English, and its strings are not in the locale files.
+- **LC-5** `config/locales/en.yml` and `es.yml` have the same tree of keys. *Because* a key missing from one shows that language's visitors a "translation missing" string.
+
+**Choosing a language** (task 1)
+
+- **LC-6** `PATCH /locale` with `locale` set to `en` or `es` sets the `locale` cookie to that code. The cookie is permanent (it has an expiry years away, not the browser session), `SameSite=Lax` and `HttpOnly`. *Because* a visitor who chose Spanish once should be greeted in Spanish next time, and a link followed from another site should arrive in the language they chose. Only the server reads it, so no script needs to (settled 2026-10-09).
+- **LC-7** The reply is a `303 See Other` back to the page the request came from (its `Referer`, path and query kept). *Because* changing language should not move the visitor, and the follow-up request must be a GET whatever method the form used.
+- **LC-8** With no `Referer`, or one on another host, the redirect is to the home page, still with `303`. *Because* redirecting to an address the request supplied is an open redirect.
+- **LC-9** Any other `locale` (unknown, a different case such as `ES`, blank, or missing) sets no cookie, so an earlier choice stays, and the reply still redirects as LC-7 and LC-8. *Because* a stale form or a hand-written request should land the visitor back where they were, not on an error page; resolution ignores unknown codes the same way (LC-3).
+- **LC-10** Every public page's footer holds the control: one group (`role="group"`) named "Language" in English and "Idioma" in Spanish, holding two buttons, English then Spanish. Each button is the submit button of its own form, which posts to `/locale` with `_method=patch` and its code as `locale`, so it works without JavaScript. Each is labelled with its language's own name, "English" and "Español", whatever the page's language, and carries `lang` for that language. The button for the page's language has `aria-pressed="true"` and the other `aria-pressed="false"`. *Because* a visitor who cannot read the current language must still recognise their own; `lang` has a screen reader pronounce "Español" as Spanish; and which one is current has to be stated in more than hue (Accessibility, above), the same way the mode toggle states it.
+- **LC-11** Pressing a footer button brings the same page back in that language, and every public page after it stays in that language. *Because* that is the control's whole job, end to end, over plain HTTP.
+
+## Contract: the home page
+
+What the home page is once the shell is gone and before the copy replaces it (`PLAN.md` task 2 rewrites this section). `HomeController#show` renders it. Every obligation below has a test of the same number in `test/contract/home_page_contract_test.rb`. HP-1 to HP-3 are what the page already shows besides the shell, pinned so that the deletion takes the shell and nothing else; HP-4 and HP-5 are the shell's removal.
+
+- **HP-1** The page's one `<h1>` is the tagline in the page's language (`SiteSetting.localized("tagline")`), with its `==marks==` drawn as `<mark>`. The hero note (`hero_note`, `hero_note_es`), when there is one, sits in the hero's rail. The document title is the site title.
+- **HP-2** Below the hero come the visible home sections in position order, each with its heading as an `<h2>`, its note, and its body rendered as Markdown. Position decides the order, not when a section was created: a home section created last with the lowest position comes first. Hidden sections and other pages' sections are absent.
+- **HP-3** Then the three most recently published posts, newest first, each a link to its post with its publication date in a `<time>`, and a link to all writing. Drafts never appear. With nothing published there is no list and no heading for one.
+- **HP-4** The page has no command line: no form and no text field other than the footer's language control, no typed opening, and no script controller besides the header's theme controls. *Because* the shell is replaced (`ASK.md` §11), and until the invitation arrives the page has to be complete for someone who never types.
+- **HP-5** Query parameters change nothing on the page: `/?line=whoami` renders what `/` renders and echoes nothing from the URL. *Because* links to the shell's old URLs are out in the world and should land on a working page.
+
+## Contract: retiring the shell's settings
+
+The shell's copy lived in three `site_settings` rows. A data migration removes them, because seeds are not a deploy step and a migration is. Every obligation below has a test of the same number in `test/contract/remove_shell_settings_contract_test.rb`.
+
+- **DM-1** One migration, `db/migrate/<timestamp>_remove_shell_settings.rb`, defining `RemoveShellSettings`, deletes the rows whose key is `shell_opening`, `shell_whoami` or `shell_whoami_es`, and changes no other row. *Because* a stored row outlives its default: the admin's settings form lists every stored key, so the rows would otherwise stay there as three fields that change nothing.
+- **DM-2** It runs cleanly on a database that never had the rows, and twice in a row. Rolling it back raises nothing and restores nothing. *Because* most databases never stored an override, and copy for a deleted component has nothing to come back to; an irreversible migration would only block rolling back past it.
+- **DM-3** It works on the table in SQL and never names the `SiteSetting` model. *Because* a migration runs against whatever the model is on the day it runs, and a model it leaned on may since have changed.
+- **DM-4** Afterwards the admin's settings page offers no field for any of the three, and `SiteSetting` has no value or default for them. The other settings are still offered. *Because* that is where the owner would otherwise meet the shell again.
