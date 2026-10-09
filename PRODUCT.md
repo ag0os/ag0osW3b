@@ -91,7 +91,7 @@ One more, from the repo's own rules: nothing that requires a Node toolchain. Tai
 
 **Code**
 
-- **MR-8** A code block (fenced or indented) is a `pre.highlight` with a `code` inside, carrying `language-<name>` when the author named one. Tokens are spans with the short Pygments-style classes (`k`, `c1`, `s2`...) and no inline style anywhere. A block with no language or an unknown one is plain text in the same frame. *Because* highlighting is themed by plain CSS: seven rules serve all eight surfaces, and an inline colour would be right on one of them.
+- **MR-8** A code block (fenced or indented) is a `pre.highlight` with a `code` inside, carrying `language-<name>` when the author named one. A block whose author named no language has no class on its `code`. The `pre` carries no `lang` attribute: in HTML `lang` names the human language of an element's content, so `lang="ruby"` would tell assistive technology the code is written in a language called Ruby. Tokens are spans with the short Pygments-style classes (`k`, `c1`, `s2`...) and no inline style anywhere. A block with no language or an unknown one is plain text in the same frame. *Because* highlighting is themed by plain CSS: seven rules serve all eight surfaces, and an inline colour would be right on one of them.
 - **MR-9** Code shows exactly what the author typed, escaped. *Because* code is quoted, not interpreted.
 
 **The mark.** `==phrase==` is the site's emphasis primitive (see DESIGN.md, "The mark and the note").
@@ -99,13 +99,13 @@ One more, from the repo's own rules: nothing that requires a Node toolchain. Tai
 - **MR-10** `==phrase==` becomes a `<mark>` wherever prose appears: paragraphs, headings, quotes, list items, table cells, inside emphasis and inside links. A paragraph may hold several.
 - **MR-11** A mark is never applied inside code, inline or block. *Because* `==` there is code (an operator, a test), not emphasis.
 - **MR-12** An opening `==` must be followed by a character that is neither ASCII whitespace (a space, tab or line break) nor `=`, and a closing `==` preceded by one; equals signs that fail this stay as typed. Other Unicode spaces, such as a non-breaking space, count as content here, so `==`, a non-breaking space and `==` form a mark around that space. *Because* a line of `====` and an operator written in prose (`x == y`) are not marks.
-- **MR-13** Marking never turns text into markup: what is inside a mark is as escaped as it was outside.
-- **MR-14** A mark never crosses a block boundary (paragraph, list item, quote, cell).
+- **MR-13** Marking never turns text into markup: what is inside a mark is as escaped as it was outside. Marking removes the four equals signs and nothing else: every other character before, inside and after a mark stays where it was, once.
+- **MR-14** A mark never crosses a block boundary (paragraph, list item, quote, cell). That holds inside a tight list item too, where the item's text has no paragraph around it and sits beside a block (a code block, a quote, a nested list) in the same item.
 
 **Plain strings** (the tagline, `whoami`, a page lead: single lines that are not Markdown)
 
-- **MR-15** `mark` escapes everything and the only markup it outputs is the `<mark>` it adds, by the same delimiter rule as MR-12. It does not interpret Markdown. The result is trusted markup; `nil` gives an empty string. A newline is ordinary text here, so a mark may span lines; MR-14 is about Markdown blocks.
-- **MR-16** `unmark` returns the same string with the delimiters removed and the words kept, for places that take text rather than markup: `<title>`, meta descriptions, the feed. Equals signs that are not a mark stay. The result is plain, untrusted text, which its caller escapes. `nil` gives an empty string. *Because* otherwise the tagline ships its own equals signs to every link preview.
+- **MR-15** `mark` escapes everything and the only markup it outputs is the `<mark>` it adds, by the same delimiter rule as MR-12. Every pair in the string is marked, not only the first. It does not interpret Markdown. The result is trusted markup; `nil` gives an empty string. A newline is ordinary text here, so a mark may span lines; MR-14 is about Markdown blocks.
+- **MR-16** `unmark` returns the same string with the delimiters removed and the words kept, for places that take text rather than markup: `<title>`, meta descriptions, the feed. Every mark in the string loses its delimiters, not only the first. Equals signs that are not a mark stay. The result is plain, untrusted text, which its caller escapes. `nil` gives an empty string. *Because* otherwise the tagline ships its own equals signs to every link preview.
 
 **A mark may span inline formatting** (change request)
 
@@ -116,4 +116,4 @@ One more, from the repo's own rules: nothing that requires a Node toolchain. Tai
 
 **Any input renders** (settled 2026-10-08)
 
-- **MR-21** `nil`, an empty string and a blank string (only whitespace, Unicode spaces such as U+00A0 included) render nothing. A string in any encoding renders rather than raising: it is read as the text it encodes; a binary string, or one in an encoding that has no converter to UTF-8, is read as UTF-8 bytes; and a byte sequence that is not valid text becomes U+FFFD (the replacement character). The caller's string is never changed, and a frozen string is accepted. *Because* the renderer sits in page templates, so a raise is a broken page. A section's body may be missing: the field is optional.
+- **MR-21** `nil`, an empty string and a blank string (only whitespace, Unicode spaces such as U+00A0 included) render nothing. A string in any encoding renders rather than raising: it is read as the text it encodes; a binary string, or one in an encoding that has no converter to UTF-8, is read as UTF-8 bytes; and a byte sequence that is not valid text becomes U+FFFD (the replacement character). That holds in the string's own encoding too: a byte sequence invalid in it, or a byte it leaves undefined (0x81 in Windows-1252), also becomes U+FFFD. The caller's string is never changed, and a frozen string is accepted. *Because* the renderer sits in page templates, so a raise is a broken page. A section's body may be missing: the field is optional.
