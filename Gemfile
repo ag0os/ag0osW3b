@@ -62,4 +62,6 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  # Mutation testing; config/mutant.yml [https://github.com/mbj/mutant]
+  gem "mutant-minitest", require: false
 end

@@ -1,0 +1,19 @@
+---
+# Mutation testing: bundle exec mutant run [Subject*]
+# The repo is public and MIT licensed, so it runs under mutant's open source grant.
+usage: opensource
+integration:
+  name: minitest
+environment_variables:
+  RAILS_ENV: test
+includes:
+  - test
+requires:
+  - ./test/mutant/boot
+# What a bare `mutant run` mutates: each subject with a Contract test that
+# declares `cover` for it. Subjects on the command line replace this list.
+matcher:
+  subjects:
+    - MarkdownRenderer*
+hooks:
+  - test/mutant/hooks.rb
