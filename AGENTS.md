@@ -113,6 +113,11 @@ inside code stays literal. For plain strings use the `marked(text)` helper, and
 `unmarked(text)` for anywhere that takes text rather than markup: `<title>`, meta
 descriptions, the feed.
 
+Its Contract is in `PRODUCT.md` ("Contract: the Markdown renderer"), with the
+reasons behind its choices in `DECISIONS.md`, and runs as
+`test/contract/markdown_renderer_contract_test.rb`. Change the Contract and its
+test first, then the code.
+
 ### Design system
 
 Read **`DESIGN.md`** (visual contract) and **`PRODUCT.md`** (strategy, audience,
