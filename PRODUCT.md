@@ -175,3 +175,15 @@ locales, and seeded content are provisional defaults, pending the owner's decisi
 - **CP-3** `github.com/ag0os/troupe` links to `https://github.com/ag0os/troupe`. After Background, the only contact line is “Want to talk about your team? Get in touch on LinkedIn.”, with LinkedIn linked to the current `SiteSetting["linkedin_url"]`, opening in a new tab with `target="_blank"` and `rel="noopener"` as on Contact. *Because* the public repository is the proof and the owner's configured profile is the contact destination, with the site's existing external-link behavior.
 - **CP-4** The document and Open Graph title use the approved heading followed by the site title; description and Open Graph description use the visible consulting intro, with marks removed and whitespace collapsed, falling back to the layout's description when absent. Text outputs are escaped, never HTML. *Because* a shared link must identify this page and edits must not inject markup into the head.
 - **CP-5** English copy appears under both locales, with the normal locale-specific chrome, language control and theme controls, and no link to `/consulting` in the primary nav. The copy container declares `lang="en"`. *Because* the owner decided on 2026-10-13 that the page is reached from links in the site's copy rather than the primary nav (reversing the nav half of D5), Spanish translation is deferred (D6), and assistive technology needs the prose's actual language.
+
+## Contract: seeded copy
+
+These obligations apply to the first-deploy copy loaded by `db/seeds.rb`, with
+tests in `test/contract/seeded_copy_contract_test.rb` that run the real seeds.
+The owner can still edit the wording in `/admin`; individual sentences are not
+pinned by this contract.
+
+- **SC-1** The seeded public site neither names Claude Forge nor links to `ag0os/claude-forge`. *Because* the retired toolkit must not send visitors to superseded proof.
+- **SC-2** The seeded Work open-source section links Troupe to `https://github.com/ag0os/troupe`. *Because* visitors evaluating the current toolkit need its public repository.
+- **SC-3** The seeded About bio links to `/consulting`, and following that link reaches a public page successfully. *Because* the invitation to consulting must lead to an offer the visitor can read without login.
+- **SC-5** The footer CTA in both locales, the Contact page's intro and the About bio each link to `/consulting`. *Because* the owner decided on 2026-10-13 that the consulting page is reached from these entry points rather than the primary nav.

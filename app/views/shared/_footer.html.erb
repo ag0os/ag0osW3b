@@ -1,6 +1,6 @@
 <footer class="site-footer">
   <div class="container site-footer__inner">
-    <p class="site-footer__cta"><%= t("footer.cta") %></p>
+    <p class="site-footer__cta"><%= t("footer.cta_html", consulting_link: link_to(t("footer.consulting"), consulting_path)) %></p>
     <nav class="social" aria-label="Elsewhere">
       <%= link_to "GitHub",   SiteSetting["github_url"],   target: "_blank", rel: "me noopener" %>
       <%= link_to "LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "me noopener" %>

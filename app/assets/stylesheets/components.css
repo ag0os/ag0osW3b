@@ -713,7 +713,8 @@
     margin-top: var(--space-6);
   }
 
-  .prose a {
+  .prose a,
+  .site-footer__cta a {
     text-decoration: underline;
     text-underline-offset: 0.18em;
   }

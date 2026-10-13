@@ -20,16 +20,18 @@ end
 sections = [
   # Home
   { page: "home", key: "home_what_i_do", position: 1, note: "The tools are new. The judgment is not.", heading: "What I do", body: <<~MD },
-    - I build **AI-native software workflows and agent orchestration tools**, not just AI as autocomplete.
+    - I build the systems that let agents build good software: plans and context, orchestration, and the verification that makes the output trustworthy.
     - I turn vague product intent into ==planned, tested, maintainable systems==.
-    - I'm senior across **backend, full-stack, cloud, and AI-assisted delivery**.
+    - I'm senior across **backend, full-stack and cloud**: Ruby on Rails as my production backbone, TypeScript across my own tooling.
   MD
-  { page: "home", key: "home_featured", position: 2, note: "Built it because I needed it.", heading: "Featured: Cosmonauts", body: <<~MD },
-    **Cosmonauts** is an agent-first AI orchestration framework built on Pi. Declare agents,
-    compose prompts and skills, and wire workflows that run automatically: as chains, drive
-    runs, or side-by-side sessions.
+  { page: "home", key: "home_featured", position: 2, note: "Built it because I needed it.", heading: "Featured: Shepherd", body: <<~MD },
+    **Shepherd** is what I run every day: one agent per project that keeps the context, tracks the work across sessions and runs the other agents, on Claude Code or Codex. I run a flock of them. It lives in Troupe, my agent toolkit.
 
-    [View on GitHub →](https://github.com/ag0os/cosmonauts)
+    [Troupe on GitHub →](https://github.com/ag0os/troupe)
+
+    Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. It is no longer developed; the code is public.
+
+    [Cosmonauts on GitHub →](https://github.com/ag0os/cosmonauts)
   MD
   { page: "home", key: "home_proof", position: 3, note: "Numbers, not adjectives.", heading: "Selected proof", body: <<~MD },
     - Secure payment workflows for **hundreds of sports organizations**, thousands of daily transactions.
@@ -40,17 +42,11 @@ sections = [
 
   # About
   { page: "about", key: "about_bio", position: 1, note: "San Isidro, GMT-3.", heading: nil, body: <<~MD },
-    I'm a senior full-stack, product-minded software engineer based in San Isidro, Buenos Aires
-    (GMT-3). My core background is Ruby/Rails, backend systems, cloud platforms, and product
-    engineering across fintech/payments, video streaming, and enterprise tools.
+    I'm a software engineer based in San Isidro, Buenos Aires (GMT-3). 16+ years in IT, 6+ in software engineering, across payments, video streaming and enterprise platforms. Ruby on Rails as my production backbone, TypeScript across my own tooling. Claude Certified Architect (Foundations).
 
-    Before software, I spent 13 years as a DJ, music producer, and sound engineer, a creative,
-    technical background I still draw on. I moved into IT and later into full-stack software
-    engineering, and today my work combines strong engineering fundamentals with AI-native
-    delivery: building agent harnesses, workflow systems, prompts, skills, and verification loops.
+    Before software, I spent 13 years as a DJ, music producer, and sound engineer, a creative, technical background I still draw on. I moved into IT and later into full-stack software engineering, and today my work combines strong engineering fundamentals with AI-native delivery: building agent harnesses, workflow systems and verification loops.
 
-    I'm most interested in AI-forward product engineering, developer tools, agentic workflow
-    consulting, and early-stage / founding engineering work.
+    In 2024 the tools changed and I stopped writing code by hand. I spent the next year working out what this way of working needed from me, and since 2025 I build that into systems of my own. I'm interested in roles building agent systems and AI-native products, and I help teams set up the same way of working: [consulting](/consulting).
   MD
   { page: "about", key: "about_how_i_work", position: 2, note: "This is the whole argument.", heading: "How I work", body: <<~MD },
     > AI doesn't remove the need for engineering judgment. It ==moves the judgment earlier==:
@@ -67,8 +63,8 @@ sections = [
 
   # Work
   { page: "work", key: "work_open_source", position: 1, note: "All of it public.", heading: "Open source", body: <<~MD },
-    - **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent-first AI orchestration framework built on Pi.
-    - **[Claude Forge](https://github.com/ag0os/claude-forge)**. Earlier Bun-based agent harness; predecessor to Cosmonauts.
+    - **[Troupe](https://github.com/ag0os/troupe)**. My agent toolkit, begun in 2025 as a fork of a workshop project. Home of Shepherd, the agent per project I run every day.
+    - **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent orchestration framework, 2026, the predecessor of Shepherd. No longer developed.
     - **[Bright Tauri](https://github.com/ag0os/bright-tauri)**. Early-stage React + Rust/Tauri app.
   MD
   { page: "work", key: "work_experience", position: 2, note: "Most of the rest is private.", heading: "Selected experience", body: <<~MD },
@@ -110,7 +106,7 @@ sections = [
 
   # Contact
   { page: "contact", key: "contact_intro", position: 1, note: "I answer email.", heading: nil, body: <<~MD }
-    I'm open to senior / founding product-engineering roles and AI-workflow consulting.
+    I'm open to roles building agent systems and AI-native products, and to [consulting](/consulting) for teams adopting agents.
     The fastest way to reach me is email, or find me on LinkedIn and GitHub below.
   MD
 ]

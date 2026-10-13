@@ -10,5 +10,6 @@ es:
     writing: "Escritos"
     all_writing: "Todos los escritos →"
   footer:
-    cta: "Abierto a roles senior / founding de product engineering y consultoría en flujos de trabajo con IA."
+    cta_html: "Abierto a roles construyendo sistemas de agentes y productos AI-native, y a %{consulting_link}."
+    consulting: "consultoría"
     language: "Idioma"
