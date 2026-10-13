@@ -4,7 +4,10 @@
     page_title = content_for(:title).presence || SiteSetting["site_title"]
     # unmarked: the tagline carries ==marks== for the hero, and a link preview
     # takes text, not markup.
-    page_description = unmarked(content_for(:description).presence || SiteSetting.localized("tagline"))
+    # content_for escapes on storage; decode that layer before unmark returns
+    # plain text, which ERB escapes once for each meta attribute below.
+    description = content_for(:description).presence
+    page_description = unmarked(description ? CGI.unescapeHTML(description) : SiteSetting.localized("tagline"))
     canonical_url = request.base_url + request.path
   %>
   <head>

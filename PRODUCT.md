@@ -149,6 +149,12 @@ What the home page is once the shell is gone and before the copy replaces it (`P
 - **HP-4** The page has no command line: no form and no text field other than the footer's language control, no typed opening, and no script controller besides the header's theme controls. *Because* the shell is replaced (`ASK.md` §11), and until the invitation arrives the page has to be complete for someone who never types.
 - **HP-5** Query parameters change nothing on the page: `/?line=whoami` renders what `/` renders and echoes nothing from the URL. *Because* links to the shell's old URLs are out in the world and should land on a working page.
 
+## Contract: the post page
+
+The public post at `/writing/:slug` renders through the site layout. Obligations run in `test/contract/post_page_contract_test.rb`.
+
+- **PP-1** When a post has an excerpt, its description and Open Graph description are that excerpt with `==marks==` removed and HTML escaped exactly once, preserving literal entity text. *Because* writing travels through link previews, and double escaping makes an excerpt such as `a < b ==c==` read as `a &lt; b c` instead of `a < b c` (pilot finding F-19).
+
 ## Contract: retiring the shell's settings
 
 The shell's copy lived in three `site_settings` rows. A data migration removes them, because seeds are not a deploy step and a migration is. Every obligation below has a test of the same number in `test/contract/remove_shell_settings_contract_test.rb`.
@@ -157,3 +163,15 @@ The shell's copy lived in three `site_settings` rows. A data migration removes t
 - **DM-2** It runs cleanly on a database that never had the rows, and twice in a row. Rolling it back raises nothing and restores nothing. *Because* most databases never stored an override, and copy for a deleted component has nothing to come back to; an irreversible migration would only block rolling back past it.
 - **DM-3** It works on the table in SQL and never names the `SiteSetting` model. *Because* a migration runs against whatever the model is on the day it runs, and a model it leaned on may since have changed.
 - **DM-4** Afterwards the admin's settings page offers no field for any of the three, and `SiteSetting` has no value or default for them. The other settings are still offered. *Because* that is where the owner would otherwise meet the shell again.
+
+## Contract: the consulting page
+
+The approved consulting brief is implemented at `/consulting`. Obligations run in
+`test/contract/consulting_page_contract_test.rb`. Navigation, English in both
+locales, and seeded content are provisional defaults, pending the owner's decision.
+
+- **CP-1** `/consulting` is public without login. Its one h1 is “Agustín Calabrese: agentic development and AI-native systems”. The intro, two numbered offers (including the four bullets and Troupe paragraph), and Background preserve the approved words and order, with no extra claims, placeholders, prices, formats, or em/en dashes. The intro leads with the systems built since 2025 and help for teams, then the 2024 change, because the owner approved that order (D3). Existing Markdown typography may curl the intro's apostrophe. *Because* this is approved copy, not an invitation to rewrite it.
+- **CP-2** The copy is seeded as editable consulting Sections, rendered through the existing section partial: only visible consulting sections, in position then id order, guaranteed regardless of the database scan direction. *Because* the owner manages static copy at `/admin`, and changing one page must not expose another page's content or hidden text.
+- **CP-3** `github.com/ag0os/troupe` links to `https://github.com/ag0os/troupe`. After Background, the only contact line is “Want to talk about your team? Get in touch on LinkedIn.”, with LinkedIn linked to the current `SiteSetting["linkedin_url"]`, opening in a new tab with `target="_blank"` and `rel="noopener"` as on Contact. *Because* the public repository is the proof and the owner's configured profile is the contact destination, with the site's existing external-link behavior.
+- **CP-4** The document and Open Graph title use the approved heading followed by the site title; description and Open Graph description use the visible consulting intro, with marks removed and whitespace collapsed, falling back to the layout's description when absent. Text outputs are escaped, never HTML. *Because* a shared link must identify this page and edits must not inject markup into the head.
+- **CP-5** English copy appears under both locales, with the normal locale-specific chrome, language control and theme controls, and no link to `/consulting` in the primary nav. The copy container declares `lang="en"`. *Because* the owner decided on 2026-10-13 that the page is reached from links in the site's copy rather than the primary nav (reversing the nav half of D5), Spanish translation is deferred (D6), and assistive technology needs the prose's actual language.

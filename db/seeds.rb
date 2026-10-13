@@ -78,6 +78,36 @@ sections = [
     - **Mainframe automation / compliance lead, IBM**. 30% storage reduction, ~$50K/year saved.
   MD
 
+  # Consulting
+  { page: "consulting", key: "consulting_intro", position: 1, heading: nil, body: <<~MD },
+    I'm a software engineer. Since 2025 I build the systems that let agents write good software, and I help teams do the same. In 2024 I stopped writing code by hand.
+  MD
+  { page: "consulting", key: "consulting_agentic", position: 2, heading: "1. Agentic development for software teams", body: <<~MD },
+    Your developers already have Claude Code, Codex or Cursor. Getting real work
+    out of them is a different thing. I help teams set up how they work with
+    agents:
+
+    - Plans before code, and context the next agent can pick up.
+    - Review by a different model, so one agent checks another.
+    - Coordination when many agents work at once, across several projects.
+    - The engineering basics built into the system: tests that mean something,
+      a codebase the next person can read, tech debt caught early.
+
+    This is how I work every day, with Shepherd: one agent per project that
+    keeps the context, tracks the work and runs the other agents. It is part of
+    Troupe, which is public: [github.com/ag0os/troupe](https://github.com/ag0os/troupe).
+  MD
+  { page: "consulting", key: "consulting_systems", position: 3, heading: "2. Building AI-native systems", body: <<~MD },
+    You know your domain. I know how to turn that knowledge into a system that
+    works: agents, tools and the checks that make the output trustworthy. I can
+    help you design it and build it.
+  MD
+  { page: "consulting", key: "consulting_background", position: 4, heading: "Background", body: <<~MD },
+    16+ years in IT, 6+ in software engineering, across payments, video
+    streaming and enterprise platforms. Ruby on Rails, TypeScript. Claude
+    Certified Architect (Foundations).
+  MD
+
   # Contact
   { page: "contact", key: "contact_intro", position: 1, note: "I answer email.", heading: nil, body: <<~MD }
     I'm open to senior / founding product-engineering roles and AI-workflow consulting.

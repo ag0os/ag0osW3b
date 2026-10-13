@@ -7,6 +7,10 @@ class PagesController < SiteController
     @sections = Section.for_page("work").visible.ordered
   end
 
+  def consulting
+    @sections = Section.for_page("consulting").visible.ordered
+  end
+
   def contact
     @sections = Section.for_page("contact").visible.ordered
   end

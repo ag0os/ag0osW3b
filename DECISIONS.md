@@ -95,3 +95,24 @@ Obligations: MR-17 to MR-20.
 **Decision.** `RemoveShellSettings` runs one `DELETE` against `site_settings` for the three keys by name. `down` does nothing.
 
 **Derivation.** Removing the defaults from `SiteSetting::DEFAULTS` is not enough: `all_settings` merges stored rows over the defaults, so a database where the owner ever saved the settings form keeps all three as live fields. Seeds are not run on deploy, so the change has to be a migration. It names the table and not the model because the model is application code that keeps changing after the migration is written. It names the keys rather than a `shell_%` pattern because a pattern is a guess about rows nobody has looked at. Rollback restores nothing because the rows held copy for a component that is gone; raising `IrreversibleMigration` instead would only stop someone rolling back past it for an unrelated reason. Obligations: DM-1 to DM-4.
+
+## The consulting page
+
+### D-14. Seeded sections and a small page template
+
+**Decision (proposed defaults).** Follow the other static pages: a PagesController
+action selects visible, ordered consulting Sections, and the view reuses the
+section partial. The page heading and dynamic LinkedIn contact sentence live in
+the view, as other static page headers and contact links do. The meta description
+is derived from the visible intro rather than a second copy.
+
+**Derivation.** The admin already edits and toggles Sections; adding a second
+content mechanism would make a small page harder to maintain. LinkedIn must
+reflect SiteSetting changes rather than a profile URL captured during seeding.
+The owner decided on 2026-10-13 that Consulting is reached from links in the
+site's copy rather than the primary nav. This reverses only the nav half of
+D5; the page stays as built.
+Spanish translation is deferred (D6), so the page copy stays English.
+The English content declares its language even under Spanish chrome. Markdown's
+existing curly apostrophe is kept rather than changing the renderer's Contract
+for a single page. Obligations: CP-1 to CP-5.

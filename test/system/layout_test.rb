@@ -63,6 +63,34 @@ class LayoutTest < ApplicationSystemTestCase
     assert_not scrolls_horizontally?, "the page scrolls sideways on a phone"
   end
 
+  test "primary navigation fits a narrow screen in both languages and every design" do
+    resize(*NARROW)
+    # Chrome can clamp the window width; emulate the requested viewport.
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: NARROW.first, height: NARROW.last, deviceScaleFactor: 1, mobile: false)
+    [ "English", "Español" ].each do |language|
+      visit consulting_path
+      # An already selected language needs no submission. Otherwise wait for
+      # the new page before collecting controls that would become stale.
+      click_button language unless find_button(language)["aria-pressed"] == "true"
+      assert_selector '.language-controls button[aria-pressed="true"]', text: language
+
+      design_options.each do |option|
+        option.click
+        assert_not scrolls_horizontally?, "the page scrolls sideways on a phone"
+        header = rect(".site-header")
+        rects('nav[aria-label="Primary"] a').each do |link|
+          assert_operator link["left"], :>=, 0
+          assert_operator link["right"], :<=, NARROW.first
+          assert_operator link["top"], :>=, header["top"]
+          assert_operator link["bottom"], :<=, header["bottom"]
+        end
+      end
+    end
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
   # The two things an author can put on a page that are not plain prose: a
   # marked phrase and a note in the margin. Both are content, so both have to
   # survive every design rather than being drawn in one and dropped in three.

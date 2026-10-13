@@ -8,6 +8,7 @@ Rails.application.routes.draw do
   get "about",   to: "pages#about"
   get "work",    to: "pages#work"
   get "contact", to: "pages#contact"
+  get "consulting", to: "pages#consulting"
 
   resource :locale, only: :update
 

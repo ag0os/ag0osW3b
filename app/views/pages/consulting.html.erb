@@ -1,0 +1,15 @@
+<% heading = "Agustín Calabrese: agentic development and AI-native systems" %>
+<% content_for :title, "#{heading} · #{SiteSetting["site_title"]}" %>
+<% content_for :description, unmarked(@sections.find { |section| section.key == "consulting_intro" }&.body).squish %>
+
+<div class="container stack page" lang="en">
+  <header class="page__header railed enter">
+    <h1><%= heading %></h1>
+  </header>
+
+  <% @sections.each do |section| %>
+    <%= render "shared/section", section: section %>
+  <% end %>
+
+  <p class="prose rail-indent">Want to talk about your team? Get in touch on <%= link_to "LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "noopener" %>.</p>
+</div>

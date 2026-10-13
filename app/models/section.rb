@@ -1,5 +1,5 @@
 class Section < ApplicationRecord
-  PAGES = %w[home about work contact].freeze
+  PAGES = %w[home about work contact consulting].freeze
 
   validates :key, presence: true, uniqueness: true
   validates :page, presence: true, inclusion: { in: PAGES }

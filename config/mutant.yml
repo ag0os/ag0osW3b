@@ -18,5 +18,6 @@ matcher:
     - SiteController*
     - LocalesController*
     - HomeController*
+    - PagesController#consulting
 hooks:
   - test/mutant/hooks.rb
