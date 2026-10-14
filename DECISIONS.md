@@ -116,3 +116,29 @@ Spanish translation is deferred (D6), so the page copy stays English.
 The English content declares its language even under Spanish chrome. Markdown's
 existing curly apostrophe is kept rather than changing the renderer's Contract
 for a single page. Obligations: CP-1 to CP-5.
+
+## Launch
+
+### D-15. Writing hides itself by asking whether anything is published
+
+**Decision.** The header partial shows the Writing link when `Post.published.exists?`. There is no setting. `/writing` and `/feed` keep their routes and answer with their empty states.
+
+**Derivation.** The owner decided on 2026-10-14 that Writing appears automatically with the first published post. The home page already decides its Writing block from the published posts, so the nav asks the same question with the same scope, and the two cannot disagree. A setting would be a second switch for something the content already says. The routes stay because hiding a link is not the same as withdrawing an address: a shared `/writing` link or a feed reader's poll should land on a working page. Obligations: WR-1 to WR-3, and SC-6, which removes the sample post that would otherwise keep Writing visible.
+
+### D-16. The feed link stays in the head when nothing is published (provisional)
+
+**Decision.** `<link rel="alternate">` for the feed is rendered on every page of the site layout, posts or not.
+
+**Derivation.** Rule WR-1 is about what a visitor sees; the alternate link is read only by feed readers and browser extensions. Keeping it costs nothing, because the empty feed is valid Atom (WR-3), and it lets an early subscriber receive the first post. Hiding it would also be defensible, as consistency with the nav. This is a default the owner has not settled. Obligation: WR-4.
+
+### D-17. Production seeding requires `ADMIN_PASSWORD`, always
+
+**Decision.** In production, `db/seeds.rb` raises before its first write when `ADMIN_PASSWORD` is unset or blank, even if the admin user exists. It never prints the password there. Development and test keep `change-me-please` and print it.
+
+**Derivation.** The repository is public, so its default password is everyone's. Generating a random password instead would have to be printed to be useful, and printing is what PD-2 forbids. Checking only when the admin is about to be created would let a re-seed proceed without the variable, but would make the rule depend on database state the operator cannot see from the deploy screen; one rule with no exceptions is easier to trust. A blank value counts as unset because `has_secure_password` would reject it anyway, after the error message had lost the variable's name. Raising rather than `abort` makes `db:seed` exit nonzero with the message, so a deploy script stops. Obligations: PD-1 to PD-3.
+
+### D-18. Mail links use `agoos.dev`, pinned by booting production
+
+**Decision.** `config.action_mailer.default_url_options = { host: "agoos.dev" }` in `config/environments/production.rb`. Its test runs `bin/rails runner` with `RAILS_ENV=production` and `SECRET_KEY_BASE_DUMMY=1` and builds the password-reset URL with `PasswordsMailer`.
+
+**Derivation.** The host is the domain the owner owns. The protocol needs no setting: with `force_ssl` on, Rails defaults Action Mailer's protocol to `https`, which `.dev` requires (HSTS preloaded). The test builds a real mail URL rather than reading the config line, so it also fails if the protocol default stops applying or an initializer overrides the host. Booting takes a few seconds and opens no database. The dummy secret is what `assets:precompile` uses for the same reason, so the test needs no master key. Obligation: PD-4.

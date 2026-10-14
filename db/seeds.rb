@@ -4,14 +4,23 @@
 # It is the website's own source of truth once seeded: edit it in /admin, not here.
 
 # ---- Admin user -------------------------------------------------------------
-email    = ENV.fetch("ADMIN_EMAIL", "agoos@hey.com")
-password = ENV.fetch("ADMIN_PASSWORD", "change-me-please")
+# The repo is public, so the default password is too: production must set its own.
+email = ENV.fetch("ADMIN_EMAIL", "agoos@hey.com")
+password = if Rails.env.production?
+  ENV["ADMIN_PASSWORD"].presence || raise("Set ADMIN_PASSWORD to seed production: the default admin password is public.")
+else
+  ENV.fetch("ADMIN_PASSWORD", "change-me-please")
+end
 
 admin = User.find_or_initialize_by(email_address: email)
 if admin.new_record?
   admin.password = password
   admin.save!
-  puts "→ Created admin user #{email} (password: #{password.inspect}, change it!)"
+  if Rails.env.production?
+    puts "→ Created admin user #{email}"
+  else
+    puts "→ Created admin user #{email} (password: #{password.inspect}, change it!)"
+  end
 else
   puts "→ Admin user #{email} already exists"
 end
@@ -115,34 +124,3 @@ sections.each do |attrs|
   Section.find_or_initialize_by(key: attrs[:key]).update!(attrs.merge(visible: true))
 end
 puts "→ Upserted #{sections.size} sections"
-
-# ---- Sample post ------------------------------------------------------------
-Post.find_or_initialize_by(slug: "welcome").update!(
-  title: "Welcome",
-  status: :published,
-  published_at: Time.current,
-  excerpt: "Why this site exists and what I'll write about here.",
-  tags: "meta, ai",
-  body: <<~MD
-    This is the first note on a site I'll grow over time.
-
-    I build **AI-native software workflows and agent orchestration tools**, grounded in years of
-    Rails/backend product engineering. I'll write here about:
-
-    - agent orchestration and AI-native software delivery
-    - context engineering: prompts, skills, tools, and constraints
-    - shifting human attention from line-by-line coding toward planning, architecture, and verification
-
-    ```ruby
-    # the kind of thing I think about
-    def ship(intent)
-      plan  = design(intent)
-      tests = verify(plan)
-      build(plan, guardrails: tests)
-    end
-    ```
-
-    More soon.
-  MD
-)
-puts "→ Upserted sample post (/writing/welcome)"

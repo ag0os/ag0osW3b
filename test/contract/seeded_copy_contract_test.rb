@@ -7,7 +7,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
   end
 
   test "SC-1 seeded public pages no longer name or link Claude Forge" do
-    [ "/", "/about", "/work", "/contact", "/consulting", "/writing", "/writing/welcome", "/feed" ].each do |path|
+    [ "/", "/about", "/work", "/contact", "/consulting", "/writing", "/feed" ].each do |path|
       get path
       assert_response :success
       assert_no_match(/Claude Forge|ag0os\/claude-forge/i, response.body, "retired toolkit on #{path}")
@@ -30,7 +30,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     assert_select "main #consulting_intro"
   end
   { "en" => "consulting", "es" => "consultoría" }.each do |locale, label|
-    [ "/", "/about", "/work", "/contact", "/consulting", "/writing", "/writing/welcome" ].each do |path|
+    [ "/", "/about", "/work", "/contact", "/consulting", "/writing", "/writing/published-post" ].each do |path|
       test "SC-5 #{path} footer links #{label} to consulting in #{locale}" do
         cookies[:locale] = locale
         get path
@@ -47,6 +47,10 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
         assert_select "##{section} a[href=\"/consulting\"]", count: 1
       end
     end
+  end
+
+  test "SC-6 the seeds plant no posts" do
+    assert_equal posts(:draft_post, :published_post).map(&:id).sort, Post.ids.sort
   end
 
   test "settled taglines describe the home page and its link previews in both languages" do

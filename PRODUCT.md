@@ -187,3 +187,22 @@ pinned by this contract.
 - **SC-2** The seeded Work open-source section links Troupe to `https://github.com/ag0os/troupe`. *Because* visitors evaluating the current toolkit need its public repository.
 - **SC-3** The seeded About bio links to `/consulting`, and following that link reaches a public page successfully. *Because* the invitation to consulting must lead to an offer the visitor can read without login.
 - **SC-5** The footer CTA in both locales, the Contact page's intro and the About bio each link to `/consulting`. *Because* the owner decided on 2026-10-13 that the consulting page is reached from these entry points rather than the primary nav.
+- **SC-6** The seeds plant no posts: loading them leaves the posts exactly as they were, so a freshly seeded site has none. *Because* the owner does not want a template post on the live site; the first post is one the owner writes (settled 2026-10-14).
+
+## Contract: writing
+
+Where the writing shows before there is any. Obligations run in `test/contract/writing_contract_test.rb`. A post counts as published when `Post.published` includes it: status published, with a publication date. Decisions are in `DECISIONS.md` (D-15, D-16).
+
+- **WR-1** The header's primary nav links to Writing only while at least one post is published, in both languages. With only drafts, or no posts at all, the link is absent; the first published post brings it back with no setting to change. The home page's Writing block follows the same rule (HP-3). *Because* the owner decided on 2026-10-14 that Writing appears by itself when the first post is published, and a nav link to an empty page is a promise the site cannot keep yet.
+- **WR-2** `/writing` stays public and answers 200 with nothing published, showing the empty state "First essays coming soon." and no post list. Without a nav link (WR-1) it is reached only by its address. *Because* the address may already be shared or bookmarked, and a 404 there reads as a broken site.
+- **WR-3** `/feed` stays public and answers 200 with nothing published: a valid Atom feed (`application/atom+xml`, with an `id`, a `title` and an `updated`) and no entries. *Because* feed readers poll it, and an error or a malformed document can make a reader drop the subscription before the first post arrives.
+- **WR-4** The site layout's head links to the feed (`<link rel="alternate" type="application/atom+xml">`) whether or not anything is published. *Because* the link is for feed readers, not visitors: it adds nothing to the page, and a subscription taken early delivers the first post when it lands. The empty feed is valid (WR-3). Provisional default, pending the owner's decision.
+
+## Contract: the production deploy
+
+What the first deploy to agoos.dev depends on. Obligations run in `test/contract/production_contract_test.rb`. Decisions are in `DECISIONS.md` (D-17, D-18).
+
+- **PD-1** In production, `db/seeds.rb` raises unless `ADMIN_PASSWORD` is set and not blank, with a message that names `ADMIN_PASSWORD`, before it writes anything: no user, section, setting or post. That holds whether or not the admin user already exists. *Because* the repository is public, so the development default password is public, and an admin created with it on the live site is an open door. Failing before the first write leaves the database as it was, so setting the variable and seeding again is the whole fix.
+- **PD-2** In production with `ADMIN_PASSWORD` set, seeding creates the admin with that password, and nothing it prints contains the password. *Because* deploy output goes to logs that outlive the session, and a password in a log is shared with whoever reads the log.
+- **PD-3** In development and test, seeding without `ADMIN_PASSWORD` creates the admin with the default password, `change-me-please`, and prints it. *Because* a local database needs an admin someone can log in as without setup.
+- **PD-4** In production, links in mail are built for `https://agoos.dev`: the password-reset link is `https://agoos.dev/passwords/<token>/edit`. The test boots the production environment in a separate process and builds the link there. *Because* the password-reset mail is the only way back into the admin, and a link to `example.com` leads nowhere. `.dev` is HTTPS only (HSTS preloaded), so an `http` link would depend on the browser to upgrade it.

@@ -21,7 +21,8 @@ bin/rails db:seed    # create the admin user + starter content
 bin/rails server     # http://localhost:3000  (admin at /admin)
 ```
 
-Set admin credentials with `ADMIN_EMAIL` / `ADMIN_PASSWORD` when seeding.
+Set admin credentials with `ADMIN_EMAIL` / `ADMIN_PASSWORD` when seeding. In
+production, seeding refuses to run without `ADMIN_PASSWORD`.
 Run the tests with `bin/rails test`.
 
 ## Content

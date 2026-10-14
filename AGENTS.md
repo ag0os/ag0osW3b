@@ -39,7 +39,7 @@ lives in the database and is edited through `/admin`.
 
 ```bash
 bin/setup             # install gems + prepare the database
-bin/rails db:seed     # admin user + starter content (ADMIN_EMAIL / ADMIN_PASSWORD to override)
+bin/rails db:seed     # admin user + starter content (ADMIN_EMAIL / ADMIN_PASSWORD; production requires ADMIN_PASSWORD)
 bin/rails server      # http://localhost:3000  (admin at /admin)
 bin/rails test        # Minitest suite — keep it green
 bin/rubocop           # rails-omakase style — keep it clean

@@ -6,7 +6,9 @@
       <%= link_to t("nav.home"),    root_path,    class: ("is-active" if current_page?(root_path)),    aria: { current: ("page" if current_page?(root_path)) } %>
       <%= link_to t("nav.about"),   about_path,   class: ("is-active" if current_page?(about_path)),   aria: { current: ("page" if current_page?(about_path)) } %>
       <%= link_to t("nav.work"),    work_path,    class: ("is-active" if current_page?(work_path)),    aria: { current: ("page" if current_page?(work_path)) } %>
-      <%= link_to t("nav.writing"), posts_path,   class: ("is-active" if current_page?(posts_path)),   aria: { current: ("page" if current_page?(posts_path)) } %>
+      <% if Post.published.exists? %>
+        <%= link_to t("nav.writing"), posts_path,   class: ("is-active" if current_page?(posts_path)),   aria: { current: ("page" if current_page?(posts_path)) } %>
+      <% end %>
       <%= link_to t("nav.contact"), contact_path, class: ("is-active" if current_page?(contact_path)), aria: { current: ("page" if current_page?(contact_path)) } %>
     </nav>
 
