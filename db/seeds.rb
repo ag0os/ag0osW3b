@@ -29,7 +29,7 @@ sections = [
 
     [Troupe on GitHub →](https://github.com/ag0os/troupe)
 
-    Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. It is no longer developed; the code is public.
+    Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. Development is paused; the code is public.
 
     [Cosmonauts on GitHub →](https://github.com/ag0os/cosmonauts)
   MD
@@ -64,7 +64,7 @@ sections = [
   # Work
   { page: "work", key: "work_open_source", position: 1, note: "All of it public.", heading: "Open source", body: <<~MD },
     - **[Troupe](https://github.com/ag0os/troupe)**. My agent toolkit, begun in 2025 as a fork of a workshop project. Home of Shepherd, the agent per project I run every day.
-    - **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent orchestration framework, 2026, the predecessor of Shepherd. No longer developed.
+    - **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent orchestration framework, 2026, the predecessor of Shepherd. Development is paused.
     - **[Bright Tauri](https://github.com/ag0os/bright-tauri)**. Early-stage React + Rust/Tauri app.
   MD
   { page: "work", key: "work_experience", position: 2, note: "Most of the rest is private.", heading: "Selected experience", body: <<~MD },

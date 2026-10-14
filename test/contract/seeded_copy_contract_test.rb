@@ -63,7 +63,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "settled Featured copy features Shepherd and identifies Cosmonauts as its retired predecessor" do
+  test "settled Featured copy features Shepherd and identifies Cosmonauts as its paused predecessor" do
     featured = Section.find_by!(key: "home_featured")
     assert_equal "Featured: Shepherd", featured.heading
     assert_equal "Built it because I needed it.", featured.note
@@ -72,7 +72,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
 
       [Troupe on GitHub →](https://github.com/ag0os/troupe)
 
-      Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. It is no longer developed; the code is public.
+      Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. Development is paused; the code is public.
 
       [Cosmonauts on GitHub →](https://github.com/ag0os/cosmonauts)
     MD
@@ -81,12 +81,12 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     assert_select '#home_featured a[href="https://github.com/ag0os/cosmonauts"]', count: 1
   end
 
-  test "settled Work copy identifies Cosmonauts as the retired predecessor of Shepherd" do
-    assert_equal "- **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent orchestration framework, 2026, the predecessor of Shepherd. No longer developed.",
+  test "settled Work copy identifies Cosmonauts as the paused predecessor of Shepherd" do
+    assert_equal "- **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Agent orchestration framework, 2026, the predecessor of Shepherd. Development is paused.",
       Section.find_by!(key: "work_open_source").body.lines.find { |line| line.include?("[Cosmonauts]") }.strip
 
     get "/work"
-    assert_select "#work_open_source li", text: "Cosmonauts. Agent orchestration framework, 2026, the predecessor of Shepherd. No longer developed."
+    assert_select "#work_open_source li", text: "Cosmonauts. Agent orchestration framework, 2026, the predecessor of Shepherd. Development is paused."
     assert_select '#work_open_source a[href="https://github.com/ag0os/cosmonauts"]', count: 1, text: "Cosmonauts"
   end
 
