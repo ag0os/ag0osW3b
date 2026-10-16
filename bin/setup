@@ -14,6 +14,8 @@ FileUtils.chdir APP_ROOT do
 
   puts "== Installing dependencies =="
   system("bundle check") || system!("bundle install")
+  # exhale installs its own bundle, kept apart from the app's (DECISIONS.md, D-23)
+  system! "bin/exhale --version"
 
   # puts "\n== Copying sample files =="
   # unless File.exist?("config/database.yml")

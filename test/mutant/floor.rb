@@ -1,5 +1,6 @@
 # The mutation floor (bin/mutant-floor): a run passes when every mutation it
-# leaves alive is already in the committed baseline, test/mutant/baseline.yml.
+# leaves alive is in the committed baseline, test/mutant/baseline.yml, and
+# every entry in the baseline is still a mutation that survives.
 #
 # A survivor is known by its subject and the lines its mutation removes and
 # adds. Line numbers, file paths and the unchanged rest of the method are left
@@ -13,54 +14,104 @@ module MutantFloor
 
   Survivor = Data.define(:subject, :change, :identification)
 
-  Verdict = Data.define(:new_survivors, :broken, :stale) do
-    def pass? = new_survivors.empty? && broken.empty?
+  # Everything but timed_out fails the run.
+  Verdict = Data.define(:new_survivors, :broken, :partial, :unmatched, :killed, :vanished, :timed_out) do
+    def pass? = [ new_survivors, broken, partial, unmatched, killed, vanished ].all?(&:empty?)
   end
 
   module_function
 
   # The lines a mutation diff removes and adds, which is all that identifies it.
   def change(diff)
-    diff.lines.grep(/\A[-+]/).map(&:rstrip).join("\n")
+    diff.to_s.lines.grep(/\A[-+]/).map(&:rstrip).join("\n")
   end
 
-  # Mutations a session result left uncovered: an evil mutation no test killed
-  # is a survivor; any other kind (a neutral one) means the tests fail on the
-  # code as written, which no baseline can accept.
-  def uncovered(session)
+  # Every mutation result as [subject, change, coverage].
+  def results(session)
     session.fetch("subject_results").flat_map do |subject|
-      subject.fetch("coverage_results").filter_map do |coverage|
-        next if coverage.fetch("criteria_result").values.any?
-
-        mutation = coverage.fetch("mutation_result")
-        [ mutation.fetch("mutation_type"),
-          Survivor.new(subject: subject.fetch("expression_syntax"),
-                       change: change(mutation.fetch("mutation_diff")),
-                       identification: mutation.fetch("mutation_identification")) ]
+      subject.fetch("coverage_results").map do |coverage|
+        [ subject.fetch("expression_syntax"), change(coverage.dig("mutation_result", "mutation_diff")), coverage ]
       end
     end
   end
 
-  # Subjects a session ran, so that stale entries are only reported for them.
+  def uncovered?(coverage) = coverage.fetch("criteria_result").values.none?
+
+  def survivor(subject, change, coverage)
+    Survivor.new(subject:, change:, identification: coverage.dig("mutation_result", "mutation_identification"))
+  end
+
+  # Subjects a session ran.
   def subjects(session)
     session.fetch("subject_results").map { |subject| subject.fetch("expression_syntax") }
   end
 
+  # Does a mutant expression select this subject? "Foo*" is Foo and the
+  # constants it nests; "Foo#bar" and "Foo.bar" are that method; "Foo" is Foo.
+  def selects?(expression, subject)
+    scope = subject[/\A[^#.]+/]
+    if expression.end_with?("*")
+      namespace = expression.delete_suffix("*")
+      scope == namespace || scope.start_with?("#{namespace}::")
+    elsif expression.match?(/[#.]/)
+      subject == expression
+    else
+      scope == expression
+    end
+  end
+
+  # Expressions that select nothing, then baseline subjects that didn't run.
+  def unmatched(session, baseline, expressions)
+    ran = subjects(session)
+    expressions.reject { |expression| ran.any? { |subject| selects?(expression, subject) } } +
+      (baseline.fetch("survivors", {}).keys - ran)
+  end
+
+  # Subjects whose results stop short of their mutations.
+  def partial(session)
+    session.fetch("subject_results")
+      .reject { |subject| subject.fetch("amount_mutations") == subject.fetch("coverage_results").size }
+      .map { |subject| subject.fetch("expression_syntax") }
+  end
+
   # Matches each survivor against the baseline, one entry each: two identical
-  # survivors in one subject need two entries.
-  def compare(session, baseline)
+  # survivors in one subject need two entries. An entry left over is a
+  # mutation that a test now kills, that only timed out, or that mutant no
+  # longer makes.
+  def compare(session, baseline, expressions:)
     remaining = baseline.fetch("survivors", {}).transform_values(&:dup)
     new_survivors = []
     broken = []
-    uncovered(session).each do |type, survivor|
-      next broken << survivor unless type == "evil"
+    killed_results = Hash.new { |hash, key| hash[key] = [] }
+    results(session).each do |subject, change, coverage|
+      unless uncovered?(coverage)
+        killed_results[[ subject, change ]] << coverage.fetch("criteria_result")
+        next
+      end
+      next broken << survivor(subject, change, coverage) unless coverage.dig("mutation_result", "mutation_type") == "evil"
 
-      entries = remaining.fetch(survivor.subject, [])
-      index = entries.index(survivor.change)
-      index ? entries.delete_at(index) : new_survivors << survivor
+      entries = remaining.fetch(subject, [])
+      index = entries.index(change)
+      index ? entries.delete_at(index) : new_survivors << survivor(subject, change, coverage)
     end
-    stale = subjects(session).flat_map { |subject| remaining.fetch(subject, []).map { |change| [ subject, change ] } }
-    Verdict.new(new_survivors:, broken:, stale:)
+
+    stale = { killed: [], vanished: [], timed_out: [] }
+    remaining.each do |subject, entries|
+      entries.each do |change|
+        criteria = killed_results[[ subject, change ]]
+        if (index = criteria.index { |result| result["test_result"] || result["process_abort"] })
+          kind = :killed
+        elsif (index = criteria.index { |result| result["timeout"] })
+          kind = :timed_out
+        else
+          kind = :vanished
+        end
+        criteria.delete_at(index) if index
+        stale[kind] << [ subject, change ]
+      end
+    end
+
+    Verdict.new(new_survivors:, broken:, partial: partial(session), unmatched: unmatched(session, baseline, expressions), **stale)
   end
 
   # Re-anchoring: a baseline whose survivors differ from the one at the base
@@ -78,8 +129,9 @@ module MutantFloor
 
   # The baseline a full run records, keeping the earlier anchors.
   def record(session, baseline, at:, on:, reason:)
-    survivors = uncovered(session).select { |type, _| type == "evil" }.map(&:last)
-      .group_by(&:subject).sort.to_h.transform_values { |list| list.map(&:change).sort }
+    survivors = results(session)
+      .select { |_, _, coverage| uncovered?(coverage) && coverage.dig("mutation_result", "mutation_type") == "evil" }
+      .group_by(&:first).sort.to_h.transform_values { |list| list.map { |_, change, _| change }.sort }
     anchors = baseline.fetch("anchors", []) + [ { "at" => at, "on" => on, "reason" => reason } ]
     { "anchors" => anchors, "survivors" => survivors }
   end

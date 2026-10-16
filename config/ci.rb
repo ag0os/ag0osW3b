@@ -1,7 +1,7 @@
 # Run using bin/ci. Everything a change must pass before it merges; GitHub runs
 # exactly this. See PRODUCT.md, "Contract: continuous integration".
 
-# What the floors compare against. GitHub sets CI_BASE; locally it is
+# What the guards and floors compare against. GitHub sets CI_BASE; locally it is
 # origin/main, so fetch first.
 base = ENV["CI_BASE"].to_s.then { |ref| ref.empty? ? "origin/main" : ref }
 
@@ -16,6 +16,10 @@ CI.run do
   step "Tests: Rails", "bin/rails test"
   step "Tests: System", "bin/rails test:system"
   step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant"
+
+  # Guards: changes that would switch a check off from inside the code.
+  step "Guard: Generator headers", "bin/change-guards", "headers", base
+  step "Guard: RuboCop disables", "bin/change-guards", "rubocop", base
 
   # Floors: each fails only on what the change adds since the base.
   step "Health: Mutation", "bin/mutant-floor", base

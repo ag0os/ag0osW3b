@@ -1,0 +1,6 @@
+# Tools bin/ci runs that never load the app, kept out of its bundle so their
+# dependencies can't move the app's. See DECISIONS.md, D-23.
+source "https://rubygems.org"
+
+# Duplication and complexity floors [https://github.com/tools4imps/exhale-ruby]
+gem "exhale", "0.2.0"

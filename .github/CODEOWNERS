@@ -1,0 +1,17 @@
+# The paths that decide the ci check. A pull request runs its own copy of the
+# gate, so with code-owner review required in branch protection, changing any
+# of these needs the owner's approval. See PRODUCT.md, CI-8.
+/.github/                          @ag0os
+/bin/                              @ag0os
+/config/ci.rb                      @ag0os
+/config/mutant.yml                 @ag0os
+/config/brakeman.ignore            @ag0os
+/config/bundler-audit.yml          @ag0os
+/test/mutant/                      @ag0os
+/test/ci/                          @ag0os
+/test/contract/ci_contract_test.rb @ag0os
+/contract/                         @ag0os
+/tools/                            @ag0os
+/.rubocop.yml                      @ag0os
+/Gemfile                           @ag0os
+/Gemfile.lock                      @ag0os

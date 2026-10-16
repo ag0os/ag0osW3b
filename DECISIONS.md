@@ -151,26 +151,65 @@ for a single page. Obligations: CP-1 to CP-5.
 
 ## Continuous integration
 
-### D-20. One job that runs `bin/ci`
+### D-20. One job that runs `bin/ci`, and the protection it assumes
 
-**Decision.** `.github/workflows/ci.yml` has a single job, `ci`, which installs libvips, checks out the full history and runs `bin/ci`. Rails' generated workflow had five jobs, each running some of the checks.
+**Decision.** `.github/workflows/ci.yml` has a single job, `ci`, which installs libvips, checks out the full history and runs `bin/ci`. Rails' generated workflow had five jobs, each running some of the checks. The job carries no `if:` and no `continue-on-error`; the only conditions are `if: failure()` on the two uploads.
 
-**Derivation.** A merge grant needs one required check, and that check has to be the whole gate. Five jobs listed the steps a second time, and two lists drift: the generated jobs never ran the seeds, and `bin/ci` never ran the system tests. With one job, running `bin/ci` locally gives the same verdict as the check. The cost is that the jobs no longer run in parallel. Chrome comes from the runner image, as it did for the generated system-test job. Obligations: CI-1, CI-2.
+**Derivation.** A merge grant needs one required check, and that check has to be the whole gate. Five jobs listed the steps a second time, and two lists drift: the generated jobs never ran the seeds, and `bin/ci` never ran the system tests. With one job, running `bin/ci` locally gives the same verdict as the check. The cost is that the jobs no longer run in parallel. Chrome comes from the runner image, as it did for the generated system-test job. GitHub counts a skipped job as a passing required check, and a job that may continue on error is green whatever `bin/ci` returns. That is why CI-2's test refuses both, and allows a condition only on an upload.
 
-### D-21. On a push to main, the floors compare with the previous main
+**What this CI assumes of branch protection on main** (set outside the repository, by the owner):
+- the `ci` check is required;
+- branches must be up to date before merging, so the check ran on what will land;
+- review from code owners is required (CI-8);
+- nobody, admins included, bypasses these.
+
+Without the second, a green check can describe a combination main has since moved away from. Without the third, a pull request can edit its own gate. Obligations: CI-1, CI-2, CI-8.
+
+### D-21. On a push to main, the floors compare with the previous main: an alarm, not a gate
 
 **Decision.** `CI_BASE` is `origin/<target>` on a pull request and `github.event.before` on a push to main.
 
-**Derivation.** The floors judge a change, and a push to main compared with `origin/main` is a change of nothing, so they would pass without checking anything. Comparing with the commit main pointed at before the push checks the merged result, which can differ from what the pull request was checked against when main moved underneath it. Obligation: CI-3.
+**Derivation.** The floors judge a change, and a push to main compared with `origin/main` is a change of nothing, so they would pass without checking anything. Comparing with the commit main pointed at before the push checks the merged result. But merging to main deploys it: Hatchbox deploys main within about a minute of a push, and this run takes several. So the push run finishes after production already has the code. It is an alarm that something got through, not a gate. The gate is the pull request's run on a branch that is up to date with main (D-20). Obligation: CI-3.
 
-### D-22. Mutation: scoped by mutant's `--since`, matched by subject and changed lines
+### D-22. Mutation runs every subject, every time, and the baseline must be exact
 
-**Decision.** `bin/mutant-floor` passes `--since <merge base>` to mutant, which keeps only the subjects in `config/mutant.yml` whose source lines the diff touches. Survivors are matched against `test/mutant/baseline.yml` by subject and the diff's `-` and `+` lines. The run widens to every subject when the change touches mutant's config, the lockfile, `test/mutant/`, fixtures, the test helper, or a test that declares `cover`.
+**Decision.** `bin/mutant-floor` runs mutant on every subject in `config/mutant.yml`; there is no `--since` and no list of paths that widen the run. Survivors are matched against `test/mutant/baseline.yml` by subject and the diff's `-` and `+` lines, each entry accepting one survivor. The run fails on:
+- a survivor the baseline doesn't list;
+- a neutral mutation that fails;
+- a subject with fewer results than mutations;
+- an expression in `config/mutant.yml`, or a baseline subject, that matches no subject;
+- an entry whose mutation a test now kills, or that mutant no longer makes.
 
-**Derivation.** `--since` takes a merge base, not `origin/main`: mutant runs `git diff-index` against the working tree, so a main that moved on would count main's own changes as the change's. A scoped run misses one thing: a weaker test kills fewer mutants without touching any subject. Widening on the tests that declare `cover`, and on what they load, closes that gap. A full run takes about 40 seconds locally. mutant identifies a mutation by file, line and a hash of the mutated method, and editing anything above it changes all three. The removed and added lines change only when the mutated code does. The baseline lists every survivor rather than a count, because a count lets a new survivor hide behind a killed one. Entries that are now killed don't fail the run, because a slower machine can turn a survivor into a timeout, which mutant counts as a kill. Obligations: CI-4, CI-5.
+It tolerates, and reports, an entry killed only by a timeout.
 
-### D-23. Duplication gates on what the change introduces; the exhale Contract is the only exception
+**Derivation.**
+- *Why every subject.* The first version scoped the run with `--since` and widened it when a list of paths changed. Review found that both missed changes. Removing a test's `cover` line didn't widen the run, because the file no longer declared it. A default scope on `Post` made a new survivor in `HomeController#show` without touching it. Models, views, routes, locales and test helpers all change what kills a mutation, and no list of paths keeps up. A full run takes about 35 seconds on 14 local cores, and an estimated 2 to 2.5 minutes on GitHub's 4. The owner settles this cost in the pull request. A scoped run needed someone to read the diff, and the grant removes that reader.
+- *Why matching must be exact.* mutant selects nothing for an expression that matches no subject, and exits 0, so a renamed subject would leave mutation silently. An entry left in the baseline after a test kills its mutation is a credit: a later change that deletes the test brings the survivor back and spends it. So a killed entry fails, and the change that kills it re-records. A timeout is the exception, because a slower runner can turn a survivor into one, and mutant counts it as a kill; `criteria_result` tells the two apart. mutant's exit status can't separate survivors from a crash, so the floor reads the session result, and an incomplete subject must fail rather than pass the mutations it lacks.
+- *Why this key.* mutant identifies a mutation by file, line and a hash of the mutated method, and editing anything above it changes all three. The removed and added lines change only when the mutated code does. The baseline lists every survivor rather than a count, because a count lets a new survivor hide behind a killed one.
 
-**Decision.** `exhale dry --introduced-only` against the base, and no `contract/` directory yet. The five copies on main (the admin post and section forms and their `create` actions, and the section lists on the About and Work pages) stay warnings.
+Obligations: CI-4, CI-5.
 
-**Derivation.** A `parallel` clause accepting the five copies was tried, and it made main sweep clean. But a clause names whole units, so it would also accept any new copy between the same two forms. `--introduced-only` judges each copied fragment pair, so a new pair fails even between files that already share code. Its baseline is the merge base, not a file, and that is honest because main is reached only through this check. A deliberate new copy still needs a written reason: a `parallel` clause, which exhale marks "NEW CLAUSE, review its reason". `exhale complexity` already compares each method with its own score at the base, so it needs no flag. Obligation: CI-6.
+### D-23. Duplication gates on what the change introduces; exhale runs from its own bundle
+
+**Decision.** `exhale dry --introduced-only` against the base, and no `contract/` directory yet. The five copies on main stay warnings: the admin post and section forms and their `create` actions, and the section lists on the About and Work pages. Exhale is installed from `tools/Gemfile` and its own lockfile. `bin/exhale` installs that bundle when it is missing (`bin/setup` calls it for that) and points Bundler there, naming the lockfile too. It starts again outside the app's bundle when it finds itself inside it. The request was to add exhale to the app's Gemfile; this departs from it.
+
+**Derivation.**
+- *Why `--introduced-only`.* A `parallel` clause accepting the five copies was tried, and it made main sweep clean. But a clause names whole units, so it would also accept any new copy between the same two forms. `--introduced-only` judges each copied fragment pair, so a new pair fails even between files that already share code. Its baseline is the merge base, not a file. That is honest, because main is reached only through this check. A deliberate new copy still needs a written reason: a `parallel` clause, which exhale marks "NEW CLAUSE, review its reason". `exhale complexity` already compares each method with its own score at the base.
+- *Why its own bundle.* Exhale pins `bigdecimal ~> 3.1` on purpose, for fingerprints that come out identical on every platform. In the app's bundle that moved production's `bigdecimal` from 4.1.2 back to 3.3.1. It would have held it there, past any fix released only in 4.x, which `bundler-audit` would then fail on with no way out. Exhale is static analysis and never loads the app, so nothing needs it in the app's bundle. Naming the lockfile matters. Bundler 4 hands a bundled process's children `BUNDLE_LOCKFILE` and a `RUBYOPT` that loads the bundle. A first version installed the tools bundle from `bin/setup` under `bin/ci`, and `bundle check` wrote exhale's resolution over the app's `Gemfile.lock`. CI-6's test now starts `bin/exhale` with that inherited environment.
+
+Obligation: CI-6.
+
+### D-24. Guards for what switches a check off from inside, and owners for the gate
+
+**Decision.** `bin/change-guards` fails a change in two cases:
+- a file under `app/` or `lib/` gains a generator's header in its first five lines. The pattern is exhale's own `GENERATED`, copied, and a test compares it with the installed exhale.
+- any file holds more RuboCop disable or todo directives than at the base.
+
+`.github/CODEOWNERS` names the owner on the paths that decide the gate.
+
+**Derivation.**
+- *The header.* Exhale drops a file with such a header from both floors, so one comment line would hide a copy and a tangled method. A header on a new file is caught too, because "had none at the base" includes "didn't exist".
+- *The directive.* An inline directive switches RuboCop off with no change to `.rubocop.yml`. Counting per file, rather than reading added lines, lets a directive move within a file without failing.
+- *The owners.* GitHub runs a pull request's own copy of the workflow and of everything it calls. A change can edit `bin/ci`, the baseline, `config/mutant.yml` or the Contract test that pins them, and pass its own check. Code-owner review moves those edits to the owner. It does not reach every file the gate executes: a test could still rewrite the test framework. That limit is stated in PRODUCT.md.
+
+Obligations: CI-7, CI-8.
