@@ -17,6 +17,8 @@ HEADER = <<~YAML
   # Mutation survivors bin/ci accepts, by subject: the lines each mutation
   # removes and adds. A survivor not listed here fails the build, and so does
   # an entry whose mutation a test now kills or mutant no longer makes.
+  # `subjects` lists every subject that ran when this was recorded; one that
+  # no longer runs (moved into a concern, renamed) fails the build too.
   #
   # Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
   # subject and appends an anchor; a change to the survivors without a new
@@ -89,7 +91,7 @@ FileUtils.chdir APP_ROOT do
   list "Killed only by a timeout, so tolerated (a slow runner can do this):", verdict.timed_out
   list "FAIL: the tests fail on the code as written:", verdict.broken
   list "FAIL: mutant stopped short of these subjects' mutations:", verdict.partial
-  list "FAIL: in config/mutant.yml or the baseline, but matching no subject:", verdict.unmatched
+  list "FAIL: named in config/mutant.yml or the baseline, but no such subject ran:", verdict.unmatched
   list "FAIL: killed by a test now; re-record the baseline without them:", verdict.killed
   list "FAIL: mutant no longer makes these; re-record the baseline without them:", verdict.vanished
   list "FAIL: #{verdict.new_survivors.size} new survivor(s), not in #{MutantFloor::BASELINE}:", verdict.new_survivors

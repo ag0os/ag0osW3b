@@ -34,13 +34,15 @@ def git(*args)
   out
 end
 
-def removals(text) = (YAML.safe_load(text.to_s) || {}).fetch("removals", nil) || []
+def entries(text, key) = (YAML.safe_load(text.to_s) || {}).fetch(key, nil) || []
 
 # The base's own test files, exported from git, loaded with this bundle.
 def base_count(merge_base, suite)
   Dir.mktmpdir("test-count") do |dir|
-    _, status = Open3.capture2("sh", "-c", "git archive #{merge_base} | tar -x -C #{dir}")
-    abort "test-count: could not export the base" unless status.success?
+    # git's own status, not a pipe's: tar exits 0 on empty input.
+    tarball = File.join(dir, "base.tar")
+    system("git", "archive", "-o", tarball, merge_base, exception: true)
+    system("tar", "-xf", tarball, "-C", dir, exception: true)
     env = { "BUNDLE_GEMFILE" => File.join(APP_ROOT, "Gemfile"), "BUNDLE_LOCKFILE" => File.join(APP_ROOT, "Gemfile.lock"),
             "RAILS_ENV" => "test", "RUBYOPT" => nil }
     out, status = Open3.capture2e(env, "ruby", "-e", COUNT, suite, chdir: dir)
@@ -64,9 +66,10 @@ FileUtils.chdir APP_ROOT do
 
   count = base_count(merge_base, suite)
   at_base, = Open3.capture2("git", "show", "#{merge_base}:#{TestCount::REMOVALS}", err: File::NULL)
+  head_file = File.exist?(TestCount::REMOVALS) ? File.read(TestCount::REMOVALS) : ""
   problems = TestCount.problems(output:, success: status.success?, base_count: count, suite:,
-                                head_removals: removals(File.exist?(TestCount::REMOVALS) && File.read(TestCount::REMOVALS)),
-                                base_removals: removals(at_base))
+                                head_removals: entries(head_file, "removals"), base_removals: entries(at_base, "removals"),
+                                skips: entries(head_file, "skips"))
   puts
   problems.each { |problem| puts "FAIL: #{problem}" }
   puts "test-count: #{suite}: #{TestCount.summary(output)&.fetch(:runs)} runs; the base (#{merge_base[0, 7]}) has #{count} tests" if problems.empty?

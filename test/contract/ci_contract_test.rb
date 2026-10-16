@@ -204,6 +204,20 @@ class CiContractTest < ActiveSupport::TestCase
     assert_equal [ "Home#index" ], verdict.unmatched
   end
 
+  test "CI-4 a subject the baseline records that no longer runs fails, entries or not" do
+    recorded = baseline({}).merge("subjects" => [ "Home#index", "Home#show", "Pages#show" ])
+    verdict = compare(session("Home#show" => [], "Pages#show" => []), recorded)
+
+    assert_not verdict.pass?
+    assert_equal [ "Home#index" ], verdict.unmatched
+  end
+
+  test "CI-4 a subject that runs but isn't recorded yet passes" do
+    recorded = baseline({}).merge("subjects" => [ "Home#show" ])
+
+    assert compare(session("Home#show" => [], "Pages#show" => []), recorded).pass?
+  end
+
   test "CI-4 a baseline entry whose mutation a test now kills fails" do
     verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, killed: true) ], "Pages#show" => []),
                       baseline("Home#show" => [ MutantFloor.change(DROP_ORDER) ]))
@@ -237,6 +251,23 @@ class CiContractTest < ActiveSupport::TestCase
     assert_nil MutantFloor.anchor_problem(grown.(base["anchors"] + [ { "reason" => "c+d is equivalent" } ]), base)
     assert_match(/without adding an anchor/, MutantFloor.anchor_problem({ "survivors" => {} }, nil))
     assert_nil MutantFloor.anchor_problem(base, nil)
+  end
+
+  test "CI-5 changing the subjects the baseline records needs a new anchor with a reason" do
+    base = baseline({}).merge("subjects" => [ "Home#index", "Home#show" ])
+    shrunk = ->(anchors) { base.merge("anchors" => anchors, "subjects" => [ "Home#show" ]) }
+
+    assert_match(/without adding an anchor/, MutantFloor.anchor_problem(shrunk.(base["anchors"]), base))
+    assert_nil MutantFloor.anchor_problem(shrunk.(base["anchors"] + [ { "reason" => "index moved to a concern" } ]), base)
+  end
+
+  test "CI-5 recording writes every subject that ran, with or without survivors" do
+    ran = session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => [ coverage(DROP_ORDER, killed: true) ])
+    recorded = MutantFloor.record(ran, {}, at: "abc1234", on: "2026-10-16", reason: "first")
+
+    assert_equal [ "Home#show", "Pages#show" ], recorded["subjects"]
+    assert_equal({ "Home#show" => [ MutantFloor.change(DROP_ORDER) ] }, recorded["survivors"])
+    assert_equal [ { "at" => "abc1234", "on" => "2026-10-16", "reason" => "first" } ], recorded["anchors"]
   end
 
   # --- Exhale's bundle ------------------------------------------------------------
@@ -365,8 +396,8 @@ class CiContractTest < ActiveSupport::TestCase
 
   SUMMARY = "Finished in 3.1s, 60 runs/s.\n210 runs, 1428 assertions, 0 failures, 0 errors, 0 skips\n"
 
-  def count(output = SUMMARY, success: true, base: 210, head_removals: [], base_removals: [])
-    TestCount.problems(output:, success:, base_count: base, suite: "rails", head_removals:, base_removals:)
+  def count(output = SUMMARY, success: true, base: 210, head_removals: [], base_removals: [], skips: [])
+    TestCount.problems(output:, success:, base_count: base, suite: "rails", head_removals:, base_removals:, skips:)
   end
 
   test "CI-9 a run that ends with the summary, no failures or errors, and the base's count passes" do
@@ -394,5 +425,23 @@ class CiContractTest < ActiveSupport::TestCase
     assert_match(/but the base has 213/, count(SUMMARY, base: 213, head_removals: [ removal ]).join)
     assert_match(/but the base has 212/, count(SUMMARY, base: 212, head_removals: [ removal.merge("suite" => "system") ]).join)
     assert_match(/gives no reason/, count(SUMMARY, base: 212, head_removals: [ removal.merge("reason" => " ") ]).join)
+  end
+
+  test "CI-9 a skipped test fails unless test_removals.yml lists it with a reason" do
+    skipped = SUMMARY.sub("0 skips", "7 skips")
+    listed = { "suite" => "rails", "tests" => 7, "reason" => "the admin suite waits on the new login" }
+
+    assert_match(/7 skips, but test_removals.yml lists 0/, count(skipped).join)
+    assert_empty count(skipped, skips: [ listed ])
+    assert_match(/7 skips, but test_removals.yml lists 0/, count(skipped, skips: [ listed.merge("suite" => "system") ]).join)
+    assert_match(/gives no reason/, count(skipped, skips: [ listed.merge("reason" => "") ]).join)
+  end
+
+  test "CI-9 a listed skip that no longer skips fails, so the list comes off" do
+    assert_match(/0 skips, but test_removals.yml lists 2/, count(SUMMARY, skips: [ { "suite" => "rails", "tests" => 2, "reason" => "flaky" } ]).join)
+  end
+
+  test "CI-9 a base with no tests fails, since an export or count went wrong" do
+    assert_match(/the base has no rails tests/, count(SUMMARY, base: 0).join)
   end
 end

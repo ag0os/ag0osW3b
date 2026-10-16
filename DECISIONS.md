@@ -178,13 +178,14 @@ Without the second, a green check can describe a combination main has since move
 - a neutral mutation that fails;
 - a subject with fewer results than mutations;
 - an expression in `config/mutant.yml`, or a baseline subject, that matches no subject;
+- a subject the baseline records as having run that doesn't run;
 - an entry whose mutation a test now kills, or that mutant no longer makes.
 
 It tolerates, and reports, an entry killed only by a timeout.
 
 **Derivation.**
 - *Why every subject.* The first version scoped the run with `--since` and widened it when a list of paths changed. Review found that both missed changes. Removing a test's `cover` line didn't widen the run, because the file no longer declared it. A default scope on `Post` made a new survivor in `HomeController#show` without touching it. Models, views, routes, locales and test helpers all change what kills a mutation, and no list of paths keeps up. A full run takes about 35 seconds on 14 local cores, and an estimated 2 to 2.5 minutes on GitHub's 4. The owner settles this cost in the pull request. A scoped run needed someone to read the diff, and the grant removes that reader.
-- *Why matching must be exact.* mutant selects nothing for an expression that matches no subject, and exits 0, so a renamed subject would leave mutation silently. An entry left in the baseline after a test kills its mutation is a credit: a later change that deletes the test brings the survivor back and spends it. So a killed entry fails, and the change that kills it re-records. A timeout is the exception, because a slower runner can turn a survivor into one, and mutant counts it as a kill; `criteria_result` tells the two apart. mutant's exit status can't separate survivors from a crash, so the floor reads the session result, and an incomplete subject must fail rather than pass the mutations it lacks.
+- *Why matching must be exact.* mutant selects nothing for an expression that matches no subject, and exits 0, so a renamed subject would leave mutation silently. Checking expressions isn't enough on its own. Moving `SiteController#switch_locale` into a concern took it out of mutation, with a planted survivor, while `SiteController*` still matched the class's other methods. So `--record` writes every subject that ran, and one that stops running fails. A new subject isn't held to the list; it is judged like any other and recorded at the next re-anchor. Letting coverage shrink needs a new anchor and its reason, in an owned file. An entry left in the baseline after a test kills its mutation is a credit: a later change that deletes the test brings the survivor back and spends it. So a killed entry fails, and the change that kills it re-records. A timeout is the exception, because a slower runner can turn a survivor into one, and mutant counts it as a kill; `criteria_result` tells the two apart. mutant's exit status can't separate survivors from a crash, so the floor reads the session result, and an incomplete subject must fail rather than pass the mutations it lacks.
 - *Why this key.* mutant identifies a mutation by file, line and a hash of the mutated method, and editing anything above it changes all three. The removed and added lines change only when the mutated code does. The baseline lists every survivor rather than a count, because a count lets a new survivor hide behind a killed one.
 
 Obligations: CI-4, CI-5.
@@ -228,14 +229,17 @@ Obligations: CI-7, CI-8.
 **Decision.** `bin/test-count` runs `bin/rails test` or `bin/rails test:system` and reads its output. The process doing the reading loads nothing from the app. It passes only on:
 - a zero exit;
 - a final Minitest summary line, with 0 failures and 0 errors;
+- exactly the skips that `test/ci/test_removals.yml` lists under `skips` for that suite, each with a reason;
 - at least as many runs as the base has tests, less what the change adds to `test/ci/test_removals.yml` for that suite, each entry with a reason.
 
-The base's count comes from exporting the base's tree from git, loading its test files with this bundle, and summing Minitest's `runnable_methods` without running them.
+The base's count comes from exporting the base's tree from git, loading its test files with this bundle, and summing Minitest's `runnable_methods` without running them. The export checks git's own status (`git archive -o`, then `tar`), and a count of 0 fails.
 
 **Derivation.**
 - *Why read the output.* Any file the app loads can end the process with `at_exit { exit!(0) }`, and then the tests, the system tests and the seeds all exit 0 without running. Requiring the summary line catches that.
 - *Why the base's count.* A deleted test is otherwise invisible: the remaining tests pass.
 - *Why load the base, not count text.* Tests made in a loop (`SeededCopyContractTest` makes 16 from two `test` lines) make a text count fall short of the run count by 14. Loading the files counts what Minitest would run, and costs about 2 seconds per suite. Running the base's suite instead would add the system tests' 33 seconds. The base is main's code, which the change can't alter.
+- *Why skips must be listed.* Minitest counts a skipped test as a run, so skipping every test in the admin suite left the count, and the check, green. Skipping a failing test is the cheapest way to pass. Both suites run with no skips, so requiring each one to be listed, with a reason, costs nothing today. The list must match the run exactly, so a skip that is fixed comes off it, and a stale entry can't excuse a later skip.
+- *Why the export checks git.* `git archive … | tar -x` reports tar's status, and tar exits 0 on empty input. A failed export would have counted an empty tree and made the floor 0 tests. A base with no tests can't be right for this app, so 0 fails too.
 - *Why a removals file.* Removing tests is sometimes right. It is a decision, so its reason goes in an owned file (`test/ci/` is in CODEOWNERS), and an entry counts only for the change that adds it.
 
 **What it doesn't stop.** This is a tripwire, not a proof. App code that prints a convincing summary line before exiting would pass it. So would a test that asserts nothing in place of one that did. Those are deliberate deceptions, and the escaped-defect lapse and the M-task reviewer are what answer them.

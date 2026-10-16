@@ -1,8 +1,14 @@
-# Tests a change removes on purpose (bin/test-count, PRODUCT.md CI-9). Each
-# entry a change adds lowers the count its suite must reach by `tests`, and
-# needs a reason. Append; never edit or delete an entry.
+# Tests a change removes on purpose, and tests that stay skipped
+# (bin/test-count, PRODUCT.md CI-9).
+#
+# removals: each entry a change adds lowers the count its suite must reach by
+# `tests`, and needs a reason. Append; never edit or delete an entry.
+#
+# skips: the tests that are skipped now, by suite. The list must match the
+# run's skips exactly, so an entry comes off when its tests run again.
 #
 #   - suite: rails          # or system
 #     tests: 2
-#     reason: Why these tests go, and what covers their obligations now.
+#     reason: Why, and what covers their obligations meanwhile.
 removals: []
+skips: []

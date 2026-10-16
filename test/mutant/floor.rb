@@ -60,11 +60,12 @@ module MutantFloor
     end
   end
 
-  # Expressions that select nothing, then baseline subjects that didn't run.
+  # Expressions that select nothing, then subjects the baseline names (with
+  # entries, or recorded as having run) that didn't run.
   def unmatched(session, baseline, expressions)
     ran = subjects(session)
     expressions.reject { |expression| ran.any? { |subject| selects?(expression, subject) } } +
-      (baseline.fetch("survivors", {}).keys - ran)
+      ((baseline.fetch("survivors", {}).keys + baseline.fetch("subjects", [])).uniq - ran)
   end
 
   # Subjects whose results stop short of their mutations.
@@ -114,25 +115,27 @@ module MutantFloor
     Verdict.new(new_survivors:, broken:, partial: partial(session), unmatched: unmatched(session, baseline, expressions), **stale)
   end
 
-  # Re-anchoring: a baseline whose survivors differ from the one at the base
-  # must add an anchor that gives a reason. Returns the problem, or nil.
+  # Re-anchoring: a baseline whose survivors or recorded subjects differ from
+  # the one at the base must add an anchor that gives a reason. Returns the
+  # problem, or nil.
   def anchor_problem(head, base)
-    return if base && head.fetch("survivors", {}) == base.fetch("survivors", {})
+    return if base && %w[survivors subjects].all? { |key| head[key] == base[key] }
 
     anchors = head.fetch("anchors", [])
     if anchors.size <= (base ? base.fetch("anchors", []).size : 0)
-      "#{BASELINE} changes its survivors without adding an anchor"
+      "#{BASELINE} changes its survivors or subjects without adding an anchor"
     elsif anchors.last.fetch("reason", "").to_s.strip.empty?
       "#{BASELINE}'s newest anchor gives no reason"
     end
   end
 
-  # The baseline a full run records, keeping the earlier anchors.
+  # The baseline a full run records: every subject that ran, and the
+  # survivors, keeping the earlier anchors.
   def record(session, baseline, at:, on:, reason:)
     survivors = results(session)
       .select { |_, _, coverage| uncovered?(coverage) && coverage.dig("mutation_result", "mutation_type") == "evil" }
       .group_by(&:first).sort.to_h.transform_values { |list| list.map { |_, change, _| change }.sort }
     anchors = baseline.fetch("anchors", []) + [ { "at" => at, "on" => on, "reason" => reason } ]
-    { "anchors" => anchors, "survivors" => survivors }
+    { "anchors" => anchors, "subjects" => subjects(session).sort, "survivors" => survivors }
   end
 end

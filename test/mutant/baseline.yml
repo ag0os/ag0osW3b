@@ -1,5 +1,8 @@
 # Mutation survivors bin/ci accepts, by subject: the lines each mutation
-# removes and adds. A survivor not listed here fails the build.
+# removes and adds. A survivor not listed here fails the build, and so does
+# an entry whose mutation a test now kills or mutant no longer makes.
+# `subjects` lists every subject that ran when this was recorded; one that
+# no longer runs (moved into a concern, renamed) fails the build too.
 #
 # Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
 # subject and appends an anchor; a change to the survivors without a new
@@ -10,6 +13,26 @@ anchors:
 - at: 59bfb90
   'on': '2026-10-16'
   reason: 'Survivors on main at 59bfb90 when CI began to gate mutation. They were classified as equivalent in ask-v1 task 1, whose notes are not in this repository. Re-read when re-anchoring: most are equivalent outright (fetch or at for [], presence on a value that is never blank, a default Rails already applies); HomeController#show without .ordered survives only because SQLite reads sections through the (page, position) index, so it is equivalent by query plan, not by code.'
+- at: da44ecb
+  'on': '2026-10-16'
+  reason: 'Records the subjects that ran, all 16, so that a subject leaving mutation fails the build even when it has no entries: a method moved into a concern or a module, renamed, or redefined with define_method (review round three, R3-B2). The survivors are unchanged: the same 67 as at 59bfb90.'
+subjects:
+- HomeController#show
+- LocalesController#update
+- MarkdownRenderer#apply_marks
+- MarkdownRenderer#highlight
+- MarkdownRenderer#initialize
+- MarkdownRenderer#mark_inline
+- MarkdownRenderer#render
+- MarkdownRenderer#wrap_mark
+- MarkdownRenderer#wrap_tables
+- MarkdownRenderer.mark
+- MarkdownRenderer.render
+- MarkdownRenderer.unmark
+- PagesController#consulting
+- SiteController#accept_language
+- SiteController#preferred_locale
+- SiteController#switch_locale
 survivors:
   HomeController#show:
   - |-

@@ -8,17 +8,19 @@ module TestCount
 
   # The last Minitest summary line in a run's output, or nil.
   def summary(output)
-    runs, _assertions, failures, errors = output.scan(SUMMARY).last&.map(&:to_i)
-    { runs:, failures:, errors: } if runs
+    runs, _assertions, failures, errors, skips = output.scan(SUMMARY).last&.map(&:to_i)
+    { runs:, failures:, errors:, skips: } if runs
   end
 
   # Why a run doesn't pass, if it doesn't. base_count is how many tests the
   # base has in this suite; each removal this change adds (in head_removals,
-  # not base_removals) lowers it for its suite and must give a reason.
-  def problems(output:, success:, base_count:, suite:, head_removals:, base_removals:)
+  # not base_removals) lowers it for its suite and must give a reason. skips
+  # lists the tests that stay skipped, which must match the run exactly.
+  def problems(output:, success:, base_count:, suite:, head_removals:, base_removals:, skips: [])
     found = summary(output)
     problems = []
     problems << "the run exited nonzero" unless success
+    problems << "the base has no #{suite} tests, so exporting or counting it went wrong" if base_count.zero?
     return problems << "the output holds no Minitest summary line, so nothing shows the tests ran" unless found
 
     problems << "#{found[:failures]} failures, #{found[:errors]} errors" if found[:failures] + found[:errors] > 0
@@ -26,6 +28,11 @@ module TestCount
     added.select { |removal| removal["reason"].to_s.strip.empty? }.each do |removal|
       problems << "a removal in #{REMOVALS} gives no reason: #{removal.inspect}"
     end
+    skips.select { |skip| skip["reason"].to_s.strip.empty? }.each do |skip|
+      problems << "a skip in #{REMOVALS} gives no reason: #{skip.inspect}"
+    end
+    listed = skips.select { |skip| skip["suite"] == suite }.sum { |skip| skip["tests"].to_i }
+    problems << "#{found[:skips]} skips, but test_removals.yml lists #{listed} for #{suite}" unless found[:skips] == listed
     removed = added.select { |removal| removal["suite"] == suite }.sum { |removal| removal["tests"].to_i }
     if found[:runs] < base_count - removed
       problems << "#{found[:runs]} runs, but the base has #{base_count} tests" + (removed.zero? ? "" : " (#{removed} removed on purpose)")

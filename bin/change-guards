@@ -38,8 +38,10 @@ FileUtils.chdir File.expand_path("..", __dir__) do
     at_base = Dir.mktmpdir("change-guards") do |dir|
       paths = git("ls-tree", "-r", "--name-only", merge_base, "--", "app", "lib").lines.map(&:chomp)
       unless paths.empty?
-        _, status = Open3.capture2("sh", "-c", "git archive #{merge_base} -- app lib | tar -x -C #{dir}")
-        abort "change-guards: could not export the base's app/ and lib/" unless status.success?
+        # git's own status, not a pipe's: tar exits 0 on empty input.
+        tarball = File.join(dir, "base.tar")
+        system("git", "archive", "-o", tarball, merge_base, "--", "app", "lib", exception: true)
+        system("tar", "-xf", tarball, "-C", dir, exception: true)
       end
       exhale_view(dir, paths)
     end
