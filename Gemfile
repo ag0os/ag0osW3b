@@ -51,6 +51,9 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # Duplication and complexity floors for bin/ci [https://github.com/tools4imps/exhale-ruby]
+  gem "exhale", require: false
 end
 
 group :development do

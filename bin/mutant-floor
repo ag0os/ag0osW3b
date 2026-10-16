@@ -1,0 +1,120 @@
+#!/usr/bin/env ruby
+# Runs mutant on the subjects a change touches and fails on any survivor that
+# test/mutant/baseline.yml doesn't already accept. See PRODUCT.md, "Contract:
+# continuous integration".
+#
+#   bin/mutant-floor [BASE]              check the change since BASE (default $CI_BASE, else origin/main)
+#   bin/mutant-floor --record "REASON"   run every subject and re-anchor the baseline on the result
+require "date"
+require "fileutils"
+require "open3"
+require_relative "../test/mutant/floor"
+
+APP_ROOT = File.expand_path("..", __dir__)
+LOG = "log/mutant-floor.log"
+
+# Changes to these can let a mutation live without touching its subject, so
+# they widen the run to every subject.
+WIDENING = %r{\A(config/mutant\.yml|Gemfile\.lock|test/mutant/|test/fixtures/|test/test_helper\.rb)}
+
+HEADER = <<~YAML
+  # Mutation survivors bin/ci accepts, by subject: the lines each mutation
+  # removes and adds. A survivor not listed here fails the build.
+  #
+  # Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
+  # subject and appends an anchor; a change to the survivors without a new
+  # anchor and its reason fails the build. Say in the reason why each new
+  # survivor is equivalent, or why it is accepted anyway.
+YAML
+
+def git(*args)
+  out, status = Open3.capture2("git", *args)
+  abort "mutant-floor: git #{args.join(" ")} failed" unless status.success?
+  out
+end
+
+def base_baseline(merge_base)
+  out, status = Open3.capture2("git", "show", "#{merge_base}:#{MutantFloor::BASELINE}", err: File::NULL)
+  YAML.safe_load(out) if status.success?
+end
+
+def cover_test?(path, merge_base)
+  return false unless path.match?(%r{\Atest/.*_test\.rb\z})
+
+  source = File.exist?(path) ? File.read(path) : git("show", "#{merge_base}:#{path}")
+  source.match?(/^\s*cover\b/)
+end
+
+def run_mutant(*args)
+  system({ "RAILS_ENV" => "test" }, "bin/rails", "db:test:prepare", exception: true)
+  before = Dir[".mutant/results/*.json"]
+  output, = Open3.capture2e("bundle", "exec", "mutant", "run", *args)
+  File.write(LOG, output)
+  session = (Dir[".mutant/results/*.json"] - before).first
+  abort "#{output}\nmutant-floor: mutant wrote no session result" unless session
+  # mutant's summary, without the diff of every survivor the baseline holds
+  puts output[/^Mutant environment:.*/m], "(mutant's full output: #{LOG})"
+  JSON.parse(File.read(session))
+end
+
+def show(survivor)
+  puts "  #{survivor.subject}  #{survivor.identification}"
+  puts survivor.change.gsub(/^/, "    ")
+end
+
+FileUtils.chdir APP_ROOT do
+  baseline = File.exist?(MutantFloor::BASELINE) ? YAML.load_file(MutantFloor::BASELINE) : {}
+
+  if ARGV.first == "--record"
+    reason = ARGV[1].to_s.strip
+    abort "usage: bin/mutant-floor --record \"REASON\"" if reason.empty?
+    session = run_mutant
+    at = git("rev-parse", "--short", "HEAD").strip
+    recorded = MutantFloor.record(session, baseline, at:, on: Date.today.iso8601, reason:)
+    File.write(MutantFloor::BASELINE, HEADER + YAML.dump(recorded, line_width: -1))
+    puts "mutant-floor: recorded #{recorded["survivors"].values.sum(&:size)} survivors at #{at}"
+    exit
+  end
+
+  base = ARGV.first || ENV["CI_BASE"].to_s.then { |ref| ref.empty? ? "origin/main" : ref }
+  merge_base = git("merge-base", base, "HEAD").strip
+  puts "mutant-floor: base #{base} (#{merge_base[0, 7]})"
+
+  if (problem = MutantFloor.anchor_problem(baseline, base_baseline(merge_base)))
+    abort "mutant-floor: #{problem}"
+  end
+
+  changed = git("diff", "--name-only", merge_base).lines.map(&:chomp)
+  widened_by = changed.find { |path| path.match?(WIDENING) || cover_test?(path, merge_base) }
+  if widened_by
+    puts "mutant-floor: #{widened_by} changed, so every subject runs"
+    session = run_mutant
+  else
+    puts "mutant-floor: only subjects the change touches run"
+    session = run_mutant("--since", merge_base)
+  end
+
+  verdict = MutantFloor.compare(session, baseline)
+  ran = MutantFloor.subjects(session).size
+  puts
+  puts "mutant-floor: #{ran} subjects ran" + (ran.zero? ? "; the change touches none in config/mutant.yml" : "")
+
+  unless verdict.stale.empty?
+    puts "Killed now, so their baseline entries can go at the next re-anchor:"
+    verdict.stale.each { |subject, change| puts "  #{subject}", change.gsub(/^/, "    ") }
+  end
+  unless verdict.broken.empty?
+    puts "FAIL: the tests fail on the code as written:"
+    verdict.broken.each { |survivor| show(survivor) }
+  end
+  unless verdict.new_survivors.empty?
+    puts "FAIL: #{verdict.new_survivors.size} new survivor(s), not in #{MutantFloor::BASELINE}:"
+    verdict.new_survivors.each { |survivor| show(survivor) }
+  end
+
+  if verdict.pass?
+    puts "mutant-floor: no new survivors"
+  else
+    exit 1
+  end
+end

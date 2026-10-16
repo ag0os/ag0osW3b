@@ -1,0 +1,228 @@
+# Mutation survivors bin/ci accepts, by subject: the lines each mutation
+# removes and adds. A survivor not listed here fails the build.
+#
+# Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
+# subject and appends an anchor; a change to the survivors without a new
+# anchor and its reason fails the build. Say in the reason why each new
+# survivor is equivalent, or why it is accepted anyway.
+---
+anchors:
+- at: 59bfb90
+  'on': '2026-10-16'
+  reason: 'Survivors on main at 59bfb90 when CI began to gate mutation. They were classified as equivalent in ask-v1 task 1, whose notes are not in this repository. Re-read when re-anchoring: most are equivalent outright (fetch or at for [], presence on a value that is never blank, a default Rails already applies); HomeController#show without .ordered survives only because SQLite reads sections through the (page, position) index, so it is equivalent by query plan, not by code.'
+survivors:
+  HomeController#show:
+  - |-
+    -  @sections = Section.for_page("home").visible.ordered
+    +  @sections = Section.for_page("home").visible
+  LocalesController#update:
+  - |-
+    -    cookies.permanent[:locale] = { value: params[:locale], same_site: :lax, httponly: true }
+    +    cookies.permanent[:locale] = { value: params.fetch(:locale), same_site: :lax, httponly: true }
+  - |-
+    -    cookies.permanent[:locale] = { value: params[:locale], same_site: :lax, httponly: true }
+    +    cookies.permanent[:locale] = { value: params[:locale], httponly: true }
+  - |-
+    -    cookies.permanent[:locale] = { value: params[:locale], same_site: :lax, httponly: true }
+    +    cookies.permanent[:locale] = { value: params[:locale], same_site__mutant__: :lax, httponly: true }
+  - |-
+    -  redirect_back_or_to(root_path, allow_other_host: false, status: :see_other)
+    +  redirect_back_or_to(root_path, allow_other_host__mutant__: false, status: :see_other)
+  - |-
+    -  redirect_back_or_to(root_path, allow_other_host: false, status: :see_other)
+    +  redirect_back_or_to(root_path, status: :see_other)
+  MarkdownRenderer#apply_marks:
+  - |-
+    -    child.element? && child.parent == element
+    +    child && child.parent == element
+  - |-
+    -    child.element? && child.parent == element
+    +    child.parent == element
+  - |-
+    -    child.element? && child.parent == element
+    +    true && child.parent == element
+  - |-
+    -    unless block
+    +    unless false
+  - |-
+    -    unless block
+    +    unless nil
+  - |-
+    -    unless block
+    -      mark_inline(nodes)
+    -    end
+    +    mark_inline(nodes)
+  - |-
+    -  children = element.children.to_a
+    +  children = element.children
+  - |-
+    -  children = element.children.to_a
+    +  children = element.children.to_ary
+  - |-
+    -  if ["code", "pre"].include?(element.name)
+    +  if ["code", ""].include?(element.name)
+  - |-
+    -  if ["code", "pre"].include?(element.name)
+    +  if ["code", nil].include?(element.name)
+  - |-
+    -  if ["code", "pre"].include?(element.name)
+    +  if ["code"].include?(element.name)
+  MarkdownRenderer#highlight:
+  - |-
+    -      Rouge::Lexer.find(lang.to_s)
+    +      Rouge::Lexer.find(lang)
+  - |-
+    -      Rouge::Lexer.find(lang.to_s)
+    +      Rouge::Lexer.find(lang.to_str)
+  - |-
+    -    code.inner_html=Rouge::Formatters::HTML.new.format(lexer.lex(code.text))
+    +    code.inner_html=Rouge::Formatters::HTML.format(lexer.lex(code.text))
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"] || code["class"].to_s[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || ""[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code.at("class").to_s[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code.key?("class").to_s[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code.to_s[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code[""].to_s[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[//, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(?:\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\W+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\w)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 0]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 167]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 2]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, nil]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[/nomatch\A/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code["class"].to_s[1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || code[nil].to_s[/language-(\w+)/, 1]
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || nil
+  - |-
+    -    lang = pre["lang"].presence || code["class"].to_s[/language-(\w+)/, 1]
+    +    lang = pre["lang"].presence || self.to_s[/language-(\w+)/, 1]
+  - |-
+    -    lexer = (if lang
+    +    lexer = (if true
+  - |-
+    -    lexer = (if lang
+    -      Rouge::Lexer.find(lang.to_s)
+    -    end) || Rouge::Lexers::PlainText
+    +    lexer = (Rouge::Lexer.find(lang.to_s)) || Rouge::Lexers::PlainText
+  MarkdownRenderer#initialize:
+  - |-
+    -    @text.encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+    +    @text.encode
+  - |-
+    -    @text.encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+    +    @text.encode(invalid: :replace, undef: :replace)
+  - |-
+    -  end.scrub
+    +  end
+  MarkdownRenderer#mark_inline:
+  - |-
+    -    (first, start) = positions[match.begin(0)]
+    +    (first, start) = positions.at(match.begin(0))
+  - |-
+    -    (first, start) = positions[match.begin(0)]
+    +    (first, start) = positions.fetch(match.begin(0))
+  - |-
+    -    (last, finish) = positions[match.end(0) - 1]
+    +    (last, finish) = positions.at(match.end(0) - 1)
+  - |-
+    -    (last, finish) = positions[match.end(0) - 1]
+    +    (last, finish) = positions.fetch(match.end(0) - 1)
+  MarkdownRenderer#render:
+  - |-
+    -  html = Commonmarker.to_html(@text, options: OPTIONS, plugins: { syntax_highlighter: nil })
+    +  html = Commonmarker.to_html(@text, options: OPTIONS, plugins: nil)
+  - |-
+    -  html = Commonmarker.to_html(@text, options: OPTIONS, plugins: { syntax_highlighter: nil })
+    +  html = Commonmarker.to_html(@text, options: OPTIONS, plugins: { syntax_highlighter__mutant__: nil })
+  - |-
+    -  html = Commonmarker.to_html(@text, options: OPTIONS, plugins: { syntax_highlighter: nil })
+    +  html = Commonmarker.to_html(@text, options: OPTIONS, plugins: {})
+  MarkdownRenderer#wrap_mark:
+  - |-
+    -    last.content=last.content[finish..]
+    +    last.content=last.content.at(finish..)
+  - |-
+    -    mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2...finish - 2], first.document))
+    +    mark.add_child(Nokogiri::XML::Text.new(first.content.at(start + 2...finish - 2), first.document))
+  - |-
+    -    mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2...finish - 2], first.document))
+    +    mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2...finish - 2], first))
+  - |-
+    -    mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2..], first.document))
+    +    mark.add_child(Nokogiri::XML::Text.new(first.content.at(start + 2..), first.document))
+  - |-
+    -    mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2..], first.document))
+    +    mark.add_child(Nokogiri::XML::Text.new(first.content[start + 2..], first))
+  - |-
+    -    mark.add_child(Nokogiri::XML::Text.new(last.content[...finish - 2], last.document))
+    +    mark.add_child(Nokogiri::XML::Text.new(last.content.at(...finish - 2), last.document))
+  - |-
+    -    mark.add_child(Nokogiri::XML::Text.new(last.content[...finish - 2], last.document))
+    +    mark.add_child(Nokogiri::XML::Text.new(last.content[...finish - 2], last))
+  - |-
+    -    mark.add_next_sibling(Nokogiri::XML::Text.new(first.content[finish..], first.document))
+    +    mark.add_next_sibling(Nokogiri::XML::Text.new(first.content.at(finish..), first.document))
+  - |-
+    -    mark.add_next_sibling(Nokogiri::XML::Text.new(first.content[finish..], first.document))
+    +    mark.add_next_sibling(Nokogiri::XML::Text.new(first.content[finish..], first))
+  - |-
+    -  first.content=first.content[...start]
+    +  first.content=first.content.at(...start)
+  SiteController#accept_language:
+  - |-
+    -    entry.split(";").first.to_s.strip.split("-").first
+    +    entry.split(";").first.to_s.lstrip.split("-").first
+  - |-
+    -  request.env["HTTP_ACCEPT_LANGUAGE"].to_s.split(",").filter_map { |entry|
+    +  request.env["HTTP_ACCEPT_LANGUAGE"].to_s.split(",").map { |entry|
+  SiteController#preferred_locale:
+  - |-
+    -  } || I18n.default_locale
+    +  }
+  - |-
+    -  } || I18n.default_locale
+    +  } || nil

@@ -1,4 +1,9 @@
-# Run using bin/ci
+# Run using bin/ci. Everything a change must pass before it merges; GitHub runs
+# exactly this. See PRODUCT.md, "Contract: continuous integration".
+
+# What the floors compare against. GitHub sets CI_BASE; locally it is
+# origin/main, so fetch first.
+base = ENV["CI_BASE"].to_s.then { |ref| ref.empty? ? "origin/main" : ref }
 
 CI.run do
   step "Setup", "bin/setup --skip-server"
@@ -9,10 +14,13 @@ CI.run do
   step "Security: Importmap vulnerability audit", "bin/importmap audit"
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"
   step "Tests: Rails", "bin/rails test"
+  step "Tests: System", "bin/rails test:system"
   step "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant"
 
-  # Optional: Run system tests
-  # step "Tests: System", "bin/rails test:system"
+  # Floors: each fails only on what the change adds since the base.
+  step "Health: Mutation", "bin/mutant-floor", base
+  step "Health: Duplication", "bin/exhale", "dry", "--base", base, "--introduced-only"
+  step "Health: Complexity", "bin/exhale", "complexity", "--base", base
 
   # Optional: set a green GitHub commit status to unblock PR merge.
   # Requires the `gh` CLI and `gh extension install basecamp/gh-signoff`.

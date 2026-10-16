@@ -148,3 +148,29 @@ for a single page. Obligations: CP-1 to CP-5.
 **Decision.** The first block in `config/routes.rb` is `constraints host: "www.agoos.dev"` around `match "(*path)", via: :all`, redirecting to `"https://agoos.dev#{request.fullpath}"`. `redirect` answers 301 by default.
 
 **Derivation.** The owner chose the app over Caddy on 2026-10-16, after finding no Hatchbox setting for it, and Hatchbox documents this pattern. Being first means no other route can answer for www. The host is matched exactly, and the target is written out rather than derived by stripping `www.` from the request, so the redirect can only ever point at the domain the owner owns. `request.fullpath` carries the path and the query string as they arrived. `via: :all` covers every method because "any request" includes a form post or a feed reader's `HEAD`. A 301 lets a browser repeat a `POST` as a `GET`, which a 308 would not; nothing on the site is posted to from www, and the owner asked for 301, so 301 stands. The constraint applies in every environment: nothing reaches `www.agoos.dev` locally, so it changes nothing in development, and in test it lets `test/contract/canonical_host_contract_test.rb` run against the real route table. A production-only route could only be tested by booting production. `force_ssl` does not matter here: with `assume_ssl` on, Rails treats every request as https and never redirects one itself. Caddy upgrades http before the app sees it, so a visitor to `http://www.agoos.dev` takes Caddy's hop to https and then this one to the apex. Obligation: PD-5.
+
+## Continuous integration
+
+### D-20. One job that runs `bin/ci`
+
+**Decision.** `.github/workflows/ci.yml` has a single job, `ci`, which installs libvips, checks out the full history and runs `bin/ci`. Rails' generated workflow had five jobs, each running some of the checks.
+
+**Derivation.** A merge grant needs one required check, and that check has to be the whole gate. Five jobs listed the steps a second time, and two lists drift: the generated jobs never ran the seeds, and `bin/ci` never ran the system tests. With one job, running `bin/ci` locally gives the same verdict as the check. The cost is that the jobs no longer run in parallel. Chrome comes from the runner image, as it did for the generated system-test job. Obligations: CI-1, CI-2.
+
+### D-21. On a push to main, the floors compare with the previous main
+
+**Decision.** `CI_BASE` is `origin/<target>` on a pull request and `github.event.before` on a push to main.
+
+**Derivation.** The floors judge a change, and a push to main compared with `origin/main` is a change of nothing, so they would pass without checking anything. Comparing with the commit main pointed at before the push checks the merged result, which can differ from what the pull request was checked against when main moved underneath it. Obligation: CI-3.
+
+### D-22. Mutation: scoped by mutant's `--since`, matched by subject and changed lines
+
+**Decision.** `bin/mutant-floor` passes `--since <merge base>` to mutant, which keeps only the subjects in `config/mutant.yml` whose source lines the diff touches. Survivors are matched against `test/mutant/baseline.yml` by subject and the diff's `-` and `+` lines. The run widens to every subject when the change touches mutant's config, the lockfile, `test/mutant/`, fixtures, the test helper, or a test that declares `cover`.
+
+**Derivation.** `--since` takes a merge base, not `origin/main`: mutant runs `git diff-index` against the working tree, so a main that moved on would count main's own changes as the change's. A scoped run misses one thing: a weaker test kills fewer mutants without touching any subject. Widening on the tests that declare `cover`, and on what they load, closes that gap. A full run takes about 40 seconds locally. mutant identifies a mutation by file, line and a hash of the mutated method, and editing anything above it changes all three. The removed and added lines change only when the mutated code does. The baseline lists every survivor rather than a count, because a count lets a new survivor hide behind a killed one. Entries that are now killed don't fail the run, because a slower machine can turn a survivor into a timeout, which mutant counts as a kill. Obligations: CI-4, CI-5.
+
+### D-23. Duplication gates on what the change introduces; the exhale Contract is the only exception
+
+**Decision.** `exhale dry --introduced-only` against the base, and no `contract/` directory yet. The five copies on main (the admin post and section forms and their `create` actions, and the section lists on the About and Work pages) stay warnings.
+
+**Derivation.** A `parallel` clause accepting the five copies was tried, and it made main sweep clean. But a clause names whole units, so it would also accept any new copy between the same two forms. `--introduced-only` judges each copied fragment pair, so a new pair fails even between files that already share code. Its baseline is the merge base, not a file, and that is honest because main is reached only through this check. A deliberate new copy still needs a written reason: a `parallel` clause, which exhale marks "NEW CLAUSE, review its reason". `exhale complexity` already compares each method with its own score at the base, so it needs no flag. Obligation: CI-6.
