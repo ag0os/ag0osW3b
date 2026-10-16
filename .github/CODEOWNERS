@@ -1,17 +1,40 @@
 # The paths that decide the ci check. A pull request runs its own copy of the
 # gate, so with code-owner review required in branch protection, changing any
 # of these needs the owner's approval. See PRODUCT.md, CI-8.
-/.github/                          @ag0os
-/bin/                              @ag0os
-/config/ci.rb                      @ag0os
-/config/mutant.yml                 @ag0os
-/config/brakeman.ignore            @ag0os
-/config/bundler-audit.yml          @ag0os
-/test/mutant/                      @ag0os
-/test/ci/                          @ag0os
-/test/contract/ci_contract_test.rb @ag0os
-/contract/                         @ag0os
-/tools/                            @ag0os
-/.rubocop.yml                      @ag0os
-/Gemfile                           @ag0os
-/Gemfile.lock                      @ag0os
+
+# The gate: workflow, scripts, config, logic, baseline and its Contract test
+/.github/                             @ag0os
+/bin/                                 @ag0os
+/config/ci.rb                         @ag0os
+/config/mutant.yml                    @ag0os
+/test/mutant/                         @ag0os
+/test/ci/                             @ag0os
+/test/contract/ci_contract_test.rb    @ag0os
+
+# exhale: its Contract, its bundle, and its cache of the base's sweep
+/contract/                            @ag0os
+/tools/                               @ag0os
+/tmp/                                 @ag0os
+
+# Files a gate tool reads without being told to
+/.rubocop.yml                         @ag0os
+/.rubocop                             @ag0os
+/config/brakeman.yml                  @ag0os
+/config/brakeman.ignore               @ag0os
+/config/bundler-audit.yml             @ag0os
+/.bundle/                             @ag0os
+/vendor/bundle/                       @ag0os
+/.gitattributes                       @ag0os
+
+# The test harness
+/test/test_helper.rb                  @ag0os
+/test/test_helpers/                   @ag0os
+/test/application_system_test_case.rb @ag0os
+/config/environments/test.rb          @ag0os
+/config/boot.rb                       @ag0os
+/Rakefile                             @ag0os
+/lib/tasks/                           @ag0os
+
+# Dependencies
+/Gemfile                              @ag0os
+/Gemfile.lock                         @ag0os

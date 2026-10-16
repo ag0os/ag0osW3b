@@ -1,39 +1,33 @@
 # Guards bin/change-guards runs against the base: changes that would switch a
 # check off from inside the code it checks. See PRODUCT.md, CI-7.
 module ChangeGuards
-  # exhale 0.2.0's Exhale::SourceFiles::GENERATED, copied because the app's
-  # bundle doesn't load exhale. A file whose first five lines hold a match is
-  # skipped by both exhale floors. CI-7's test fails if exhale's changes.
-  GENERATED = %r{
-      \A\s*(?:<%\#|\#|//)\s*
-      (?:this\ file\ is\ auto-?generated|this\ file\ is\ automatically\ generated|auto-?generated\ by
-        |generated\ by\b.*\bdo\ not\ edit|do\ not\ edit|code\ generated\b.*\bdo\ not\ edit)
-    }xi
-
   # RuboCop's directive comments that switch a cop off.
-  DIRECTIVE = /#\s*rubocop\s*:\s*(?:disable|todo)\b/
+  RUBOCOP_DISABLE = /#\s*rubocop\s*:\s*(?:disable|todo)\b/
+  # mutant 0.17's Mutant::Subject::Config::DISABLE_REGEXP, copied because
+  # bin/change-guards runs outside the app's bundle; CI-7 fails if mutant's
+  # changes. mutant applies it to a comment's text after its leading #.
+  MUTANT_DISABLE = /(\s|^)mutant:disable(?:\s|$)/
 
   module_function
 
-  def header?(text)
-    text.to_s.each_line.first(5).any? { |line| line.match?(GENERATED) }
+  # Files exhale would compare by their language (*_candidates) but doesn't
+  # read (not in *_listed), that it read at the base or that didn't exist.
+  def newly_unlisted(head_candidates, head_listed, base_candidates, base_listed)
+    unread_at_base = base_candidates - base_listed
+    (head_candidates - head_listed - unread_at_base).sort
   end
 
-  # pairs: [path, text at the base or nil, text now]. The paths under app/ or
-  # lib/ that have a generator's header now and had none at the base.
-  def new_headers(pairs)
-    pairs.filter_map do |path, base, head|
-      path if path.match?(%r{\A(app|lib)/}) && header?(head) && !header?(base)
-    end
+  def directive_counts(text)
+    # Every # starts a comment's text for mutant, so a space stands in for it.
+    { rubocop: text.scan(RUBOCOP_DISABLE).size, mutant: text.tr("#", " ").scan(MUTANT_DISABLE).size }
   end
 
-  # base, head: { path => text }. [path, count at the base, count now] for
-  # each file holding more directives than it did.
+  # base, head: { path => text }. [path, kind, count at the base, count now]
+  # for each file holding more directives of a kind than it did.
   def added_directives(base, head)
-    head.filter_map do |path, text|
-      before = base.fetch(path, "").scan(DIRECTIVE).size
-      after = text.scan(DIRECTIVE).size
-      [ path, before, after ] if after > before
+    head.flat_map do |path, text|
+      before = directive_counts(base.fetch(path, ""))
+      directive_counts(text).filter_map { |kind, after| [ path, kind, before[kind], after ] if after > before[kind] }
     end.sort
   end
 end

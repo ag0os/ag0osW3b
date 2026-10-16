@@ -161,7 +161,7 @@ for a single page. Obligations: CP-1 to CP-5.
 - the `ci` check is required;
 - branches must be up to date before merging, so the check ran on what will land;
 - review from code owners is required (CI-8);
-- nobody, admins included, bypasses these.
+- the settings and the account question are settled with the owner at G1.
 
 Without the second, a green check can describe a combination main has since moved away from. Without the third, a pull request can edit its own gate. Obligations: CI-1, CI-2, CI-8.
 
@@ -191,25 +191,53 @@ Obligations: CI-4, CI-5.
 
 ### D-23. Duplication gates on what the change introduces; exhale runs from its own bundle
 
-**Decision.** `exhale dry --introduced-only` against the base, and no `contract/` directory yet. The five copies on main stay warnings: the admin post and section forms and their `create` actions, and the section lists on the About and Work pages. Exhale is installed from `tools/Gemfile` and its own lockfile. `bin/exhale` installs that bundle when it is missing (`bin/setup` calls it for that) and points Bundler there, naming the lockfile too. It starts again outside the app's bundle when it finds itself inside it. The request was to add exhale to the app's Gemfile; this departs from it.
+**Decision.** `exhale dry --introduced-only` against the base, and no `contract/` directory yet. The five copies on main stay warnings: the admin post and section forms and their `create` actions, and the section lists on the About and Work pages. Exhale is installed from `tools/Gemfile` and its own lockfile. `tools/boot.rb`, which `bin/exhale` and `bin/change-guards` load, installs that bundle when it is missing (`bin/setup` calls `bin/exhale` for that). It points Bundler there, naming the lockfile too, with `BUNDLE_FROZEN=true`. It starts the process again outside the app's bundle when it finds itself inside it. The request was to add exhale to the app's Gemfile; this departs from it.
 
 **Derivation.**
 - *Why `--introduced-only`.* A `parallel` clause accepting the five copies was tried, and it made main sweep clean. But a clause names whole units, so it would also accept any new copy between the same two forms. `--introduced-only` judges each copied fragment pair, so a new pair fails even between files that already share code. Its baseline is the merge base, not a file. That is honest, because main is reached only through this check. A deliberate new copy still needs a written reason: a `parallel` clause, which exhale marks "NEW CLAUSE, review its reason". `exhale complexity` already compares each method with its own score at the base.
-- *Why its own bundle.* Exhale pins `bigdecimal ~> 3.1` on purpose, for fingerprints that come out identical on every platform. In the app's bundle that moved production's `bigdecimal` from 4.1.2 back to 3.3.1. It would have held it there, past any fix released only in 4.x, which `bundler-audit` would then fail on with no way out. Exhale is static analysis and never loads the app, so nothing needs it in the app's bundle. Naming the lockfile matters. Bundler 4 hands a bundled process's children `BUNDLE_LOCKFILE` and a `RUBYOPT` that loads the bundle. A first version installed the tools bundle from `bin/setup` under `bin/ci`, and `bundle check` wrote exhale's resolution over the app's `Gemfile.lock`. CI-6's test now starts `bin/exhale` with that inherited environment.
+- *Why its own bundle.* Exhale pins `bigdecimal ~> 3.1` on purpose, for fingerprints that come out identical on every platform. In the app's bundle that moved production's `bigdecimal` from 4.1.2 back to 3.3.1. It would have held it there, past any fix released only in 4.x, which `bundler-audit` would then fail on with no way out. Exhale is static analysis and never loads the app, so nothing needs it in the app's bundle. Naming the lockfile matters. Bundler 4 hands a bundled process's children `BUNDLE_LOCKFILE` and a `RUBYOPT` that loads the bundle. A first version installed the tools bundle from `bin/setup` under `bin/ci`, and `bundle check` wrote exhale's resolution over the app's `Gemfile.lock`. CI-6's test now starts `bin/exhale` with that inherited environment. Frozen, a `tools/Gemfile` edited without its lockfile fails instead of quietly resolving a different exhale.
 
 Obligation: CI-6.
 
 ### D-24. Guards for what switches a check off from inside, and owners for the gate
 
-**Decision.** `bin/change-guards` fails a change in two cases:
-- a file under `app/` or `lib/` gains a generator's header in its first five lines. The pattern is exhale's own `GENERATED`, copied, and a test compares it with the installed exhale.
-- any file holds more RuboCop disable or todo directives than at the base.
+**Decision.** `bin/change-guards` runs in exhale's bundle and fails a change in two cases.
+- **Unlisted files.** A Ruby or HTML ERB file under `app/` or `lib/` that exhale doesn't read, where at the base exhale read it or it didn't exist. The guard asks `Exhale::SourceFiles.list` about the working tree, and about the base's `app/` and `lib/` exported from git.
+- **Directives.** Any file holds more RuboCop disable or todo directives, or more `mutant:disable` comments, than at the base. The mutant pattern is mutant's own `DISABLE_REGEXP`, copied; a test compares the two. It is applied with every `#` read as a space, as mutant applies it to a comment's text after the `#`.
 
-`.github/CODEOWNERS` names the owner on the paths that decide the gate.
+`.github/CODEOWNERS` names the owner on the paths that decide the gate, including every file a gate tool reads without being told to.
 
 **Derivation.**
-- *The header.* Exhale drops a file with such a header from both floors, so one comment line would hide a copy and a tangled method. A header on a new file is caught too, because "had none at the base" includes "didn't exist".
-- *The directive.* An inline directive switches RuboCop off with no change to `.rubocop.yml`. Counting per file, rather than reading added lines, lets a directive move within a file without failing.
-- *The owners.* GitHub runs a pull request's own copy of the workflow and of everything it calls. A change can edit `bin/ci`, the baseline, `config/mutant.yml` or the Contract test that pins them, and pass its own check. Code-owner review moves those edits to the owner. It does not reach every file the gate executes: a test could still rewrite the test framework. That limit is stated in PRODUCT.md.
+- *Unlisted files: ask exhale, don't imitate it.* The first version looked for a generator's header with exhale's pattern, copied. Review found that exhale also drops a file whose name or directory looks like a test, even under `app/`. `app/models/ab_test.rb` is an ordinary model name, and the `spec` preset invites a `spec/` directory. Exhale also drops dot segments and symlinks. Asking `Exhale::SourceFiles.list` covers every reason it has, now and in a later version, and needs no copied pattern. The API is a public `module_function`, pinned by the frozen lockfile at 0.2.0. CI-7 runs it on the cases this guard relies on, so an upgrade that changes it fails the build. A file that exhale didn't read at the base either isn't new, so the guard judges only the change.
+- *Directives.* An inline directive switches RuboCop off with no change to `.rubocop.yml`. mutant drops any subject whose comments match its pattern, silently, and a namespace expression still matches the class's other methods, so the floor's unmatched-subject check doesn't fire. Counting per file, rather than reading added lines, lets a directive move within a file without failing. Reading `#` as a space catches `#mutant:disable` with no space after the `#`, which mutant honours.
+- *The owners.* GitHub runs a pull request's own copy of the workflow and of everything it calls. A change can edit `bin/ci`, the baseline, `config/mutant.yml` or the Contract test that pins them, and pass its own check. Code-owner review moves those edits to the owner.
+- *Files read without being told to.* A sweep of the gate's tools found these:
+  - Brakeman loads `config/brakeman.yml`, where `:skip_checks` silences it.
+  - RuboCop reads a `.rubocop` options file even though `bin/rubocop` forces `--config`. `--only Lint/Syntax` there turned three offenses into none.
+  - Bundler reads a committed `.bundle/config`, and with setup-ruby's `vendor/bundle` path a committed gem there could be taken as already installed (not tried).
+  - `.gitattributes` can change what `git diff` and `git grep` report (not tried).
+  - exhale caches the base's sweep in `tmp/exhale/` under a key a change can compute, so a committed cache file could pass off a new copy as already there.
+
+  All of these are owned. The others fail closed, and review checked them: a nested `.rubocop.yml` (ignored under the forced `--config`), a second mutant config (mutant refuses), and bundler-audit (given its config explicitly).
+- *The harness.* The test helper, `test/test_helpers/`, the system test case, the test environment, `config/boot.rb` (which `bin/ci` itself loads), the `Rakefile` and `lib/tasks/` decide what `bin/rails test` runs, so they are owned. Code-owner review doesn't reach every file the gate executes: any loaded file can still interfere, which D-25 and PRODUCT.md state.
 
 Obligations: CI-7, CI-8.
+
+### D-25. Tests pass on their own summary and the base's count
+
+**Decision.** `bin/test-count` runs `bin/rails test` or `bin/rails test:system` and reads its output. The process doing the reading loads nothing from the app. It passes only on:
+- a zero exit;
+- a final Minitest summary line, with 0 failures and 0 errors;
+- at least as many runs as the base has tests, less what the change adds to `test/ci/test_removals.yml` for that suite, each entry with a reason.
+
+The base's count comes from exporting the base's tree from git, loading its test files with this bundle, and summing Minitest's `runnable_methods` without running them.
+
+**Derivation.**
+- *Why read the output.* Any file the app loads can end the process with `at_exit { exit!(0) }`, and then the tests, the system tests and the seeds all exit 0 without running. Requiring the summary line catches that.
+- *Why the base's count.* A deleted test is otherwise invisible: the remaining tests pass.
+- *Why load the base, not count text.* Tests made in a loop (`SeededCopyContractTest` makes 16 from two `test` lines) make a text count fall short of the run count by 14. Loading the files counts what Minitest would run, and costs about 2 seconds per suite. Running the base's suite instead would add the system tests' 33 seconds. The base is main's code, which the change can't alter.
+- *Why a removals file.* Removing tests is sometimes right. It is a decision, so its reason goes in an owned file (`test/ci/` is in CODEOWNERS), and an entry counts only for the change that adds it.
+
+**What it doesn't stop.** This is a tripwire, not a proof. App code that prints a convincing summary line before exiting would pass it. So would a test that asserts nothing in place of one that did. Those are deliberate deceptions, and the escaped-defect lapse and the M-task reviewer are what answer them.
+
+Obligation: CI-9.

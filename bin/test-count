@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+# Runs a test suite and passes only on Minitest's own summary line, with no
+# failures or errors and at least as many runs as the base has tests. See
+# PRODUCT.md, CI-9. This process never loads the app, so nothing the app loads
+# can change what it reads.
+#
+#   bin/test-count rails|system [BASE]   BASE defaults to $CI_BASE, else origin/main
+require "fileutils"
+require "open3"
+require "tmpdir"
+require "yaml"
+require_relative "../test/ci/test_count"
+
+APP_ROOT = File.expand_path("..", __dir__)
+COMMANDS = { "rails" => %w[bin/rails test], "system" => %w[bin/rails test:system] }
+
+# Loads a tree's test files for one suite and counts their tests, without
+# running them: exit! skips Minitest's autorun.
+COUNT = <<~'RUBY'
+  require "bundler/setup"
+  $LOAD_PATH.unshift File.expand_path("test")
+  files = Dir["test/**/*_test.rb"].sort
+  system_files = files.select { |file| file.start_with?("test/system/") }
+  (ARGV[0] == "system" ? system_files : files - system_files).each { |file| require File.expand_path(file) }
+  Minitest.seed ||= 0 # runnable_methods shuffles with it
+  puts "count: #{Minitest::Runnable.runnables.sum { |runnable| runnable.runnable_methods.size }}"
+  $stdout.flush
+  exit!(0)
+RUBY
+
+def git(*args)
+  out, status = Open3.capture2("git", *args, err: File::NULL)
+  abort "test-count: git #{args.join(" ")} failed" unless status.success?
+  out
+end
+
+def removals(text) = (YAML.safe_load(text.to_s) || {}).fetch("removals", nil) || []
+
+# The base's own test files, exported from git, loaded with this bundle.
+def base_count(merge_base, suite)
+  Dir.mktmpdir("test-count") do |dir|
+    _, status = Open3.capture2("sh", "-c", "git archive #{merge_base} | tar -x -C #{dir}")
+    abort "test-count: could not export the base" unless status.success?
+    env = { "BUNDLE_GEMFILE" => File.join(APP_ROOT, "Gemfile"), "BUNDLE_LOCKFILE" => File.join(APP_ROOT, "Gemfile.lock"),
+            "RAILS_ENV" => "test", "RUBYOPT" => nil }
+    out, status = Open3.capture2e(env, "ruby", "-e", COUNT, suite, chdir: dir)
+    count = out[/^count: (\d+)$/, 1]
+    abort "#{out}\ntest-count: could not count the base's #{suite} tests" unless status.success? && count
+    count.to_i
+  end
+end
+
+FileUtils.chdir APP_ROOT do
+  suite, base = ARGV
+  abort "usage: bin/test-count rails|system [BASE]" unless COMMANDS.key?(suite)
+  base ||= ENV["CI_BASE"].to_s.then { |ref| ref.empty? ? "origin/main" : ref }
+  merge_base = git("merge-base", base, "HEAD").strip
+
+  output = +""
+  status = Open3.popen2e(*COMMANDS.fetch(suite)) do |_stdin, out, wait|
+    out.each_line { |line| print line; output << line }
+    wait.value
+  end
+
+  count = base_count(merge_base, suite)
+  at_base, = Open3.capture2("git", "show", "#{merge_base}:#{TestCount::REMOVALS}", err: File::NULL)
+  problems = TestCount.problems(output:, success: status.success?, base_count: count, suite:,
+                                head_removals: removals(File.exist?(TestCount::REMOVALS) && File.read(TestCount::REMOVALS)),
+                                base_removals: removals(at_base))
+  puts
+  problems.each { |problem| puts "FAIL: #{problem}" }
+  puts "test-count: #{suite}: #{TestCount.summary(output)&.fetch(:runs)} runs; the base (#{merge_base[0, 7]}) has #{count} tests" if problems.empty?
+  exit(problems.empty? ? 0 : 1)
+end

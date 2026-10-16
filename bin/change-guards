@@ -1,13 +1,17 @@
 #!/usr/bin/env ruby
 # Fails a change that switches a check off from inside the code it checks.
-# See PRODUCT.md, CI-7.
+# See PRODUCT.md, CI-7. Runs in exhale's bundle (tools/boot.rb), so it can ask
+# exhale which files it reads.
 #
-#   bin/change-guards headers [BASE]   a file under app/ or lib/ gained a generator's header
-#   bin/change-guards rubocop [BASE]   a file holds more RuboCop disable or todo directives
+#   bin/change-guards unlisted [BASE]     a file under app/ or lib/ that exhale no longer reads
+#   bin/change-guards directives [BASE]   a file holds more RuboCop or mutant disable directives
 #
 # BASE defaults to $CI_BASE, else origin/main.
+require_relative "../tools/boot"
+require "exhale"
 require "fileutils"
 require "open3"
+require "tmpdir"
 require_relative "../test/ci/change_guards"
 
 def git(*args, allow_failure: false)
@@ -16,30 +20,40 @@ def git(*args, allow_failure: false)
   status.success? ? out : nil
 end
 
+# The files under app/ and lib/ that exhale would compare by their language,
+# and those of them it reads, in a tree on disk.
+def exhale_view(root, paths)
+  candidates = paths.select { |path| Exhale::SourceFiles.language(path) }
+  [ candidates, Exhale::SourceFiles.list(root, files: candidates).map(&:first) ]
+end
+
 FileUtils.chdir File.expand_path("..", __dir__) do
   check, base = ARGV
   base ||= ENV["CI_BASE"].to_s.then { |ref| ref.empty? ? "origin/main" : ref }
   merge_base = git("merge-base", base, "HEAD").strip
-  at_base = ->(path) { git("show", "#{merge_base}:#{path}", allow_failure: true) }
 
   case check
-  when "headers"
-    # Each file under app/ or lib/ added, changed or renamed since the base,
-    # with its text at the base under its old name.
-    pairs = git("diff", "--name-status", "-M", "--diff-filter=AMR", merge_base, "--", "app", "lib").lines.map do |line|
-      _status, *paths = line.chomp.split("\t")
-      [ paths.last, at_base.(paths.first), File.read(paths.last) ]
+  when "unlisted"
+    head = exhale_view(Dir.pwd, git("ls-files", "--", "app", "lib").lines.map(&:chomp))
+    at_base = Dir.mktmpdir("change-guards") do |dir|
+      paths = git("ls-tree", "-r", "--name-only", merge_base, "--", "app", "lib").lines.map(&:chomp)
+      unless paths.empty?
+        _, status = Open3.capture2("sh", "-c", "git archive #{merge_base} -- app lib | tar -x -C #{dir}")
+        abort "change-guards: could not export the base's app/ and lib/" unless status.success?
+      end
+      exhale_view(dir, paths)
     end
-    found = ChangeGuards.new_headers(pairs)
-    found.each { |path| puts "FAIL: #{path} gained a generator's header, which takes it out of both exhale floors" }
-  when "rubocop"
-    candidates = ->(*tree) { git("grep", "-l", "-E", "rubocop[[:space:]]*:", *tree, allow_failure: true).to_s.lines.map { |l| l.chomp.delete_prefix("#{merge_base}:") } }
-    base_texts = candidates.(merge_base).to_h { |path| [ path, at_base.(path) ] }
+    found = ChangeGuards.newly_unlisted(*head, *at_base)
+    found.each { |path| puts "FAIL: exhale doesn't read #{path} (a generator's header, a test-like name or directory, a dot segment or a symlink), so neither exhale floor sees it" }
+  when "directives"
+    pattern = "rubocop[[:space:]]*:|mutant:disable"
+    candidates = ->(*tree) { git("grep", "-l", "-E", pattern, *tree, allow_failure: true).to_s.lines.map { |l| l.chomp.delete_prefix("#{merge_base}:") } }
+    base_texts = candidates.(merge_base).to_h { |path| [ path, git("show", "#{merge_base}:#{path}") ] }
     head_texts = candidates.().to_h { |path| [ path, File.read(path) ] }
     found = ChangeGuards.added_directives(base_texts, head_texts)
-    found.each { |path, before, after| puts "FAIL: #{path} has #{after} RuboCop disable or todo directive(s), #{before} at the base" }
+    found.each { |path, kind, before, after| puts "FAIL: #{path} has #{after} #{kind} disable directive(s), #{before} at the base" }
   else
-    abort "usage: bin/change-guards headers|rubocop [BASE]"
+    abort "usage: bin/change-guards unlisted|directives [BASE]"
   end
 
   puts "change-guards: #{check}: nothing new since #{base} (#{merge_base[0, 7]})" if found.empty?

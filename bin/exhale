@@ -1,23 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Runs exhale from its own bundle, tools/Gemfile, never the app's, and
-# installs that bundle when it is missing. See DECISIONS.md, D-23.
-gemfile = File.expand_path("../tools/Gemfile", __dir__)
-# A bundled parent (bin/ci) hands its children the app's lockfile and a
-# RUBYOPT that loads the app's bundle; `bundle check` would write tools'
-# resolution into the app's Gemfile.lock.
-tools = { "BUNDLE_GEMFILE" => gemfile, "BUNDLE_LOCKFILE" => "#{gemfile}.lock", "RUBYOPT" => nil }
-system(tools, "bundle", "check", out: File::NULL) || system(tools, "bundle", "install", exception: true)
-
-# Started from inside the app's bundle (bundle exec, or a RUBYOPT that loads
-# it), it starts again outside it.
-if defined?(Bundler) && ENV["BUNDLE_GEMFILE"] != gemfile
-  Bundler.with_unbundled_env { exec(tools, Gem.ruby, __FILE__, *ARGV) }
-end
-ENV.update(tools)
-
-require "rubygems"
-require "bundler/setup"
+# Runs exhale from its own bundle. See tools/boot.rb and DECISIONS.md, D-23.
+require_relative "../tools/boot"
 
 load Gem.bin_path("exhale", "exhale")

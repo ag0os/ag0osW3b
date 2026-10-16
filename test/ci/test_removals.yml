@@ -1,0 +1,8 @@
+# Tests a change removes on purpose (bin/test-count, PRODUCT.md CI-9). Each
+# entry a change adds lowers the count its suite must reach by `tests`, and
+# needs a reason. Append; never edit or delete an entry.
+#
+#   - suite: rails          # or system
+#     tests: 2
+#     reason: Why these tests go, and what covers their obligations now.
+removals: []
