@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  # One canonical host (PD-5): www answers every request with a 301 to the apex.
+  constraints host: "www.agoos.dev" do
+    match "(*path)", via: :all, to: redirect { |_params, request| "https://agoos.dev#{request.fullpath}" }
+  end
+
   # Authentication (Rails 8 built-in generator)
   resource  :session
   resources :passwords, param: :token
