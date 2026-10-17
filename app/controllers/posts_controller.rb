@@ -11,6 +11,6 @@ class PostsController < SiteController
   # something to subscribe to. Rendered without the site layout.
   def feed
     @posts = Post.published.recent.limit(25)
-    render layout: false, content_type: "application/atom+xml"
+    render layout: false, formats: :atom, content_type: "application/atom+xml"
   end
 end

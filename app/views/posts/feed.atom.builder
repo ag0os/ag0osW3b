@@ -1,4 +1,4 @@
-atom_feed(language: "en") do |feed|
+atom_feed(language: "en", url: feed_url) do |feed|
   feed.title("Writing by #{SiteSetting['site_title']}")
   feed.subtitle(SiteSetting["tagline"])
   feed.updated(@posts.first&.published_at)
