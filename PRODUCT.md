@@ -205,33 +205,56 @@ What the first deploy to agoos.dev depends on. Obligations run in `test/contract
 
 ## Contract: continuous integration
 
-What a green `ci` check on a pull request means. `bin/ci` runs the steps in `config/ci.rb`, and GitHub runs exactly `bin/ci`. A merge with nobody reading the code rests on this check alone, so it runs every check that would otherwise be run by hand. Obligations run in `test/contract/ci_contract_test.rb`. CI-1 to CI-3 and CI-8 are read from the config files. CI-4, CI-5, CI-7 and CI-9 run the floor's, the guards' and the test count's logic on hand-built inputs. Decisions are in `DECISIONS.md` (D-20 to D-25).
+What a green `ci` check on a pull request means. `bin/ci` runs the steps in `config/ci.rb`, and GitHub runs exactly `bin/ci`. A merge with nobody reading the code rests on this check alone, so it runs every check that would otherwise be run by hand. Obligations run in `test/contract/ci_contract_test.rb`. CI-1 to CI-3 and CI-8 are read from the config files. CI-4, CI-5, CI-7 and CI-9 run the mutation gate's, the guards' and the test count's logic on hand-built inputs. Decisions are in `DECISIONS.md` (D-20 to D-25).
 
 - **CI-1** `bin/ci` runs these steps in order:
   - setup, which also installs exhale's own bundle;
   - RuboCop, the gem and import-map audits, and Brakeman;
   - the Rails tests and the system tests, each through the test count (`bin/test-count`, CI-9), and the seeds;
   - two guards: files exhale doesn't read, and disable directives (`bin/change-guards`);
-  - three floors: mutation (`bin/mutant-floor`), duplication (`bin/exhale dry --introduced-only`) and complexity (`bin/exhale complexity`).
+  - the mutation gate (`bin/mutant-floor`), and two floors: duplication (`bin/exhale dry --introduced-only`) and complexity (`bin/exhale complexity`).
 
   Every step runs even after one fails, and the run fails if any step did. *Because* one run should list every failure, and a check left out of `bin/ci` is a check nobody runs before an unattended merge.
 - **CI-2** GitHub runs one job, named `ci`, on every pull request, with no branch or path filter, and on every push to main. Its only command besides installing libvips is `bin/ci`. It checks out the full history, and keeps the system tests' screenshots and mutant's full output when it fails. Neither the job nor any step carries `continue-on-error`. The only conditions are `if: failure()`, and only on the steps that upload those files. Every action it uses is on a short allowlist. *Because* GitHub counts a skipped job as a passing required check. A job that may continue on error is green whatever `bin/ci` says. Branch protection requires a check by name, and a second list of steps in the workflow would drift from `bin/ci`. The floors diff against the base, so they need its history.
-- **CI-3** The floors and guards judge only what changed since a base:
+- **CI-3** The mutation gate, the floors and the guards judge only what changed since a base:
   - on a pull request, the merge base with the target branch;
   - on a push to main, the commit main pointed at before the push;
   - locally, `origin/main` (fetch first), or `$CI_BASE`.
 
   *Because* main compared with itself has nothing to check and passes vacuously.
-- **CI-4** The mutation floor runs mutant on every subject in `config/mutant.yml`, on every run. It fails when:
-  - a mutation survives that `test/mutant/baseline.yml` doesn't list;
-  - a neutral mutation fails its tests;
+- **CI-4** The mutation gate runs mutant on every subject in `config/mutant.yml`, on every run, twice: on the change, and on its base exported from git. The base runs from its own directory with the change's `config/mutant.yml`, `test/mutant/boot.rb`, `test/mutant/hooks.rb` and bundle, and both runs use one fixed test seed. A survivor is known by its subject and the lines its mutation removes and adds. The gate fails when:
+  - the change has more survivors for a key than the base has. A subject that the base's own `config/mutant.yml` didn't select counts none at the base;
+  - a neutral mutation fails its tests, aborts or times out;
   - a subject's results are incomplete (fewer than its mutations);
-  - an expression in `config/mutant.yml`, or a subject the baseline names, matches no subject;
-  - a subject the baseline records as having run doesn't run: a method moved into a concern or module, renamed, or redefined with `define_method`;
-  - a baseline entry's mutation is now killed by a test, or mutant no longer makes it.
+  - an expression in `config/mutant.yml` matches no subject;
+  - a subject that the base's own config selected doesn't run, while the change still defines that method under `app/` or `lib/` and no subject runs it under its new name. That is a method moved into a concern or module the config doesn't select, or one redefined with `define_method`.
 
-  An entry whose mutation is killed only by a timeout passes, and is reported. A survivor is known by its subject and the lines its mutation removes and adds, so moving a method, or editing another, keeps its entry; each entry accepts one survivor. *Because* the floor is what is already accepted, and anything below it is new. A scoped run misses changes that weaken a kill without touching the subject: a removed `cover`, a model scope, a fixture. An entry left behind after its mutation is killed is a credit that a later regression could spend. A renamed or moved subject must not leave mutation silently, even when it has no entries and its class's expression still matches. A new subject that the baseline doesn't record yet runs and is judged like any other; it is recorded at the next re-anchor. A slow runner can turn a survivor into a timeout, which mutant counts as a kill.
-- **CI-5** A change that alters the baseline's survivors, or the subjects it records, must append an anchor giving its reason. `bin/mutant-floor --record "REASON"` runs every subject and writes the baseline: every subject that ran, with or without entries, and the survivors, keeping earlier anchors. *Because* accepting a survivor is a decision, and so is letting mutation cover less. The reasons belong in the file that records them, which only the owner may change (CI-8).
+  Some outcomes pass, and each one is reported:
+  - **A method that is deleted, renamed, or moved to where a subject runs it.**
+  - **A survivor carried across a rename or move.** A survivor in a subject that runs only on the change takes up a base survivor with the same lines from a subject that ran only at the base, one for one.
+  - **A mutation killed only by a timeout.** That is one alive at the base that only timed out on the change.
+
+  When the base itself fails, the step fails and names the base as the gap, not the change. That covers its export, its boot, an incomplete result and a failing neutral. An expression that matches nothing at the base is expected, because its method is new.
+
+  *Because:*
+  - A survivor is new when the change has it and the base doesn't, and main is reached only through this check.
+  - A scoped run misses changes that weaken a kill without touching the subject, such as a removed `cover`, a model scope or a fixture. The base run loads its own tests, so it catches them.
+  - Counting copies stops a duplicated survivor from hiding behind its twin.
+  - Judging against the base's own selection stops a newly listed method's untested base from vouching for it.
+  - A method that is gone has nothing left to mutate. One that is still defined but no longer runs has left the gate without a word.
+  - A rename or a move into a concern changes the subject's name and nothing else. Carrying its survivors lets the change pay down the shape of the code without accepting anything new. And because each one is carried one for one, deleting a test that killed one of them still fails.
+  - The two runs share a harness, a bundle and a seed, so only the code and the tests differ, and a gem bump changes both alike.
+  - A slow runner can turn a survivor into a timeout, which mutant counts as a kill.
+- **CI-5** Some changes need a reason, recorded in an owned file:
+  - **An equivalent survivor.** A new survivor that no test can kill passes only with an `equivalents` entry in `test/mutant/accepted.yml`, giving its subject, its change and the reason. Each entry accepts one survivor, which is reported.
+  - **Letting mutation cover less.** Two kinds of change need a `config` entry in the same file, with the reason, and the subjects it excuses are reported:
+    - `config/mutant.yml` no longer selects, at the base, a subject the base's own config selected there, and the change still defines that subject;
+    - any change to `config/mutant.yml` outside its subjects and ignores, such as operators, the timeout, coverage criteria, or what it requires, includes or hooks.
+  - **Re-anchoring.** `test/mutant/baseline.yml` is a snapshot of the survivors on main, and the gate doesn't read it. A change to its survivors or to the subjects it records must append an anchor giving the reason. `bin/mutant-floor --record "REASON"` runs every subject and writes it.
+
+  Only the entries a change adds to `accepted.yml` count. An entry without a reason fails, and so does an equivalent that matches no new survivor.
+
+  *Because* accepting a survivor is a decision, and so is letting mutation cover less. A config change weakens both runs alike, so the comparison can't see it. If an entry still counted after its own change merged, it would be a credit that a later regression could spend. The reasons belong in files only the owner may change (CI-8).
 - **CI-6** The duplication floor fails on a copy the change introduces, or one it pushes over the threshold (exhale's defaults: a score of 0.80, 4 lines, 20 normalised nodes). Copies already on main are listed as warnings. A deliberate copy passes only with a `parallel` clause in exhale's Contract (`contract/<primitive>/duplication.md`), whose section gives the reason. The complexity floor fails when a method's cognitive complexity rises above 8, or a new method starts above it, unless a `ceiling` clause gives a reason. Exhale runs from its own bundle (`tools/Gemfile`), never the app's, and that bundle is frozen: a Gemfile that no longer matches its lockfile fails instead of resolving again. Installing and running it leaves the app's `Gemfile.lock` as it was, even from inside the app's bundle as `bin/ci` runs it, and it installs where its gems are missing, as on a fresh runner. *Because* both floors judge the change, not the codebase, and the merge base is the floor: main only gets there through this check. Exhale's dependencies stay out of production. Bundler hands a bundled process's children the app's lockfile, and a tool that writes its own resolution there replaces the app's. It also hands them `BUNDLER_SETUP`, which RubyGems loads at startup, so a `bundle install` started with it loads the bundle it is about to install and stops because the gems are missing. And with a bundle path, such as setup-ruby's `vendor/bundle`, it hands them a `GEM_HOME` and `GEM_PATH` that hide the installed Bundler.
 - **CI-7** The guards fail a change when:
   - a Ruby or HTML ERB file under `app/` or `lib/` is one that exhale doesn't read, and at the base it was read or didn't exist. The guard asks exhale itself (`Exhale::SourceFiles.list`, in exhale's bundle) about the change and about the base. That covers a generator's header in the first five lines, a name or directory that looks like a test (`ab_test.rb`, `spec/`), a dot segment and a symlink.
@@ -240,14 +263,14 @@ What a green `ci` check on a pull request means. `bin/ci` runs the steps in `con
 
   *Because* exhale silently leaves such a file out of both floors, an inline RuboCop directive switches a cop off where no config file shows it, and mutant drops any subject whose comments disable it, without a word.
 - **CI-8** `.github/CODEOWNERS` names the owner on every path that decides the gate:
-  - the workflow, and `bin/` (which holds `bin/ci`, the floors, the guards and the test count);
-  - the CI and mutant config, the baseline, the floor, guard and test-count logic, and the CI Contract test;
+  - the workflow, and `bin/` (which holds `bin/ci`, the mutation gate, the floors, the guards and the test count);
+  - the CI and mutant config, the baseline and the accepted list, the gate's, guards' and test count's logic, and the CI Contract test;
   - exhale's Contract, its bundle and its cache;
   - every file a gate tool reads without being told to: `.rubocop.yml` and a `.rubocop` options file, `config/brakeman.yml` and `config/brakeman.ignore`, `config/bundler-audit.yml`, a committed `.bundle/` or `vendor/bundle/`, and `.gitattributes`;
   - the test harness: `test/test_helper.rb`, `test/test_helpers/`, `test/application_system_test_case.rb`, `config/environments/test.rb`, `config/boot.rb`, the `Rakefile` and `lib/tasks/`;
   - the Gemfile.
 
-  The app's `Gemfile.lock` is deliberately not owned. *Because* a pull request runs its own copy of the gate, and with code-owner review required, a change to the gate needs the owner's hand. Brakeman reads `config/brakeman.yml` and RuboCop reads `.rubocop` without being asked, and either can switch checks off. A Dependabot patch or minor bump that touches only the lockfile may merge on a green check (G1), and an owned lockfile never could. The check still runs every step on such a bump, the gem audit and the mutation floor included.
+  The app's `Gemfile.lock` is deliberately not owned. *Because* a pull request runs its own copy of the gate, and with code-owner review required, a change to the gate needs the owner's hand. Brakeman reads `config/brakeman.yml` and RuboCop reads `.rubocop` without being asked, and either can switch checks off. A Dependabot patch or minor bump that touches only the lockfile may merge on a green check (G1), and an owned lockfile never could. The check still runs every step on such a bump, the gem audit and the mutation gate included.
 - **CI-9** The Rails tests and the system tests pass only when the output of each run ends with Minitest's summary line, showing 0 failures, 0 errors, exactly the skips `test/ci/test_removals.yml` lists for that suite, and at least as many runs as the base has tests. The output is read by a process that doesn't load the app. The base's count comes from loading the base's own test files, exported from git, and counting their tests without running them. An export git doesn't complete, or a count of 0, fails. A change that removes tests on purpose adds an entry to `test/ci/test_removals.yml`, naming the suite, how many and why. Each entry the change adds lowers the count by its number for that suite, and an entry without a reason fails. A test that stays skipped is listed under `skips`, with its suite, how many and why. The list must match the run exactly, so a skip that is fixed comes off the list. *Because* any file the app loads can make the test process exit 0 without running a test (`at_exit { exit!(0) }`), and a deleted test is otherwise invisible. Minitest counts a skipped test as a run, and skipping a test that fails is the easiest way to make a suite pass. The base is main's code, which the change can't alter. A removal is a decision, so its reason goes in an owned file.
 
 What this does not cover: mutation runs only on the subjects listed in `config/mutant.yml`, the ones with a Contract test that declares `cover`. Code outside them is tested but not mutated. A pull request runs its own code, so a test that rewrites the test framework could pass anything. CODEOWNERS covers the gate's files, not every file the gate executes. The test count is a tripwire, not a proof: app code that prints a convincing summary line before exiting would pass it.

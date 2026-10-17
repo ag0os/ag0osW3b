@@ -7,7 +7,7 @@ require_relative "../ci/test_count"
 # Continuous integration's Contract, as tests. Each test is named after an
 # obligation in PRODUCT.md ("Contract: continuous integration"). CI-1 to CI-3,
 # CI-6 and CI-8 read the config files; CI-4, CI-5, CI-7 and CI-9 run the
-# floor's, the guards' and the test count's logic on hand-built inputs.
+# mutation gate's, the guards' and the test count's logic on hand-built inputs.
 class CiContractTest < ActiveSupport::TestCase
   # Records config/ci.rb's steps instead of running them.
   class Recorder
@@ -48,7 +48,7 @@ class CiContractTest < ActiveSupport::TestCase
       [ "Tests: Seeds", "env RAILS_ENV=test bin/rails db:seed:replant" ],
       [ "Guard: Files exhale doesn't read", "bin/change-guards unlisted abc1234" ],
       [ "Guard: Disable directives", "bin/change-guards directives abc1234" ],
-      [ "Health: Mutation", "bin/mutant-floor abc1234" ],
+      [ "Gate: Mutation", "bin/mutant-floor abc1234" ],
       [ "Health: Duplication", "bin/exhale dry --base abc1234 --introduced-only" ],
       [ "Health: Complexity", "bin/exhale complexity --base abc1234" ]
     ], ci_steps(base: "abc1234")
@@ -110,14 +110,14 @@ class CiContractTest < ActiveSupport::TestCase
     expression = workflow.dig("jobs", "ci", "env", "CI_BASE")
     assert_equal "${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}", expression
 
-    assert_equal "bin/mutant-floor origin/main", ci_steps(base: nil).assoc("Health: Mutation").last
-    assert_equal "bin/mutant-floor origin/main", ci_steps(base: "").assoc("Health: Mutation").last
+    assert_equal "bin/mutant-floor origin/main", ci_steps(base: nil).assoc("Gate: Mutation").last
+    assert_equal "bin/mutant-floor origin/main", ci_steps(base: "").assoc("Gate: Mutation").last
   end
 
-  # --- The mutation floor -------------------------------------------------------
+  # --- The mutation gate --------------------------------------------------------
 
-  def coverage(diff, killed: false, timeout: false, type: "evil", id: "evil:X")
-    { "criteria_result" => { "process_abort" => false, "test_result" => killed, "timeout" => timeout },
+  def coverage(diff, killed: false, timeout: false, abort: false, type: "evil", id: "evil:X")
+    { "criteria_result" => { "process_abort" => abort, "test_result" => killed, "timeout" => timeout },
       "mutation_result" => { "mutation_type" => type, "mutation_diff" => diff, "mutation_identification" => id } }
   end
 
@@ -129,23 +129,28 @@ class CiContractTest < ActiveSupport::TestCase
 
   def baseline(survivors) = { "anchors" => [ { "reason" => "accepted" } ], "survivors" => survivors }
 
-  def compare(session, baseline, expressions: [ "Home*", "Pages*" ])
-    MutantFloor.compare(session, baseline, expressions:)
+  # The base defaults to the tip's subjects with nothing alive, all selected by the base's own config.
+  def compare(tip, base = session(MutantFloor.subjects(tip).to_h { |name| [ name, [] ] }), base_selected: MutantFloor.subjects(base),
+              expressions: [ "Home*", "Pages*" ], defined_as: {}, accepted: {})
+    MutantFloor.compare(tip, base, base_selected:, expressions:, defined_as:, accepted:)
   end
 
   DROP_ORDER = "@@ -1,4 +1,4 @@\n def show\n-  @sections = all.ordered\n+  @sections = all\n end\n"
+  DROP_LIMIT = "@@ -1,4 +1,4 @@\n def show\n-  @posts = recent.limit(3)\n+  @posts = recent\n end\n"
 
-  test "CI-4 a survivor in the baseline passes, wherever its method has moved and whatever else it holds" do
+  test "CI-4 a survivor the base has too passes, wherever its method has moved and whatever else it holds" do
     moved = "@@ -3,6 +3,6 @@\n def show\n   log\n-  @sections = all.ordered\n+  @sections = all\n   @posts = recent\n end\n"
     neutral = coverage(nil, killed: true, type: "neutral") # mutant's run of the code as written: no diff
     verdict = compare(session("Home#show" => [ neutral, coverage(moved) ], "Pages#show" => []),
-                      baseline("Home#show" => [ "-  @sections = all.ordered\n+  @sections = all" ]))
+                      session("Home#show" => [ neutral, coverage(DROP_ORDER) ], "Pages#show" => []))
 
     assert verdict.pass?
+    assert_empty verdict.new_survivors
   end
 
-  test "CI-4 a survivor not in the baseline fails, and is named" do
-    verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, id: "evil:Home#show:1:abc") ], "Pages#show" => []), baseline({}))
+  test "CI-4 a survivor the base doesn't have fails, and is named" do
+    verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, id: "evil:Home#show:1:abc") ], "Pages#show" => []),
+                      session("Home#show" => [ coverage(DROP_ORDER, killed: true) ], "Pages#show" => []))
 
     assert_not verdict.pass?
     assert_equal [ [ "Home#show", "-  @sections = all.ordered\n+  @sections = all", "evil:Home#show:1:abc" ] ],
@@ -153,37 +158,54 @@ class CiContractTest < ActiveSupport::TestCase
   end
 
   test "CI-4 the same change in another subject is a different survivor" do
-    verdict = compare(session("Home#show" => [], "Pages#show" => [ coverage(DROP_ORDER) ]),
-                      baseline("Home#show" => [ MutantFloor.change(DROP_ORDER) ]))
+    verdict = compare(session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => [ coverage(DROP_ORDER) ]),
+                      session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => []))
 
     assert_equal [ "Pages#show" ], verdict.new_survivors.map(&:subject)
   end
 
-  test "CI-4 each baseline entry accepts one survivor" do
+  test "CI-4 survivors are counted per key: a second copy of one the base has fails" do
     verdict = compare(session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_ORDER) ], "Pages#show" => []),
-                      baseline("Home#show" => [ MutantFloor.change(DROP_ORDER) ]))
+                      session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => []))
 
     assert_equal 1, verdict.new_survivors.size
   end
 
-  test "CI-4 a neutral mutation the tests fail on fails, whatever the baseline holds" do
-    verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, type: "neutral") ], "Pages#show" => []),
-                      baseline("Home#show" => [ MutantFloor.change(DROP_ORDER) ]))
+  test "CI-4 a test that now kills a survivor the base has passes, with nothing to re-record" do
+    verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, killed: true) ], "Pages#show" => []),
+                      session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => []))
 
-    assert_not verdict.pass?
-    assert_equal [ "Home#show" ], verdict.broken.map(&:subject)
+    assert verdict.pass?
+    assert_empty verdict.timed_out
+  end
+
+  test "CI-4 a subject the base's own config didn't select counts no survivors at the base" do
+    tip = session("Home#show" => [], "Pages#show" => [ coverage(DROP_ORDER) ])
+    base = session("Home#show" => [], "Pages#show" => [ coverage(DROP_ORDER) ]) # the tip's config, run on the base
+
+    assert compare(tip, base).pass?
+    assert_equal [ "Pages#show" ], compare(tip, base, base_selected: [ "Home#show" ]).new_survivors.map(&:subject)
+  end
+
+  test "CI-4 a neutral mutation that fails, aborts or times out fails" do
+    [ { killed: false }, { killed: true, abort: true }, { killed: false, timeout: true } ].each do |outcome|
+      verdict = compare(session("Home#show" => [ coverage(nil, type: "neutral", **outcome) ], "Pages#show" => []))
+
+      assert_not verdict.pass?, outcome.inspect
+      assert_equal [ "Home#show" ], verdict.broken.map(&:subject), outcome.inspect
+    end
+    assert compare(session("Home#show" => [ coverage(nil, type: "neutral", killed: true) ], "Pages#show" => [])).pass?
   end
 
   test "CI-4 a subject with fewer results than mutations fails" do
-    verdict = compare(session({ "Home#show" => [ coverage(DROP_ORDER, killed: true) ], "Pages#show" => [] }, { "Home#show" => 2 }),
-                      baseline({}))
+    verdict = compare(session({ "Home#show" => [ coverage(DROP_ORDER, killed: true) ], "Pages#show" => [] }, { "Home#show" => 2 }))
 
     assert_not verdict.pass?
     assert_equal [ "Home#show" ], verdict.partial
   end
 
   test "CI-4 an expression in config/mutant.yml that matches no subject fails" do
-    verdict = compare(session("Home#show" => [], "Pages#show" => []), baseline({}), expressions: [ "Home*", "Pages#show", "Gone*", "Pages#gone" ])
+    verdict = compare(session("Home#show" => [], "Pages#show" => []), expressions: [ "Home*", "Pages#show", "Gone*", "Pages#gone" ])
 
     assert_not verdict.pass?
     assert_equal [ "Gone*", "Pages#gone" ], verdict.unmatched
@@ -192,53 +214,189 @@ class CiContractTest < ActiveSupport::TestCase
   test "CI-4 an expression matches its namespace and what it nests, not a longer name" do
     subjects = session("Home#show" => [], "Home::Card.build" => [], "Homepage#show" => [])
 
-    assert_empty compare(subjects, baseline({}), expressions: [ "Home*", "Homepage#show" ]).unmatched
-    assert_equal [ "Home::Card*" ], compare(session("Homepage#show" => []), baseline({}), expressions: [ "Home::Card*" ]).unmatched
-    assert_equal [ "Hom*" ], compare(subjects, baseline({}), expressions: [ "Hom*" ]).unmatched
+    assert_empty compare(subjects, expressions: [ "Home*", "Homepage#show" ]).unmatched
+    assert_equal [ "Home::Card*" ], compare(session("Homepage#show" => []), expressions: [ "Home::Card*" ]).unmatched
+    assert_equal [ "Hom*" ], compare(subjects, expressions: [ "Hom*" ]).unmatched
   end
 
-  test "CI-4 a subject the baseline names that matches no subject fails" do
-    verdict = compare(session("Home#show" => [], "Pages#show" => []), baseline("Home#index" => [ "-a\n+b" ]))
+  test "CI-4 a method the change still defines that no longer runs fails" do
+    base = session("Home#show" => [], "Home#index" => [], "Pages#show" => [])
+    tip = session("Home#show" => [], "Pages#show" => [])
 
-    assert_not verdict.pass?
-    assert_equal [ "Home#index" ], verdict.unmatched
+    [ "Home#index", "Listing#index" ].each do |now| # redefined with define_method; moved into a concern no subject selects
+      verdict = compare(tip, base, defined_as: { "Home#index" => now })
+      assert_not verdict.pass?
+      assert_equal [ "Home#index" ], verdict.left
+    end
+    assert_equal [ "Home#index" ], compare(tip, base).left, "a subject nobody looked up counts as still defined"
   end
 
-  test "CI-4 a subject the baseline records that no longer runs fails, entries or not" do
-    recorded = baseline({}).merge("subjects" => [ "Home#index", "Home#show", "Pages#show" ])
-    verdict = compare(session("Home#show" => [], "Pages#show" => []), recorded)
+  test "CI-4 a deleted or renamed method passes, and so does one moved where a subject runs it; each is reported" do
+    base = session("Home#show" => [], "Home#index" => [], "Pages#show" => [])
 
-    assert_not verdict.pass?
-    assert_equal [ "Home#index" ], verdict.unmatched
+    gone = compare(session("Home#show" => [], "Pages#show" => []), base, defined_as: { "Home#index" => nil })
+    assert gone.pass?
+    assert_equal [ [ "Home#index", nil ] ], gone.moved
+
+    moved = compare(session("Home#show" => [], "Pages#show" => [], "Listing#index" => []), base,
+                    defined_as: { "Home#index" => "Listing#index" }, expressions: [ "Home*", "Pages*", "Listing*" ])
+    assert moved.pass?
+    assert_equal [ [ "Home#index", "Listing#index" ] ], moved.moved
   end
 
-  test "CI-4 a subject that runs but isn't recorded yet passes" do
-    recorded = baseline({}).merge("subjects" => [ "Home#show" ])
+  test "CI-4 a survivor carried across a rename or move passes one for one, and is reported" do
+    base = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT) ], "Pages#show" => [])
+    expressions = [ "Pages*", "Listing*" ]
+    moved = ->(*coverages) { session("Listing#show" => coverages, "Pages#show" => []) }
 
-    assert compare(session("Home#show" => [], "Pages#show" => []), recorded).pass?
+    verdict = compare(moved.(coverage(DROP_ORDER), coverage(DROP_LIMIT)), base, defined_as: { "Home#show" => "Listing#show" }, expressions:)
+    assert verdict.pass?
+    assert_equal [ [ "Home#show", "Listing#show", MutantFloor.change(DROP_ORDER) ], [ "Home#show", "Listing#show", MutantFloor.change(DROP_LIMIT) ] ],
+                 verdict.carried
+
+    twice = compare(moved.(coverage(DROP_ORDER), coverage(DROP_ORDER)), base, defined_as: { "Home#show" => "Listing#show" }, expressions:)
+    assert_equal [ [ "Listing#show", MutantFloor.change(DROP_ORDER) ] ], twice.new_survivors.map { |s| [ s.subject, s.change ] }
   end
 
-  test "CI-4 a baseline entry whose mutation a test now kills fails" do
-    verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, killed: true) ], "Pages#show" => []),
-                      baseline("Home#show" => [ MutantFloor.change(DROP_ORDER) ]))
+  test "CI-4 survivors carry only from a subject that stopped running to one that started" do
+    base = session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => [])
+    tip = session("Home#show" => [], "Pages#show" => [ coverage(DROP_ORDER) ]) # Home#show still runs and kills it now
 
-    assert_not verdict.pass?
-    assert_equal [ [ "Home#show", MutantFloor.change(DROP_ORDER) ] ], verdict.killed
+    assert_equal [ "Pages#show" ], compare(tip, base).new_survivors.map(&:subject)
+    assert_empty compare(tip, base).carried
   end
 
-  test "CI-4 a baseline entry whose mutation mutant no longer makes fails" do
-    verdict = compare(session("Home#show" => [], "Pages#show" => []), baseline("Home#show" => [ "-a\n+b" ]))
-
-    assert_not verdict.pass?
-    assert_equal [ [ "Home#show", "-a\n+b" ] ], verdict.vanished
-  end
-
-  test "CI-4 a baseline entry whose mutation only timed out passes, and is reported" do
+  test "CI-4 a mutation alive at the base and killed only by a timeout passes, and is reported" do
     verdict = compare(session("Home#show" => [ coverage(DROP_ORDER, timeout: true) ], "Pages#show" => []),
-                      baseline("Home#show" => [ MutantFloor.change(DROP_ORDER) ]))
+                      session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => []))
 
     assert verdict.pass?
     assert_equal [ [ "Home#show", MutantFloor.change(DROP_ORDER) ] ], verdict.timed_out
+  end
+
+  test "CI-4 a base run that is incomplete, or whose neutral fails, is a gap at the base" do
+    assert_empty MutantFloor.base_gap(session("Home#show" => [ coverage(nil, type: "neutral", killed: true), coverage(DROP_ORDER) ]))
+
+    partial = MutantFloor.base_gap(session({ "Home#show" => [] }, { "Home#show" => 3 }))
+    broken = MutantFloor.base_gap(session("Home#show" => [ coverage(nil, type: "neutral", timeout: true) ]))
+    assert_equal [ "Home#show: fewer results than mutations" ], partial
+    assert_equal [ "Home#show: the tests fail on the code as written" ], broken
+  end
+
+  test "CI-4 the base's own selection is read from mutant's subject list, and a list it can't read is a gap" do
+    listing = "warning: parser/current is loading parser/ruby33\nSubjects in environment: 2\nHome#show\nPages#show\n"
+
+    assert_equal [ "Home#show", "Pages#show" ], MutantFloor.selection(listing)
+    assert_nil MutantFloor.selection("Subjects in environment: 3\nHome#show\nPages#show\n")
+    assert_nil MutantFloor.selection("LoadError: cannot load such file\n")
+  end
+
+  test "CI-4 the base runs from its own tree with the change's harness, bundle and one seed" do
+    assert_equal %w[config/mutant.yml test/mutant/boot.rb test/mutant/hooks.rb], MutantFloor::HARNESS
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "test/mutant"))
+      File.write(File.join(dir, "test/mutant/boot.rb"), "# the base's own\n")
+      MutantFloor.copy_harness(from: Rails.root.to_s, to: dir)
+
+      MutantFloor::HARNESS.each { |path| assert_equal Rails.root.join(path).read, File.read(File.join(dir, path)), path }
+    end
+
+    env = MutantFloor.base_env(Rails.root.to_s)
+    assert_equal [ Rails.root.join("Gemfile").to_s, Rails.root.join("Gemfile.lock").to_s, "test", nil ],
+                 env.values_at("BUNDLE_GEMFILE", "BUNDLE_LOCKFILE", "RAILS_ENV", "RUBYOPT")
+    assert_match(/^\s*::Minitest\.seed = 0\b/, Rails.root.join("test/mutant/boot.rb").read)
+    assert_no_match(/random/, Rails.root.join("test/mutant/boot.rb").read)
+  end
+
+  # Stand-ins for app code, to look up the way the gate looks up a subject the tip no longer runs.
+  module Probe
+    module Moved
+      private def switch = nil
+    end
+
+    class Host
+      include Moved
+      def kept = nil
+      define_method(:made) { nil }
+      def self.build = nil
+    end
+  end
+
+  test "CI-4 a subject is looked up by its current owner, in the app's own files only" do
+    here = [ __dir__ ]
+    prefix = "CiContractTest::Probe"
+
+    assert_equal "#{prefix}::Host#kept", MutantFloor.defined_as("#{prefix}::Host#kept", paths: here)
+    assert_equal "#{prefix}::Moved#switch", MutantFloor.defined_as("#{prefix}::Host#switch", paths: here)
+    assert_equal "#{prefix}::Host#made", MutantFloor.defined_as("#{prefix}::Host#made", paths: here)
+    assert_equal "#{prefix}::Host.build", MutantFloor.defined_as("#{prefix}::Host.build", paths: here)
+    assert_nil MutantFloor.defined_as("#{prefix}::Host#gone", paths: here)
+    assert_nil MutantFloor.defined_as("#{prefix}::Host#to_s", paths: here), "inherited from Object"
+    assert_nil MutantFloor.defined_as("#{prefix}::Gone#kept", paths: here)
+    assert_nil MutantFloor.defined_as("#{prefix}::Host#kept", paths: [ Rails.root.join("app").to_s ]), "outside the app's files"
+  end
+
+  EQUIVALENT = { "subject" => "Home#show", "change" => "-  @sections = all.ordered\n+  @sections = all", "reason" => "SQLite reads them in index order" }
+
+  test "CI-5 an equivalent the change adds accepts one new survivor, which is reported" do
+    tip = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_ORDER) ], "Pages#show" => [])
+    verdict = compare(tip, accepted: { "equivalents" => [ EQUIVALENT ] })
+
+    assert_equal [ "Home#show" ], verdict.equivalent.map(&:subject)
+    assert_equal [ "Home#show" ], verdict.new_survivors.map(&:subject)
+    assert compare(session("Home#show" => [ coverage(DROP_ORDER) ], "Pages#show" => []), accepted: { "equivalents" => [ EQUIVALENT ] }).pass?
+  end
+
+  test "CI-5 an equivalent that matches no new survivor fails" do
+    verdict = compare(session("Home#show" => [], "Pages#show" => []), accepted: { "equivalents" => [ EQUIVALENT ] })
+
+    assert_not verdict.pass?
+    assert_equal [ [ "Home#show", EQUIVALENT["change"] ] ], verdict.unused
+  end
+
+  test "CI-5 only the entries a change adds to accepted.yml count, and each needs a reason" do
+    old = EQUIVALENT.merge("reason" => "accepted long ago")
+
+    assert_equal [ EQUIVALENT ], MutantFloor.added([ old, EQUIVALENT ], [ old ])
+    assert_equal [ old ], MutantFloor.added([ old, old ], [ old ]), "a second copy is a new entry"
+    assert_empty MutantFloor.added([ old ], [ old ])
+    assert_empty MutantFloor.reasonless([ EQUIVALENT, { "reason" => "lighter operators for a week" } ])
+    assert_equal 2, MutantFloor.reasonless([ EQUIVALENT.merge("reason" => " "), {} ]).size
+  end
+
+  test "CI-5 narrowing config/mutant.yml for a method the change still defines fails, unless a config entry gives the reason" do
+    base = session("Home#show" => [], "Pages#show" => [])
+    tip = session("Pages#show" => []) # e.g. Home* narrowed or ignored, so the base run under the tip's config skips it
+
+    narrowed = compare(tip, session("Pages#show" => []), base_selected: MutantFloor.subjects(base), expressions: [ "Pages*" ])
+    assert_not narrowed.pass?
+    assert_equal [ "Home#show" ], narrowed.deselected
+
+    excused = compare(tip, session("Pages#show" => []), base_selected: MutantFloor.subjects(base), expressions: [ "Pages*" ],
+                      accepted: { "config" => [ { "reason" => "Home is covered by the system tests now" } ] })
+    assert excused.pass?
+    assert_equal [ "Home#show" ], excused.excused
+
+    deleted = compare(tip, session("Pages#show" => []), base_selected: MutantFloor.subjects(base), expressions: [ "Pages*" ],
+                      defined_as: { "Home#show" => nil })
+    assert deleted.pass?, "a deleted method's expression can go"
+  end
+
+  test "CI-5 a change to config/mutant.yml outside its subjects and ignores fails, unless a config entry gives the reason" do
+    base = YAML.load_file(Rails.root.join("config/mutant.yml"))
+    added = base.merge("matcher" => base["matcher"].merge("subjects" => base.dig("matcher", "subjects") + [ "PostsController*" ],
+                                                         "ignore" => [ "HomeController#show" ]))
+    slower = base.merge("mutation" => { "timeout" => 0.01 })
+    lighter = base.merge("mutation" => { "operators" => "light" })
+    reasoned = [ { "reason" => "the light operators while mutant 0.18 settles" } ]
+
+    assert_nil MutantFloor.config_problem(base, base, [])
+    assert_nil MutantFloor.config_problem(added, base, []), "subjects and ignores are judged by what they select"
+    assert_match(/outside its subjects/, MutantFloor.config_problem(slower, base, []))
+    assert_match(/outside its subjects/, MutantFloor.config_problem(lighter, base, []))
+    assert_match(/outside its subjects/, MutantFloor.config_problem(base.except("hooks"), base, []))
+    assert_nil MutantFloor.config_problem(lighter, base, reasoned)
+    assert_nil MutantFloor.config_problem(base, nil, [])
   end
 
   test "CI-5 changing the baseline's survivors needs a new anchor with a reason" do

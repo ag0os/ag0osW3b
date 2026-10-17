@@ -252,12 +252,21 @@ pull request. A check that couldn't run is a gap to name, never a pass. The
 steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
 "Contract: continuous integration" (CI-1 to CI-9, decisions D-20 to D-25):
 
-- **Mutation** runs every subject in `config/mutant.yml`, every time, against
-  the committed `test/mutant/baseline.yml`. It fails on a survivor the
-  baseline doesn't list, on a subject that stops running, and on an entry a
-  test now kills. That last one is progress, not a regression: re-anchor with
-  `bin/mutant-floor --record "REASON"`, which rewrites the owned baseline, and
-  say so in the PR. Never re-anchor to accept a new survivor.
+- **Mutation** is a gate. It runs every subject in `config/mutant.yml` twice:
+  on the change, and on its merge base. The base is exported from git and run
+  with the change's harness, bundle and seed. It fails on a survivor the base
+  doesn't have, counted per subject and changed lines.
+  - A test that kills a known survivor just passes.
+  - A deleted or renamed method passes, and survivors carry across a rename
+    or a move into a concern.
+  - A method that is still defined but that no subject runs any more fails.
+
+  Three things need an entry with a reason in the owned
+  `test/mutant/accepted.yml`: narrowing `config/mutant.yml`, changing it
+  outside its subjects, or accepting a new survivor as equivalent. If the base
+  itself won't run, the step says so: that's a gap at the base, not a finding
+  against your change. `test/mutant/baseline.yml` is now only the snapshot of
+  main's survivors, re-anchored with `bin/mutant-floor --record "REASON"`.
 - **Duplication and complexity** (exhale, run from its own bundle in
   `tools/Gemfile`) fail only on what the change introduces since the merge
   base: a new copy, or a method whose cognitive complexity rises above 8.
@@ -268,7 +277,7 @@ steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
   fewer tests than the base or a skip, unless `test/ci/test_removals.yml`
   lists it with a reason.
 
-Don't edit a baseline, `test/ci/test_removals.yml` or any path in
+Don't edit a baseline, `test/mutant/accepted.yml`, `test/ci/test_removals.yml` or any path in
 `.github/CODEOWNERS` to get a pass. Those paths need the owner's approval, so a
 PR that must change one says why. A merge to `main` deploys to production.
 
