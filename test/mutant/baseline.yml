@@ -1,7 +1,8 @@
-# The mutation survivors on main, by subject: the lines each mutation removes
-# and adds. This is the debt list, a snapshot; bin/ci doesn't read it. The
-# gate compares each change with its merge base instead (PRODUCT.md, CI-4).
-# `subjects` lists every subject that ran when this was recorded.
+# The mutation survivors on main as of the newest anchor, by subject: the
+# lines each mutation removes and adds. This is the debt list; bin/ci doesn't
+# read it. The gate compares each change with its merge base instead
+# (PRODUCT.md, CI-4). `subjects` lists every subject that ran when this was
+# recorded.
 #
 # Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
 # subject and appends an anchor; a change to the survivors or subjects

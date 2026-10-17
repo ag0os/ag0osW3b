@@ -15,6 +15,8 @@ module MutantFloor
   ACCEPTED = "test/mutant/accepted.yml"
   # Copied from the change into the base's tree, so both runs mutate alike.
   HARNESS = %w[config/mutant.yml test/mutant/boot.rb test/mutant/hooks.rb].freeze
+  # A change to these can leave the base unable to run under the change.
+  BUNDLE = %r{\A(Gemfile|Gemfile\.lock|tools/|#{HARNESS.map { |path| Regexp.escape(path) }.join("|")})}
 
   Survivor = Data.define(:subject, :change, :identification)
 
@@ -30,6 +32,10 @@ module MutantFloor
   def change(diff)
     diff.to_s.lines.grep(/\A[-+]/).map(&:rstrip).join("\n")
   end
+
+  # A change as written in accepted.yml, without the trailing whitespace YAML
+  # or an editor leaves on it.
+  def normal(change) = change.to_s.lines.map(&:rstrip).join("\n").rstrip
 
   # Every mutation result as [subject, change, coverage].
   def results(session)
@@ -120,37 +126,86 @@ module MutantFloor
       broken(session).map(&:subject).uniq.map { |subject| "#{subject}: the tests fail on the code as written" }
   end
 
-  # Where the app now defines the method a subject names, as the subject that
-  # would mutate it, or nil when no file under `paths` defines it: deleted,
+  # The step's message for a base that can't be compared with: the problem,
+  # the first error line of what failed, and whose it is. A change to the
+  # bundle or the harness can be what the base can't run under.
+  def gap_lines(merge_base, problem, output:, changed:)
+    error = output.to_s.lines.find { |line| line.match?(/Error|cannot load/) }
+    blame = if changed.any? { |path| path.match?(BUNDLE) }
+      "the base can't run under this change's bundle or harness; land the code change separately"
+    else
+      "this is the base's run failing, not a finding against the change"
+    end
+    [ "mutant-floor: GAP AT THE BASE (#{merge_base[0, 7]}): #{problem}", *("  #{error.strip}" if error), "mutant-floor: #{blame}" ]
+  end
+
+  # Where the app now defines the method a subject names, as the subjects that
+  # would mutate it: its class's own (through its ancestors) when that is
+  # still the app's, or else every class or module that defines a method of
+  # that name and kind. Empty when no file under `paths` defines one: deleted,
   # renamed, or inherited from Rails or Object. Run inside the loaded app.
   def defined_as(subject, paths:)
     scope, separator, name = subject.partition(/[#.]/)
-    owner = Object.const_get(scope)
-    method = (separator == "." ? owner.singleton_class : owner).instance_method(name)
-    file = method.source_location&.first
-    return unless file && paths.any? { |path| file.start_with?("#{File.expand_path(path)}/") }
+    singleton = separator == "."
+    owned = [ own_method(scope, name, singleton) ].compact.select { |method| app_method?(method, paths) }
+    found = owned.empty? ? methods_named(name, singleton).select { |method| app_method?(method, paths) } : owned
+    found.map { |method| subject_of(method) }.uniq.sort
+  end
 
-    method.owner.singleton_class? ? "#{method.owner.attached_object.name}.#{name}" : "#{method.owner.name}##{name}"
+  def own_method(scope, name, singleton)
+    owner = Object.const_get(scope)
+    (singleton ? owner.singleton_class : owner).instance_method(name)
   rescue NameError
     nil
   end
 
+  # Every method of that name and kind that a named class or module defines itself.
+  def methods_named(name, singleton)
+    ObjectSpace.each_object(Module).filter_map do |mod|
+      next unless Module.instance_method(:name).bind_call(mod) # some modules redefine name
+
+      target = singleton ? mod.singleton_class : mod
+      target.instance_method(name) if target.method_defined?(name, false) || target.private_method_defined?(name, false)
+    end
+  end
+
+  def app_method?(method, paths)
+    file = method.source_location&.first
+    file && paths.any? { |path| file.start_with?("#{File.expand_path(path)}/") }
+  end
+
+  def subject_of(method)
+    owner = method.owner
+    owner.singleton_class? ? "#{owner.attached_object.name}.#{method.original_name}" : "#{owner.name}##{method.original_name}"
+  end
+
+  # Base subjects the change doesn't run, which the step looks up in the change's app.
+  def missing(tip, selection) = selection - subjects(tip)
+
+  # The comparison as the step makes it: the base judged by its own config's
+  # selection, the tip's config's expressions, and what this change adds to accepted.yml.
+  def judge(tip:, base:, selection:, config:, accepted:, defined_as:)
+    compare(tip, base, base_selected: selection, expressions: config.dig("matcher", "subjects") || [], defined_as:, accepted:)
+  end
+
   # The change against its base. `base_selected` is what the base's own
   # config selects there; `defined_as` maps a base subject the change doesn't
-  # run to where the change defines it (nil: nowhere); `accepted` holds the
+  # run to where the change defines it (empty: nowhere); `accepted` holds the
   # entries this change adds to accepted.yml.
   def compare(tip, base, base_selected:, expressions:, defined_as:, accepted:)
     ran, base_ran = subjects(tip), subjects(base)
+    vanished = base_selected - ran
     before = survivors(base, only: base_selected).transform_values(&:size)
-    fresh = survivors(tip).flat_map { |key, list| list.drop(before.fetch(key, 0)) }
-    carried, fresh = carry(fresh, before, vanished: base_selected - ran, arrived: ran - base_ran - base_selected)
+    alive = survivors(tip)
+    fresh = alive.flat_map { |key, list| list.drop(before.fetch(key, 0)) }
+    carried, fresh = carry(fresh, before, vanished:, arrived: ran - base_ran - base_selected)
     equivalent, fresh, unused = accept(fresh, accepted.fetch("equivalents", []))
-    departures = departures(base_selected - ran, ran, base_ran, defined_as)
-    excused, deselected = accepted.fetch("config", []).empty? ? [ [], departures[:deselected] ] : [ departures[:deselected], [] ]
+    departures = departures(vanished, ran, base_ran, defined_as)
+    excused, left, deselected = excuse(departures, accepted.fetch("config", []))
 
     Verdict.new(new_survivors: fresh, unused:, broken: broken(tip), partial: partial(tip), unmatched: unmatched(tip, expressions),
-                left: departures[:left], deselected:, carried:, equivalent:, moved: departures[:moved], excused:,
-                timed_out: timed_out(tip, base, before))
+                left:, deselected:, carried:, equivalent:, moved: departures[:moved], excused:,
+                timed_out: timed_out(tip, alive, before))
   end
 
   # A survivor in a subject that only the change runs takes up one with the
@@ -168,52 +223,161 @@ module MutantFloor
 
   # Each equivalent entry accepts one new survivor; entries left over accept nothing.
   def accept(fresh, entries)
-    open = entries.map { |entry| [ entry["subject"], entry["change"] ] }
+    open = entries.map { |entry| [ entry["subject"], normal(entry["change"]) ] }
     equivalent, remaining = fresh.partition do |survivor|
-      (index = open.index([ survivor.subject, survivor.change ])) && open.delete_at(index)
+      (index = open.index([ survivor.subject, normal(survivor.change) ])) && open.delete_at(index)
     end
     [ equivalent, remaining, open ]
   end
 
-  # Base subjects the change doesn't run: gone or moved where a subject runs
-  # them, left out of mutation, or no longer selected by the change's config.
+  # Base subjects the change doesn't run: gone, or moved where a subject runs
+  # them; left out of mutation; or no longer selected by the change's config.
+  # Each but the first is [subject, where it is now that no subject runs].
   def departures(missing, ran, base_ran, defined_as)
     sorted = { moved: [], left: [], deselected: [] }
     missing.each do |subject|
-      now = defined_as.fetch(subject, subject)
-      if now.nil? || ran.include?(now) then sorted[:moved] << [ subject, now ]
-      elsif base_ran.include?(subject) then sorted[:left] << subject
-      else sorted[:deselected] << subject
+      now = defined_as.fetch(subject, [ subject ])
+      unrun = now - ran
+      if unrun.empty? then sorted[:moved] << [ subject, now ]
+      elsif base_ran.include?(subject) then sorted[:left] << [ subject, unrun ]
+      else sorted[:deselected] << [ subject, unrun ]
       end
     end
     sorted
   end
 
+  # A config entry excuses the subjects it names, and nothing else.
+  def excuse(departures, entries)
+    named = entries.flat_map { |entry| entry["subjects"] || [] }
+    left, deselected = departures.values_at(:left, :deselected).map { |list| list.partition { |subject, _| named.include?(subject) } }
+    [ left.first + deselected.first, left.last, deselected.last ]
+  end
+
   # Mutations alive at the base that the change kills only by a timeout.
-  def timed_out(tip, base, before)
+  def timed_out(tip, alive, before)
     timeouts = results(tip).select { |*, coverage| evil?(coverage) && timed_out?(coverage) }.map { |subject, change, _| [ subject, change ] }
-    now = survivors(tip).transform_values(&:size)
     before.flat_map do |key, count|
-      [ key ] * [ count - now.fetch(key, 0), timeouts.count(key) ].min.clamp(0..)
+      [ key ] * [ count - alive.fetch(key, []).size, timeouts.count(key) ].min.clamp(0..)
     end
   end
 
+  def reason_for?(entries, change) = entries.any? { |entry| entry["change"] == change }
+
   # A change to config/mutant.yml beyond what it selects, which would weaken
-  # both runs alike, needs a config entry this change adds. Returns the problem, or nil.
-  def config_problem(head, base, reasons)
-    return if base.nil? || reasons.any?
+  # both runs alike, needs a `change: config` entry. Returns the problem, or nil.
+  def config_problem(head, base, entries)
+    return if base.nil? || reason_for?(entries, "config")
 
     strip = ->(config) { config.merge("matcher" => config.fetch("matcher", {}).except("subjects", "ignore")) }
-    "config/mutant.yml changes outside its subjects and ignores; add a config entry to #{ACCEPTED} with the reason" if strip.(head) != strip.(base)
+    "config/mutant.yml changes outside its subjects and ignores; add a `change: config` entry to #{ACCEPTED} with the reason" if strip.(head) != strip.(base)
   end
 
-  # Entries in head's list that base's doesn't hold, counting copies.
-  def added(head, base)
-    left = base.dup
-    head.reject { |entry| (index = left.index(entry)) && left.delete_at(index) }
+  # A change to boot.rb or hooks.rb weakens or strengthens both runs alike;
+  # it needs a `change: harness` entry. `head` and `base` map path to text.
+  def harness_problem(head, base, entries)
+    return if reason_for?(entries, "harness")
+
+    changed = head.keys.select { |path| base[path] && head[path] != base[path] }
+    "#{changed.join(" and ")} changes; add a `change: harness` entry to #{ACCEPTED} with the reason" if changed.any?
   end
 
-  def reasonless(entries) = entries.select { |entry| entry.fetch("reason", "").to_s.strip.empty? }
+  # A file's YAML, or the problem with it, as [document, problem]; a file
+  # that doesn't exist is [nil, nil].
+  def parse_yaml(text, path)
+    return [ nil, nil ] if text.nil?
+
+    [ YAML.safe_load(text) || {}, nil ]
+  rescue Psych::Exception => error
+    [ nil, "#{path} is not valid YAML: #{error.message}" ]
+  end
+
+  LISTS = %w[equivalents config].freeze
+
+  # What this change adds to accepted.yml, list by list, and what is wrong
+  # with it. Each list at the base must be the start of the change's list.
+  def accepted(head, base)
+    problems = []
+    return [ LISTS.to_h { |list| [ list, [] ] }, [ "#{ACCEPTED} must be a mapping of equivalents and config" ] ] unless head.nil? || head.is_a?(Hash)
+
+    added = LISTS.to_h do |list|
+      entries, before = list_in(head, list, problems), list_in(base, list, [])
+      problems << "#{ACCEPTED} edits or removes an existing #{list} entry; append instead" unless entries.first(before.size) == before
+      [ list, entries.drop(before.size) ]
+    end
+    [ added, problems + added.flat_map { |list, entries| entries.filter_map { |entry| entry_problem(list, entry) } } ]
+  end
+
+  def list_in(document, list, problems)
+    entries = document.is_a?(Hash) ? document[list] : nil
+    return entries || [] if entries.nil? || entries.is_a?(Array)
+
+    problems << "#{ACCEPTED}: #{list} must be a list"
+    []
+  end
+
+  def entry_problem(list, entry)
+    wrong = entry_shape(list, entry)
+    "an entry #{ACCEPTED} adds under #{list} #{wrong}: #{entry.inspect}" if wrong
+  end
+
+  def text?(value) = value.is_a?(String) && !value.strip.empty?
+
+  def entry_shape(list, entry)
+    if !entry.is_a?(Hash) then "is not a mapping"
+    elsif !text?(entry["reason"]) then "gives no reason"
+    elsif list == "equivalents" then equivalent_shape(entry)
+    else config_shape(entry)
+    end
+  end
+
+  def equivalent_shape(entry)
+    "needs a subject and a change" unless text?(entry["subject"]) && text?(entry["change"])
+  end
+
+  # A config entry names what it excuses: subjects, or the change it gives the reason for.
+  def config_shape(entry)
+    subjects = entry["subjects"]
+    if entry.key?("subjects") == entry.key?("change") then "needs either subjects or change, not both"
+    elsif entry.key?("change") then ("names a change other than config or harness" unless %w[config harness].include?(entry["change"]))
+    elsif !(subjects.is_a?(Array) && subjects.any? && subjects.all? { |subject| text?(subject) }) then "needs subjects as a list of names"
+    end
+  end
+
+  # The step's lines for a verdict: what passes and is reported, then each failure.
+  def report(verdict)
+    [
+      *section("Carried across a rename or move:", verdict.carried.map { |from, to, change| [ "survivor of #{from} carried to #{to}", change ] }),
+      *section("Gone from the change, or run under a new name:",
+               verdict.moved.map { |from, now| now.empty? ? "#{from} is no longer defined" : "#{from} now runs as #{now.join(", ")}" }),
+      *section("Killed only by a timeout, so tolerated (a slow runner can do this):", verdict.timed_out.map { |subject, change| [ subject, change ] }),
+      *section("Accepted as equivalent by #{ACCEPTED}:", survivor_lines(verdict.equivalent)),
+      *section("No longer mutated, excused by a config entry in #{ACCEPTED}:", whereabouts(verdict.excused)),
+      *section("FAIL: the tests fail, abort or time out on the code as written:", verdict.broken.map(&:subject).uniq),
+      *section("FAIL: mutant stopped short of these subjects' mutations:", verdict.partial),
+      *section("FAIL: named in config/mutant.yml, but no such subject ran:", verdict.unmatched),
+      *section("FAIL: still defined, but no subject runs them any more (select where they live in config/mutant.yml):", whereabouts(verdict.left)),
+      *section("FAIL: config/mutant.yml no longer selects these, and no config entry in #{ACCEPTED} names them:", whereabouts(verdict.deselected)),
+      *section("FAIL: equivalents this change adds that match no new survivor:", verdict.unused.map { |subject, change| [ subject, change ] }),
+      *section("FAIL: #{verdict.new_survivors.size} survivor(s) the base doesn't have:", survivor_lines(verdict.new_survivors))
+    ]
+  end
+
+  # A heading and its items, each a line or [line, a change shown beneath it].
+  def section(heading, items)
+    return [] if items.empty?
+
+    [ heading ] + items.flat_map do |line, change|
+      [ "  #{line}", *change.to_s.lines.map { |text| "    #{text.chomp}" } ]
+    end
+  end
+
+  def survivor_lines(survivors) = survivors.map { |s| [ "#{s.subject}  #{s.identification}", s.change ] }
+
+  def whereabouts(subjects)
+    subjects.map do |subject, now|
+      now == [ subject ] ? "#{subject}, still there but out of mutant's reach (define_method, or patched in from config/)" : "#{subject}, now in #{now.join(", ")}"
+    end
+  end
 
   def copy_harness(from:, to:)
     HARNESS.each do |path|
