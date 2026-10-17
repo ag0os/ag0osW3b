@@ -1,13 +1,11 @@
-# Mutation survivors bin/ci accepts, by subject: the lines each mutation
-# removes and adds. A survivor not listed here fails the build, and so does
-# an entry whose mutation a test now kills or mutant no longer makes.
-# `subjects` lists every subject that ran when this was recorded; one that
-# no longer runs (moved into a concern, renamed) fails the build too.
+# The mutation survivors on main, by subject: the lines each mutation removes
+# and adds. This is the debt list, a snapshot; bin/ci doesn't read it. The
+# gate compares each change with its merge base instead (PRODUCT.md, CI-4).
+# `subjects` lists every subject that ran when this was recorded.
 #
 # Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
-# subject and appends an anchor; a change to the survivors without a new
-# anchor and its reason fails the build. Say in the reason why each new
-# survivor is equivalent, or why it is accepted anyway.
+# subject and appends an anchor; a change to the survivors or subjects
+# without a new anchor and its reason fails the build.
 ---
 anchors:
 - at: 59bfb90

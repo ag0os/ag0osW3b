@@ -11,7 +11,7 @@ Mutant::Integration::Minitest.prepend(Module.new do
     Pathname.glob("test/**/*_test.rb")
       .select { |path| path.read.match?(/^\s*cover\b/) }
       .each { |path| require path.expand_path.to_s }
-    ::Minitest.seed ||= world.random.srand
+    ::Minitest.seed = 0 # one order for the change and its base (bin/mutant-floor)
     self
   end
 end)

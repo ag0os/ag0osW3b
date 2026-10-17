@@ -22,8 +22,8 @@ CI.run do
   step "Guard: Files exhale doesn't read", "bin/change-guards", "unlisted", base
   step "Guard: Disable directives", "bin/change-guards", "directives", base
 
-  # Floors: each fails only on what the change adds since the base.
-  step "Health: Mutation", "bin/mutant-floor", base
+  # The mutation gate and the floors: each fails only on what the change adds since the base.
+  step "Gate: Mutation", "bin/mutant-floor", base
   step "Health: Duplication", "bin/exhale", "dry", "--base", base, "--introduced-only"
   step "Health: Complexity", "bin/exhale", "complexity", "--base", base
 

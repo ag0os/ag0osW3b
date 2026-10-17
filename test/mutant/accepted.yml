@@ -1,0 +1,22 @@
+# Decisions the mutation gate accepts with a reason (bin/mutant-floor,
+# PRODUCT.md CI-5). Only the entries a change adds count, so append; never
+# edit or delete an entry.
+#
+# equivalents: a survivor the change brings that no test can kill. Each entry
+# accepts one survivor with that subject and change (the lines the mutation
+# removes and adds, as bin/mutant-floor prints them).
+#
+#   - subject: HomeController#show
+#     change: |-
+#       -  @sections = Section.for_page("home").visible.ordered
+#       +  @sections = Section.for_page("home").visible
+#     reason: Why no test can tell the two apart.
+#
+# config: a change to config/mutant.yml that lets mutation do less: it stops
+# selecting a method that is still defined, or it changes anything besides
+# its subjects and ignores (operators, the timeout, coverage criteria,
+# requires, includes, hooks).
+#
+#   - reason: What changes, and why mutation can do less.
+equivalents: []
+config: []
