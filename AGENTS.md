@@ -258,8 +258,12 @@ steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
   on its own, in about 80 seconds locally. It fails on a survivor the base
   doesn't have, counted per subject and changed lines.
   - A test that kills a known survivor just passes.
-  - A deleted or renamed method passes, and survivors carry across a rename
-    or a move into a concern.
+  - A method renamed within its own class passes (the class runs a new
+    subject), and survivors carry across a rename or a move into a concern.
+  - A method the change no longer defines by that name, and didn't rename in
+    its own class, fails as removed or renamed out of mutation's reach: a
+    deletion, or an extraction under a new name. If you deleted it, add an
+    entry as below.
   - A method that is still defined somewhere under `app/`, `lib/` or
     `config/`, but that no subject runs any more, fails. The step names where
     the method now lives. To fix it, select that place in `config/mutant.yml`
@@ -269,17 +273,16 @@ steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
 
   These need an entry with a reason in the owned `test/mutant/accepted.yml`:
   - a new survivor no test can kill (`equivalents`);
-  - a method that is still defined but no longer mutated, because
-    `config/mutant.yml` stopped selecting it or it left the selection
-    (`config`, naming it in `subjects`). Narrowing the config for a deleted
-    method needs nothing;
+  - a method that is no longer mutated, because `config/mutant.yml` stopped
+    selecting it, it left the selection, or it was deleted (`config`, naming
+    it in `subjects`);
   - a change to `config/mutant.yml` outside its subjects and ignores
     (`change: config`);
   - any change to `test/mutant/boot.rb` or `test/mutant/hooks.rb`
     (`change: harness`).
 
-  Such an entry takes the PR outside G1, so say why in the PR. The file is
-  append-only.
+  Such an entry takes the PR outside G1, so say why in the PR. The step
+  prints what each entry accepted, with its reason. The file is append-only.
 
   If the step prints GAP AT THE BASE, the base itself won't run, and your
   change can't fix that, so report it. When the gap says the base can't run
