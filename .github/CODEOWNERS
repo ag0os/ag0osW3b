@@ -35,6 +35,6 @@
 /Rakefile                             @ag0os
 /lib/tasks/                           @ag0os
 
-# Dependencies
+# Dependencies. Gemfile.lock is left out so a lockfile-only bump can merge on
+# a green check (CI-8).
 /Gemfile                              @ag0os
-/Gemfile.lock                         @ag0os

@@ -377,19 +377,32 @@ class CiContractTest < ActiveSupport::TestCase
 
   # --- Who may change the gate ------------------------------------------------------
 
-  test "CI-8 CODEOWNERS names the owner on every path that decides the gate" do
-    owners = Rails.root.join(".github/CODEOWNERS").read.lines.filter_map do |line|
+  def code_owners
+    Rails.root.join(".github/CODEOWNERS").read.lines.filter_map do |line|
       pattern, *names = line.sub(/#.*/, "").split
       [ pattern, names ] if pattern
     end.to_h
+  end
+
+  test "CI-8 CODEOWNERS names the owner on every path that decides the gate" do
+    owners = code_owners
 
     %w[
       /.github/ /bin/ /config/ci.rb /config/mutant.yml /test/mutant/ /test/ci/ /test/contract/ci_contract_test.rb
       /contract/ /tools/ /tmp/ /.rubocop.yml /.rubocop /config/brakeman.yml /config/brakeman.ignore /config/bundler-audit.yml
       /.bundle/ /vendor/bundle/ /.gitattributes
       /test/test_helper.rb /test/test_helpers/ /test/application_system_test_case.rb /config/environments/test.rb
-      /config/boot.rb /Rakefile /lib/tasks/ /Gemfile /Gemfile.lock
+      /config/boot.rb /Rakefile /lib/tasks/ /Gemfile
     ].each { |path| assert_equal [ "@ag0os" ], owners[path], "#{path} has no code owner" }
+  end
+
+  test "CI-8 CODEOWNERS leaves the app's lockfile unowned, so a lockfile-only bump can merge on a green check" do
+    owning = code_owners.keys.select do |pattern|
+      anchored = pattern.start_with?("/") ? pattern : "**/#{pattern}"
+      File.fnmatch?(anchored.delete_prefix("/"), "Gemfile.lock", File::FNM_PATHNAME | File::FNM_DOTMATCH)
+    end
+
+    assert_empty owning, "Gemfile.lock is owned by #{owning.join(", ")}"
   end
 
   # --- The test count ---------------------------------------------------------------
