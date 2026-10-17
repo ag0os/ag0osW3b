@@ -296,6 +296,52 @@ class CiContractTest < ActiveSupport::TestCase
     lockfile.write(before) if before
   end
 
+  test "CI-6 exhale's bundle installs where its gems are missing, even from inside an app's bundle" do
+    # Stand-ins for tools/ (one gem, cached locally, not yet installed) and for
+    # the app on a fresh runner: a bundle with setup-ruby's vendor/bundle path,
+    # which hands its children BUNDLER_SETUP and a GEM_HOME and GEM_PATH of its
+    # own. The probe starts from inside it, as bin/ci's children do.
+    Dir.mktmpdir do |dir|
+      app, tools = File.join(dir, "app"), File.join(dir, "tools")
+      FileUtils.mkdir_p([ File.join(app, ".bundle"), File.join(tools, ".bundle"), File.join(tools, "vendor/cache"), File.join(dir, "probe/lib") ])
+      File.write(File.join(app, "Gemfile"), "")
+      File.write(File.join(app, ".bundle/config"), "---\nBUNDLE_PATH: #{File.join(app, "vendor/bundle").dump}\n")
+
+      File.write(File.join(dir, "probe/lib/probe.rb"), "Probe = :installed\n")
+      File.write(File.join(dir, "probe/probe.gemspec"), <<~RUBY)
+        Gem::Specification.new do |s|
+          s.name, s.version, s.summary, s.authors, s.files = "probe", "0.1.0", "probe", [ "ci" ], [ "lib/probe.rb" ]
+        end
+      RUBY
+      out, status = Bundler.with_unbundled_env { Open3.capture2e("gem", "build", "probe.gemspec", chdir: File.join(dir, "probe")) }
+      assert status.success?, out
+      FileUtils.mv(File.join(dir, "probe/probe-0.1.0.gem"), File.join(tools, "vendor/cache"))
+
+      FileUtils.cp(Rails.root.join("tools/boot.rb"), tools)
+      File.write(File.join(tools, "Gemfile"), "source \"https://rubygems.org\"\ngem \"probe\", \"0.1.0\"\n")
+      File.write(File.join(tools, "Gemfile.lock"), <<~LOCK)
+        GEM
+          remote: https://rubygems.org/
+          specs:
+            probe (0.1.0)
+
+        PLATFORMS
+          ruby
+
+        DEPENDENCIES
+          probe (= 0.1.0)
+      LOCK
+      File.write(File.join(tools, ".bundle/config"), "---\nBUNDLE_PATH: #{File.join(tools, "bundle").dump}\n")
+      File.write(File.join(tools, "probe.rb"), "require_relative \"boot\"\nrequire \"probe\"\nprint Probe\n")
+
+      out, status = Bundler.with_unbundled_env do
+        Open3.capture2e({ "BUNDLE_GEMFILE" => File.join(app, "Gemfile") }, "bundle", "exec", "ruby", File.join(tools, "probe.rb"))
+      end
+      assert status.success?, out
+      assert_equal "installed", out.lines.last
+    end
+  end
+
   test "CI-6 exhale's bundle is frozen: a Gemfile that no longer matches its lockfile fails" do
     Dir.mktmpdir do |dir|
       FileUtils.cp(%w[Gemfile Gemfile.lock boot.rb].map { |name| Rails.root.join("tools", name) }, dir)
