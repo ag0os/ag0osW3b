@@ -20,7 +20,8 @@ Rails.application.routes.draw do
   # Blog
   get "writing",       to: "posts#index", as: :posts
   get "writing/:slug", to: "posts#show",  as: :post
-  get "feed",          to: "posts#feed",  as: :feed, defaults: { format: "atom" }
+  # .xml is where feed readers guess a feed lives; any other format is no address (WR-5).
+  get "feed",          to: "posts#feed",  as: :feed, defaults: { format: "atom" }, constraints: { format: /atom|xml/ }
 
   # Admin
   namespace :admin do

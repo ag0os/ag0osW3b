@@ -1,7 +1,7 @@
 require "test_helper"
 
 # Writing's Contract, as tests: where the writing shows before there is any.
-# Each test is named after an obligation in PRODUCT.md ("Contract: writing").
+# Each test is named after an obligation in docs/contracts/writing.md.
 class WritingContractTest < ActionDispatch::IntegrationTest
   PAGES = %w[/ /about /work /contact /consulting /writing].freeze
   LABELS = { "en" => "Writing", "es" => "Escritos" }.freeze
@@ -83,6 +83,27 @@ class WritingContractTest < ActionDispatch::IntegrationTest
     PAGES.each do |path|
       get path
       assert_select "head link[rel=alternate][type=?][href=?]", "application/atom+xml", feed_url, { count: 1 }, path
+    end
+  end
+
+  test "WR-5 /feed.xml answers 200 with the same Atom feed as /feed" do
+    freeze_time
+
+    get "/feed"
+    feed = response.body
+
+    get "/feed.xml"
+
+    assert_response :success
+    assert_equal "application/atom+xml", response.media_type
+    assert_equal feed, response.body
+  end
+
+  test "WR-5 the feed in any other format answers 404, not an error" do
+    %w[/feed.json /feed.rss /feed.html /feed.txt].each do |path|
+      get path
+
+      assert_response :not_found, path
     end
   end
 end

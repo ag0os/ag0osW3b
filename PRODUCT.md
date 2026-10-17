@@ -191,12 +191,7 @@ pinned by this contract.
 
 ## Contract: writing
 
-Where the writing shows before there is any. Obligations run in `test/contract/writing_contract_test.rb`. A post counts as published when `Post.published` includes it: status published, with a publication date. Decisions are in `DECISIONS.md` (D-15, D-16).
-
-- **WR-1** The header's primary nav links to Writing only while at least one post is published, in both languages. With only drafts, or no posts at all, the link is absent; the first published post brings it back with no setting to change. The home page's Writing block follows the same rule (HP-3). *Because* the owner decided on 2026-10-14 that Writing appears by itself when the first post is published, and a nav link to an empty page is a promise the site cannot keep yet.
-- **WR-2** `/writing` stays public and answers 200 with nothing published, showing the empty state "First essays coming soon." and no post list. Without a nav link (WR-1) it is reached only by its address. *Because* the address may already be shared or bookmarked, and a 404 there reads as a broken site.
-- **WR-3** `/feed` stays public and answers 200 with nothing published: a valid Atom feed (`application/atom+xml`, with an `id`, a `title` and an `updated`) and no entries. *Because* feed readers poll it, and an error or a malformed document can make a reader drop the subscription before the first post arrives.
-- **WR-4** The site layout's head links to the feed (`<link rel="alternate" type="application/atom+xml">`) whether or not anything is published. *Because* the link is for feed readers, not visitors: it adds nothing to the page, and a subscription taken early delivers the first post when it lands. The empty feed is valid (WR-3). Provisional default, pending the owner's decision.
+Moved to `docs/contracts/writing.md` (WR-1 to WR-5).
 
 ## Contract: the production deploy
 

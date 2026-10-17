@@ -121,15 +121,15 @@ for a single page. Obligations: CP-1 to CP-5.
 
 ### D-15. Writing hides itself by asking whether anything is published
 
-**Decision.** The header partial shows the Writing link when `Post.published.exists?`. There is no setting. `/writing` and `/feed` keep their routes and answer with their empty states.
-
-**Derivation.** The owner decided on 2026-10-14 that Writing appears automatically with the first published post. The home page already decides its Writing block from the published posts, so the nav asks the same question with the same scope, and the two cannot disagree. A setting would be a second switch for something the content already says. The routes stay because hiding a link is not the same as withdrawing an address: a shared `/writing` link or a feed reader's poll should land on a working page. Obligations: WR-1 to WR-3, and SC-6, which removes the sample post that would otherwise keep Writing visible.
+Moved to `docs/decisions/writing.md`.
 
 ### D-16. The feed link stays in the head when nothing is published (provisional)
 
-**Decision.** `<link rel="alternate">` for the feed is rendered on every page of the site layout, posts or not.
+Moved to `docs/decisions/writing.md`.
 
-**Derivation.** Rule WR-1 is about what a visitor sees; the alternate link is read only by feed readers and browser extensions. Keeping it costs nothing, because the empty feed is valid Atom (WR-3), and it lets an early subscriber receive the first post. Hiding it would also be defensible, as consistency with the nav. This is a default the owner has not settled. Obligation: WR-4.
+### D-26. The feed answers at `.atom` and `.xml`; every other format is a 404
+
+In `docs/decisions/writing.md`.
 
 ### D-17. Production seeding requires `ADMIN_PASSWORD`, always
 
