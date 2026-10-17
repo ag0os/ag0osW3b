@@ -30,8 +30,7 @@ YAML
 DEFINED_AS = <<~'RUBY'
   require "./test/mutant/floor"
   Rails.application.eager_load!
-  paths = %w[app lib config].map { |dir| Rails.root.join(dir).to_s }
-  ARGV.each { |subject| puts "defined_as\t#{subject}\t#{MutantFloor.defined_as(subject, paths:).join(",")}" }
+  puts MutantFloor.lookup(ARGV, root: Rails.root)
 RUBY
 
 def git(*args)
@@ -79,7 +78,7 @@ end
 def prepare_database(label, env, dir) = logged(label, { "RAILS_ENV" => "test" }.merge(env), "bin/rails", "db:test:prepare", chdir: dir)
 
 # The base, exported from git: what its own config selects, then a run with
-# this tree's harness and bundle. Returns [session, selected].
+# this tree's harness and bundle. Returns [session, mutant's subject list].
 def base_run(merge_base, gap)
   Dir.mktmpdir("mutant-floor") do |dir|
     tree, tarball = File.join(dir, "base"), File.join(dir, "base.tar")
@@ -89,22 +88,23 @@ def base_run(merge_base, gap)
     env = MutantFloor.base_env(APP_ROOT)
     output, ok = prepare_database("base", env, tree)
     gap.("bin/rails db:test:prepare failed", output) unless ok
-    selected = base_selection(tree, env, gap)
+    listing = base_listing(tree, env, gap)
     MutantFloor.copy_harness(from: APP_ROOT, to: tree)
     session, output = run_mutant("base", dir: tree, env:)
     gap.("mutant wrote no session result", output) unless session
     problems = MutantFloor.base_gap(session)
     gap.(problems.join("; "), "") unless problems.empty?
-    [ session, selected ]
+    [ session, listing ]
   end
 end
 
-# What the base's own config/mutant.yml selects there, with its own harness.
-def base_selection(tree, env, gap)
-  return [] unless File.exist?(File.join(tree, "config/mutant.yml"))
+# What the base's own config/mutant.yml selects there, with its own harness,
+# as mutant lists it; nil when the base has no config/mutant.yml.
+def base_listing(tree, env, gap)
+  return unless File.exist?(File.join(tree, "config/mutant.yml"))
 
   out, = logged("base", env, "bundle", "exec", "mutant", "environment", "subject", "list", chdir: tree)
-  MutantFloor.selection(out) || gap.("mutant could not list its subjects", out)
+  MutantFloor.selection(out) ? out : gap.("mutant could not list its subjects", out)
 end
 
 # Where this tree defines each subject now; a subject left out counts as still defined.
@@ -113,20 +113,16 @@ def defined_here(subjects)
 
   out, ok = logged("change", { "RAILS_ENV" => "test" }, "bin/rails", "runner", DEFINED_AS, *subjects)
   abort "#{out}\nmutant-floor: could not look up #{subjects.join(", ")} in this tree" unless ok
-  out.lines.filter_map { |line| line.chomp.split("\t", 3) if line.start_with?("defined_as\t") }
-    .to_h { |_, subject, now| [ subject, now.to_s.split(",") ] }
+  MutantFloor.looked_up(out)
 end
 
-# Problems that need no mutant run.
+# Problems that need no mutant run, and the `change:` entries that accepted one.
 def static_problems(merge_base, accepted, accepted_problems)
-  harness = MutantFloor::HARNESS.drop(1)
-  [
-    MutantFloor.anchor_problem(load_yaml(MutantFloor::BASELINE), yaml_at(merge_base, MutantFloor::BASELINE)),
-    *accepted_problems,
-    MutantFloor.config_problem(load_yaml("config/mutant.yml"), yaml_at(merge_base, "config/mutant.yml"), accepted["config"]),
-    MutantFloor.harness_problem(harness.to_h { |path| [ path, File.exist?(path) ? File.read(path) : nil ] },
-                                harness.to_h { |path| [ path, text_at(merge_base, path) ] }, accepted["config"])
-  ].compact
+  weakenings = MutantFloor.weakenings(load_yaml("config/mutant.yml"), yaml_at(merge_base, "config/mutant.yml"),
+                                      ->(path) { File.read(path) if File.exist?(path) }, ->(path) { text_at(merge_base, path) })
+  problems, reasoned = MutantFloor.reasoned(weakenings, accepted["config"])
+  [ [ MutantFloor.anchor_problem(load_yaml(MutantFloor::BASELINE), yaml_at(merge_base, MutantFloor::BASELINE)), *accepted_problems, *problems ].compact,
+    reasoned ]
 end
 
 def record(reason)
@@ -151,7 +147,7 @@ FileUtils.chdir APP_ROOT do
   puts "mutant-floor: every subject runs, here and on the merge base with #{base} (#{merge_base[0, 7]})"
 
   accepted, accepted_problems = MutantFloor.accepted(load_yaml(MutantFloor::ACCEPTED), yaml_at(merge_base, MutantFloor::ACCEPTED))
-  problems = static_problems(merge_base, accepted, accepted_problems)
+  problems, reasoned = static_problems(merge_base, accepted, accepted_problems)
   abort problems.map { |problem| "mutant-floor: #{problem}" }.join("\n") unless problems.empty?
 
   _, ok = prepare_database("change", {}, APP_ROOT)
@@ -163,10 +159,10 @@ FileUtils.chdir APP_ROOT do
   gap = lambda do |problem, failed|
     abort [ *MutantFloor.gap_lines(merge_base, problem, output: failed, changed:), "(every command the base ran: #{LOG})" ].join("\n")
   end
-  base_session, selected = base_run(merge_base, gap)
+  base_session, listing = base_run(merge_base, gap)
 
-  verdict = MutantFloor.judge(tip:, base: base_session, selection: selected, config: load_yaml("config/mutant.yml"), accepted:,
-                              defined_as: defined_here(MutantFloor.missing(tip, selected)))
+  verdict = MutantFloor.judge(tip:, base: base_session, listing:, config: load_yaml("config/mutant.yml"), accepted:, reasoned:,
+                              defined_as: defined_here(MutantFloor.missing(tip, listing)))
   puts "", *MutantFloor.report(verdict)
 
   if verdict.pass?

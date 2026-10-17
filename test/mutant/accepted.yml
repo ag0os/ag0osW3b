@@ -16,9 +16,9 @@
 #
 # config: a change that lets mutation do less. Each entry excuses only what it
 # names, with either
-#   subjects: methods the change still defines that no subject runs any more
-#     (config/mutant.yml stopped selecting them, or they moved where it
-#     doesn't reach, or a `def` became an `attr_reader`), or
+#   subjects: methods the base selected that no subject runs any more
+#     (config/mutant.yml stopped selecting them, they moved where it doesn't
+#     reach, a `def` became an `attr_reader`, or they were deleted), or
 #   change: config, for a change to config/mutant.yml outside its subjects
 #     and ignores (operators, the timeout, coverage criteria, requires,
 #     includes, hooks), or

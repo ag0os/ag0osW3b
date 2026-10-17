@@ -15,15 +15,19 @@ module MutantFloor
   ACCEPTED = "test/mutant/accepted.yml"
   # Copied from the change into the base's tree, so both runs mutate alike.
   HARNESS = %w[config/mutant.yml test/mutant/boot.rb test/mutant/hooks.rb].freeze
+  # The harness's code, compared byte for byte; config/mutant.yml has its own check.
+  HARNESS_CODE = (HARNESS - [ "config/mutant.yml" ]).freeze
+  # Where the app's own methods live, under its root; anything else is Rails's or a gem's.
+  APP_PATHS = %w[app lib config].freeze
   # A change to these can leave the base unable to run under the change.
   BUNDLE = %r{\A(Gemfile|Gemfile\.lock|tools/|#{HARNESS.map { |path| Regexp.escape(path) }.join("|")})}
 
   Survivor = Data.define(:subject, :change, :identification)
 
-  # The first seven fail the run; the rest are reported.
-  Verdict = Data.define(:new_survivors, :unused, :broken, :partial, :unmatched, :left, :deselected,
-                        :carried, :equivalent, :moved, :excused, :timed_out) do
-    def pass? = [ new_survivors, unused, broken, partial, unmatched, left, deselected ].all?(&:empty?)
+  # The first eight fail the run; the rest are reported.
+  Verdict = Data.define(:new_survivors, :unused, :broken, :partial, :unmatched, :left, :deselected, :removed,
+                        :carried, :equivalent, :moved, :renamed, :excused, :timed_out, :reasoned) do
+    def pass? = [ new_survivors, unused, broken, partial, unmatched, left, deselected, removed ].all?(&:empty?)
   end
 
   module_function
@@ -88,10 +92,13 @@ module MutantFloor
     listed if listed.size == lines[header][/\d+/].to_i
   end
 
+  # The class or module a subject's method belongs to.
+  def scope(subject) = subject[/\A[^#.]+/]
+
   # Does a mutant expression select this subject? "Foo*" is Foo and the
   # constants it nests; "Foo#bar" and "Foo.bar" are that method; "Foo" is Foo.
   def selects?(expression, subject)
-    scope = subject[/\A[^#.]+/]
+    scope = scope(subject)
     if expression.end_with?("*")
       namespace = expression.delete_suffix("*")
       scope == namespace || scope.start_with?("#{namespace}::")
@@ -179,13 +186,36 @@ module MutantFloor
     owner.singleton_class? ? "#{owner.attached_object.name}.#{method.original_name}" : "#{owner.name}##{method.original_name}"
   end
 
+  # The step's lookup, run inside the app loaded from `root`: a line for each
+  # subject with where its APP_PATHS define it now.
+  def lookup(subjects, root:)
+    paths = APP_PATHS.map { |dir| File.join(root.to_s, dir) }
+    subjects.map { |subject| "defined_as\t#{subject}\t#{defined_as(subject, paths:).join(",")}" }
+  end
+
+  # The lookup's lines read back from the runner's output, as subject => where.
+  def looked_up(output)
+    output.to_s.lines.filter_map { |line| line.chomp.split("\t", 3) if line.start_with?("defined_as\t") }
+      .to_h { |_, subject, now| [ subject, now.to_s.split(",") ] }
+  end
+
+  # What the base's own config selected, from mutant's subject list there;
+  # nil when the base has no config/mutant.yml, so selects nothing.
+  def selected(listing)
+    return [] if listing.nil?
+
+    selection(listing) or raise ArgumentError, "not mutant's subject list: #{listing.inspect[0, 80]}"
+  end
+
   # Base subjects the change doesn't run, which the step looks up in the change's app.
-  def missing(tip, selection) = selection - subjects(tip)
+  def missing(tip, listing) = selected(listing) - subjects(tip)
 
   # The comparison as the step makes it: the base judged by its own config's
-  # selection, the tip's config's expressions, and what this change adds to accepted.yml.
-  def judge(tip:, base:, selection:, config:, accepted:, defined_as:)
-    compare(tip, base, base_selected: selection, expressions: config.dig("matcher", "subjects") || [], defined_as:, accepted:)
+  # selection, the tip's config's expressions, what this change adds to
+  # accepted.yml, and the `change:` entries the static checks accepted.
+  def judge(tip:, base:, listing:, config:, accepted:, defined_as:, reasoned:)
+    compare(tip, base, base_selected: selected(listing), expressions: config.dig("matcher", "subjects") || [], defined_as:, accepted:)
+      .with(reasoned:)
   end
 
   # The change against its base. `base_selected` is what the base's own
@@ -201,11 +231,11 @@ module MutantFloor
     carried, fresh = carry(fresh, before, vanished:, arrived: ran - base_ran - base_selected)
     equivalent, fresh, unused = accept(fresh, accepted.fetch("equivalents", []))
     departures = departures(vanished, ran, base_ran, defined_as)
-    excused, left, deselected = excuse(departures, accepted.fetch("config", []))
+    excused, left, deselected, removed = excuse(departures, accepted.fetch("config", []))
 
     Verdict.new(new_survivors: fresh, unused:, broken: broken(tip), partial: partial(tip), unmatched: unmatched(tip, expressions),
-                left:, deselected:, carried:, equivalent:, moved: departures[:moved], excused:,
-                timed_out: timed_out(tip, alive, before))
+                left:, deselected:, removed:, carried:, equivalent:, moved: departures[:moved], renamed: departures[:renamed], excused:,
+                timed_out: timed_out(tip, alive, before), reasoned: [])
   end
 
   # A survivor in a subject that only the change runs takes up one with the
@@ -230,15 +260,18 @@ module MutantFloor
     [ equivalent, remaining, open ]
   end
 
-  # Base subjects the change doesn't run: gone, or moved where a subject runs
-  # them; left out of mutation; or no longer selected by the change's config.
-  # Each but the first is [subject, where it is now that no subject runs].
+  # Base subjects the change doesn't run: moved where a subject runs them;
+  # renamed in place, beside the new subjects of their own class; left out of
+  # mutation; no longer selected by the change's config; or removed, by name,
+  # from everywhere. Each is [subject, where it is now].
   def departures(missing, ran, base_ran, defined_as)
-    sorted = { moved: [], left: [], deselected: [] }
+    sorted = { moved: [], renamed: [], left: [], deselected: [], removed: [] }
     missing.each do |subject|
       now = defined_as.fetch(subject, [ subject ])
       unrun = now - ran
-      if unrun.empty? then sorted[:moved] << [ subject, now ]
+      beside = (ran - base_ran).select { |arrived| scope(arrived) == scope(subject) }
+      if now.empty? then sorted[beside.empty? ? :removed : :renamed] << [ subject, beside ]
+      elsif unrun.empty? then sorted[:moved] << [ subject, now ]
       elsif base_ran.include?(subject) then sorted[:left] << [ subject, unrun ]
       else sorted[:deselected] << [ subject, unrun ]
       end
@@ -246,11 +279,12 @@ module MutantFloor
     sorted
   end
 
-  # A config entry excuses the subjects it names, and nothing else.
+  # A config entry excuses the subjects it names, and nothing else. Returns
+  # the excused, then what is left of each failing kind.
   def excuse(departures, entries)
     named = entries.flat_map { |entry| entry["subjects"] || [] }
-    left, deselected = departures.values_at(:left, :deselected).map { |list| list.partition { |subject, _| named.include?(subject) } }
-    [ left.first + deselected.first, left.last, deselected.last ]
+    split = departures.values_at(:left, :deselected, :removed).map { |list| list.partition { |subject, _| named.include?(subject) } }
+    [ split.flat_map(&:first), *split.map(&:last) ]
   end
 
   # Mutations alive at the base that the change kills only by a timeout.
@@ -261,24 +295,30 @@ module MutantFloor
     end
   end
 
-  def reason_for?(entries, change) = entries.any? { |entry| entry["change"] == change }
-
-  # A change to config/mutant.yml beyond what it selects, which would weaken
-  # both runs alike, needs a `change: config` entry. Returns the problem, or nil.
-  def config_problem(head, base, entries)
-    return if base.nil? || reason_for?(entries, "config")
-
-    strip = ->(config) { config.merge("matcher" => config.fetch("matcher", {}).except("subjects", "ignore")) }
-    "config/mutant.yml changes outside its subjects and ignores; add a `change: config` entry to #{ACCEPTED} with the reason" if strip.(head) != strip.(base)
+  # Changes that weaken or strengthen both runs alike, by the `change:` entry
+  # each needs, with the files: config/mutant.yml outside what it selects, and
+  # the harness's code. `config` and `base_config` are config/mutant.yml as
+  # parsed (nil: absent); `head` and `base` give a path's text (nil: absent).
+  def weakenings(config, base_config, head, base)
+    outside = ->(document) { document.merge("matcher" => document.fetch("matcher", {}).except("subjects", "ignore")) }
+    {
+      "config" => (base_config && outside.(config) != outside.(base_config) ? [ "config/mutant.yml" ] : []),
+      "harness" => HARNESS_CODE.select { |path| base[path] && head[path] != base[path] }
+    }.reject { |_, paths| paths.empty? }
   end
 
-  # A change to boot.rb or hooks.rb weakens or strengthens both runs alike;
-  # it needs a `change: harness` entry. `head` and `base` map path to text.
-  def harness_problem(head, base, entries)
-    return if reason_for?(entries, "harness")
+  CHANGES = { "config" => "changes outside its subjects and ignores", "harness" => "changes" }.freeze
 
-    changed = head.keys.select { |path| base[path] && head[path] != base[path] }
-    "#{changed.join(" and ")} changes; add a `change: harness` entry to #{ACCEPTED} with the reason" if changed.any?
+  # Each weakening needs a `change:` entry this change adds. Returns
+  # [problems, accepted], each accepted as [kind, paths, reason].
+  def reasoned(weakenings, entries)
+    problems, accepted = [], []
+    weakenings.each do |kind, paths|
+      reasons = entries.select { |entry| entry["change"] == kind }.map { |entry| entry["reason"].to_s.strip }
+      problems << "#{paths.join(" and ")} #{CHANGES.fetch(kind)}; add a `change: #{kind}` entry to #{ACCEPTED} with the reason" if reasons.empty?
+      accepted.concat(reasons.map { |reason| [ kind, paths, reason ] })
+    end
+    [ problems, accepted ]
   end
 
   # A file's YAML, or the problem with it, as [document, problem]; a file
@@ -348,15 +388,19 @@ module MutantFloor
     [
       *section("Carried across a rename or move:", verdict.carried.map { |from, to, change| [ "survivor of #{from} carried to #{to}", change ] }),
       *section("Gone from the change, or run under a new name:",
-               verdict.moved.map { |from, now| now.empty? ? "#{from} is no longer defined" : "#{from} now runs as #{now.join(", ")}" }),
+               verdict.moved.map { |from, now| "#{from} now runs as #{now.join(", ")}" } +
+               verdict.renamed.map { |from, beside| "#{from} is no longer defined; renamed in place, beside #{beside.join(", ")}" }),
       *section("Killed only by a timeout, so tolerated (a slow runner can do this):", verdict.timed_out.map { |subject, change| [ subject, change ] }),
       *section("Accepted as equivalent by #{ACCEPTED}:", survivor_lines(verdict.equivalent)),
       *section("No longer mutated, excused by a config entry in #{ACCEPTED}:", whereabouts(verdict.excused)),
+      *section("Accepted by a change: entry in #{ACCEPTED}:", verdict.reasoned.map { |kind, paths, reason| [ "change: #{kind}, for #{paths.join(", ")}", reason ] }),
       *section("FAIL: the tests fail, abort or time out on the code as written:", verdict.broken.map(&:subject).uniq),
       *section("FAIL: mutant stopped short of these subjects' mutations:", verdict.partial),
       *section("FAIL: named in config/mutant.yml, but no such subject ran:", verdict.unmatched),
       *section("FAIL: still defined, but no subject runs them any more (select where they live in config/mutant.yml):", whereabouts(verdict.left)),
       *section("FAIL: config/mutant.yml no longer selects these, and no config entry in #{ACCEPTED} names them:", whereabouts(verdict.deselected)),
+      *section("FAIL: removed or renamed out of mutation's reach; add a `subjects:` entry to #{ACCEPTED} with the reason if it was deleted:",
+               verdict.removed.map(&:first)),
       *section("FAIL: equivalents this change adds that match no new survivor:", verdict.unused.map { |subject, change| [ subject, change ] }),
       *section("FAIL: #{verdict.new_survivors.size} survivor(s) the base doesn't have:", survivor_lines(verdict.new_survivors))
     ]
@@ -375,7 +419,10 @@ module MutantFloor
 
   def whereabouts(subjects)
     subjects.map do |subject, now|
-      now == [ subject ] ? "#{subject}, still there but out of mutant's reach (define_method, or patched in from config/)" : "#{subject}, now in #{now.join(", ")}"
+      if now.empty? then "#{subject}, removed"
+      elsif now == [ subject ] then "#{subject}, still there but out of mutant's reach (define_method, or patched in from config/)"
+      else "#{subject}, now in #{now.join(", ")}"
+      end
     end
   end
 
