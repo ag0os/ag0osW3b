@@ -1,4 +1,4 @@
-# Run using bin/ci. Everything a change must pass before it merges; GitHub runs
+# Run using bin/ci (protection test: this PR must wait for code-owner review). Everything a change must pass before it merges; GitHub runs
 # exactly this. See PRODUCT.md, "Contract: continuous integration".
 
 # What the test counts, guards and floors compare against. GitHub sets CI_BASE; locally it is
