@@ -43,6 +43,7 @@ bin/rails db:seed     # admin user + starter content (ADMIN_EMAIL / ADMIN_PASSWO
 bin/rails server      # http://localhost:3000  (admin at /admin)
 bin/rails test        # Minitest suite — keep it green
 bin/rubocop           # rails-omakase style — keep it clean
+bin/ci                # the full check, exactly what GitHub runs; run it before saying done
 ```
 
 ## Architecture
@@ -97,10 +98,7 @@ inside code stays literal. For plain strings use the `marked(text)` helper, and
 `unmarked(text)` for anywhere that takes text rather than markup: `<title>`, meta
 descriptions, the feed.
 
-Its Contract is in `PRODUCT.md` ("Contract: the Markdown renderer"), with the
-reasons behind its choices in `DECISIONS.md`, and runs as
-`test/contract/markdown_renderer_contract_test.rb`. Change the Contract and its
-test first, then the code.
+Its Contract, and how to change it, is under "The Contract and the checks" below.
 
 ### Design system
 
@@ -194,12 +192,93 @@ unstyled HTML. `test/design/stylesheet_test.rb` catches it.
   deploy configs unless asked. In production, `storage/` must be on a persistent
   disk (SQLite + Solid databases live there).
 
+## The Contract and the checks
+
+Each component's obligations are its Contract: an id, a statement, a reason,
+and its proof (a test in `test/contract/` named by the id, or recorded PR
+evidence). **A PR that adds or changes behavior updates the component's
+Contract in the same PR.** Decisions and their derivations live in
+`docs/decisions/` once moved, and in `DECISIONS.md` until then; the Contract
+points to them and never repeats them.
+
+**Where a Contract lives.** Contracts are moving to
+`docs/contracts/<component>.md`, whose format is in `docs/contracts/README.md`.
+Until a component's file exists, its Contract is its section in `PRODUCT.md`,
+written as bullets (`- **MR-1** statement *Because* reason`), and its decisions
+are in `DECISIONS.md`. A component with neither has no Contract; claim no
+coverage for it.
+
+| `PRODUCT.md` section | Ids | Tests in `test/contract/` | File when moved |
+|---|---|---|---|
+| Contract: the Markdown renderer | MR | `markdown_renderer_contract_test.rb` | `markdown_renderer.md` |
+| Contract: the language | LC | `locale_contract_test.rb` | `locale.md` |
+| Contract: the home page | HP | `home_page_contract_test.rb` | `home_page.md` |
+| Contract: the post page | PP | `post_page_contract_test.rb` | `post_page.md` |
+| Contract: retiring the shell's settings | DM | `remove_shell_settings_contract_test.rb` | `remove_shell_settings.md` |
+| Contract: the consulting page | CP | `consulting_page_contract_test.rb` | `consulting_page.md` |
+| Contract: seeded copy | SC | `seeded_copy_contract_test.rb` | `seeded_copy.md` |
+| Contract: writing | WR | `writing_contract_test.rb` | `writing.md` |
+| Contract: the production deploy | PD | `production_contract_test.rb`, and PD-5 in `canonical_host_contract_test.rb` | `production.md` |
+| Contract: continuous integration | CI | `ci_contract_test.rb` | `ci.md` |
+
+**Moving on touch.** A PR that touches a component moves its section into
+`docs/contracts/<component>.md`, in the README's form, in that same PR:
+
+- ids unchanged, and no change to any obligation's meaning;
+- `PRODUCT.md` keeps a one-line pointer to the new file;
+- the component's decisions (the ones whose `Obligations:` line names its ids)
+  move from `DECISIONS.md` to `docs/decisions/<component>.md` the same way,
+  with `DECISIONS.md` keeping a pointer.
+
+**A bug live in production** goes into the Contract first:
+
+1. Add the missing obligation to the component's Contract, with the next
+   unused number for its prefix.
+2. Write its test, named by the id (`test "MR-22 ..."`), in the component's
+   file in `test/contract/`, and run it red
+   against the unfixed code. Say in the PR how it was shown red.
+3. Where mutant covers the code (the subjects in `config/mutant.yml`), show
+   that the test kills the matching mutant: run `bundle exec mutant run
+   'Subject#method'` after the fix and check that no survivor undoes it. The
+   run exits nonzero while the baseline's own survivors live.
+4. Fix the code.
+5. Label the PR `fix:` and name the id.
+
+Everything else is `refine:`.
+
+**The checks.** Before you say done, run `bin/ci` (fetch first: locally it
+compares with `origin/main`, or `$CI_BASE`). GitHub runs exactly it on every
+pull request. A check that couldn't run is a gap to name, never a pass. The
+steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
+"Contract: continuous integration" (CI-1 to CI-9, decisions D-20 to D-25):
+
+- **Mutation** runs every subject in `config/mutant.yml`, every time, against
+  the committed `test/mutant/baseline.yml`. It fails on a survivor the
+  baseline doesn't list, on a subject that stops running, and on an entry a
+  test now kills. That last one is progress, not a regression: re-anchor with
+  `bin/mutant-floor --record "REASON"`, which rewrites the owned baseline, and
+  say so in the PR. Never re-anchor to accept a new survivor.
+- **Duplication and complexity** (exhale, run from its own bundle in
+  `tools/Gemfile`) fail only on what the change introduces since the merge
+  base: a new copy, or a method whose cognitive complexity rises above 8.
+  Copies already on main are warnings.
+- **The guards and the test count** compare with the merge base. They fail on
+  a file under `app/` or `lib/` that exhale no longer reads, on more RuboCop
+  or `mutant:disable` directives in a file, on any failure or error, and on
+  fewer tests than the base or a skip, unless `test/ci/test_removals.yml`
+  lists it with a reason.
+
+Don't edit a baseline, `test/ci/test_removals.yml` or any path in
+`.github/CODEOWNERS` to get a pass. Those paths need the owner's approval, so a
+PR that must change one says why. A merge to `main` deploys to production.
+
 ## Testing
 
 Minitest with fixtures (`test/fixtures/*.yml`). `test/integration/site_flow_test.rb`
-covers public rendering, auth redirects, and admin CRUD. The locale and home
-page contracts live under `test/contract/`. Add or adjust tests when you change
-behavior, and keep `bin/rails test` and `bin/rubocop` green before finishing.
+covers public rendering, auth redirects, and admin CRUD. The Contracts' tests
+live under `test/contract/`. Add or adjust tests when you change behavior, and
+run `bin/ci`, the full check, before finishing; `bin/rails test` and
+`bin/rubocop` are its quick parts.
 
 `test/design/` holds the design system's guards, and they are not optional:
 
