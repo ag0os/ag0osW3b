@@ -1,10 +1,12 @@
 # Decisions the mutation gate accepts with a reason (bin/mutant-floor,
-# PRODUCT.md CI-5). Only the entries a change adds count, so append; never
-# edit or delete an entry.
+# PRODUCT.md CI-5). Append only: each list at the base must be the start of
+# the same list on the change, and only the entries after it count. Every
+# entry needs a reason, and adding one takes the pull request outside G1.
 #
 # equivalents: a survivor the change brings that no test can kill. Each entry
 # accepts one survivor with that subject and change (the lines the mutation
-# removes and adds, as bin/mutant-floor prints them).
+# removes and adds, as bin/mutant-floor prints them; trailing whitespace is
+# ignored).
 #
 #   - subject: HomeController#show
 #     change: |-
@@ -12,11 +14,22 @@
 #       +  @sections = Section.for_page("home").visible
 #     reason: Why no test can tell the two apart.
 #
-# config: a change to config/mutant.yml that lets mutation do less: it stops
-# selecting a method that is still defined, or it changes anything besides
-# its subjects and ignores (operators, the timeout, coverage criteria,
-# requires, includes, hooks).
+# config: a change that lets mutation do less. Each entry excuses only what it
+# names, with either
+#   subjects: methods the change still defines that no subject runs any more
+#     (config/mutant.yml stopped selecting them, or they moved where it
+#     doesn't reach, or a `def` became an `attr_reader`), or
+#   change: config, for a change to config/mutant.yml outside its subjects
+#     and ignores (operators, the timeout, coverage criteria, requires,
+#     includes, hooks), or
+#   change: harness, for a change to test/mutant/boot.rb or hooks.rb.
 #
-#   - reason: What changes, and why mutation can do less.
+#   - subjects: [ HomeController#show ]
+#     reason: What changes, and why mutation can do less.
 equivalents: []
-config: []
+config:
+  - change: harness
+    reason: >-
+      test/mutant/boot.rb fixes Minitest's seed at 0 in place of mutant's random
+      one, so the change's run and its base's run order the tests alike (D-22).
+      The same tests load; nothing is skipped.

@@ -15,10 +15,11 @@ APP_ROOT = File.expand_path("..", __dir__)
 LOG = "log/mutant-floor.log"
 
 HEADER = <<~YAML
-  # The mutation survivors on main, by subject: the lines each mutation removes
-  # and adds. This is the debt list, a snapshot; bin/ci doesn't read it. The
-  # gate compares each change with its merge base instead (PRODUCT.md, CI-4).
-  # `subjects` lists every subject that ran when this was recorded.
+  # The mutation survivors on main as of the newest anchor, by subject: the
+  # lines each mutation removes and adds. This is the debt list; bin/ci doesn't
+  # read it. The gate compares each change with its merge base instead
+  # (PRODUCT.md, CI-4). `subjects` lists every subject that ran when this was
+  # recorded.
   #
   # Re-anchor only with `bin/mutant-floor --record "REASON"`, which runs every
   # subject and appends an anchor; a change to the survivors or subjects
@@ -29,8 +30,8 @@ YAML
 DEFINED_AS = <<~'RUBY'
   require "./test/mutant/floor"
   Rails.application.eager_load!
-  paths = %w[app lib].map { |dir| Rails.root.join(dir).to_s }
-  ARGV.each { |subject| puts "defined_as\t#{subject}\t#{MutantFloor.defined_as(subject, paths:)}" }
+  paths = %w[app lib config].map { |dir| Rails.root.join(dir).to_s }
+  ARGV.each { |subject| puts "defined_as\t#{subject}\t#{MutantFloor.defined_as(subject, paths:).join(",")}" }
 RUBY
 
 def git(*args)
@@ -39,118 +40,99 @@ def git(*args)
   out
 end
 
-def yaml_at(merge_base, path)
+def text_at(merge_base, path)
   out, status = Open3.capture2("git", "show", "#{merge_base}:#{path}", err: File::NULL)
-  YAML.safe_load(out) || {} if status.success?
+  out if status.success?
 end
 
-def load_yaml(path) = File.exist?(path) ? YAML.load_file(path) || {} : {}
+def parsed(text, path)
+  document, problem = MutantFloor.parse_yaml(text, path)
+  abort "mutant-floor: #{problem}" if problem
+  document
+end
+
+def yaml_at(merge_base, path) = parsed(text_at(merge_base, path), path)
+
+def load_yaml(path) = parsed(File.exist?(path) ? File.read(path) : nil, path) || {}
 
 def log(text) = File.write(LOG, text, mode: "a")
 
+# Runs a command, logging what it printed. Returns [output, success].
+def logged(label, env, *command, chdir: APP_ROOT)
+  output, status = Open3.capture2e(env, *command, chdir:)
+  log("=== #{label}: #{command.join(" ")}\n#{output}\n")
+  [ output, status.success? ]
+end
+
 # Runs mutant from dir and returns its session result (nil if it wrote none),
 # printing mutant's summary without the diff of every survivor.
-def run_mutant(label, dir: APP_ROOT, env: {}, prepare: true)
+def run_mutant(label, dir: APP_ROOT, env: {})
   started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  if prepare
-    prepared, status = Open3.capture2e({ "RAILS_ENV" => "test" }.merge(env), "bin/rails", "db:test:prepare", chdir: dir)
-    return [ nil, prepared ] unless status.success?
-  end
-
   before = Dir[File.join(dir, ".mutant/results/*.json")]
-  output, = Open3.capture2e(env, "bundle", "exec", "mutant", "run", chdir: dir)
-  log("=== #{label}\n#{output}\n")
+  output, = logged(label, env, "bundle", "exec", "mutant", "run", chdir: dir)
   session = (Dir[File.join(dir, ".mutant/results/*.json")] - before).first
   puts "--- #{label}", output[(output.rindex(/^Mutant environment:/) || 0)..]
   puts format("mutant-floor: the %s run took %.0f s", label, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
   [ session && JSON.parse(File.read(session)), output ]
 end
 
-def gap(merge_base, problem)
-  abort "mutant-floor: GAP AT THE BASE (#{merge_base[0, 7]}): #{problem}\n" \
-        "mutant-floor: this is the base's run failing, not a finding against the change"
-end
+def prepare_database(label, env, dir) = logged(label, { "RAILS_ENV" => "test" }.merge(env), "bin/rails", "db:test:prepare", chdir: dir)
 
 # The base, exported from git: what its own config selects, then a run with
 # this tree's harness and bundle. Returns [session, selected].
-def base_run(merge_base)
+def base_run(merge_base, gap)
   Dir.mktmpdir("mutant-floor") do |dir|
     tree, tarball = File.join(dir, "base"), File.join(dir, "base.tar")
     # git's own status, not a pipe's: tar exits 0 on empty input.
     exported = system("git", "archive", "-o", tarball, merge_base) && FileUtils.mkdir_p(tree) && system("tar", "-xf", tarball, "-C", tree)
-    gap(merge_base, "git could not export it") unless exported
+    gap.("git could not export it", "") unless exported
     env = MutantFloor.base_env(APP_ROOT)
-    selected = base_selection(merge_base, tree, env)
+    output, ok = prepare_database("base", env, tree)
+    gap.("bin/rails db:test:prepare failed", output) unless ok
+    selected = base_selection(tree, env, gap)
     MutantFloor.copy_harness(from: APP_ROOT, to: tree)
-    session, output = run_mutant("base", dir: tree, env:, prepare: false) # base_selection prepared it
-    gap(merge_base, "mutant wrote no session result\n#{output.to_s.lines.last(20).join}") unless session
+    session, output = run_mutant("base", dir: tree, env:)
+    gap.("mutant wrote no session result", output) unless session
     problems = MutantFloor.base_gap(session)
-    gap(merge_base, problems.join("; ")) unless problems.empty?
+    gap.(problems.join("; "), "") unless problems.empty?
     [ session, selected ]
   end
 end
 
 # What the base's own config/mutant.yml selects there, with its own harness.
-def base_selection(merge_base, tree, env)
+def base_selection(tree, env, gap)
   return [] unless File.exist?(File.join(tree, "config/mutant.yml"))
 
-  prepared, status = Open3.capture2e(env.merge("RAILS_ENV" => "test"), "bin/rails", "db:test:prepare", chdir: tree)
-  gap(merge_base, "bin/rails db:test:prepare failed\n#{prepared.lines.last(20).join}") unless status.success?
-  out, = Open3.capture2e(env, "bundle", "exec", "mutant", "environment", "subject", "list", chdir: tree)
-  MutantFloor.selection(out) || gap(merge_base, "mutant could not list its subjects\n#{out.lines.last(20).join}")
+  out, = logged("base", env, "bundle", "exec", "mutant", "environment", "subject", "list", chdir: tree)
+  MutantFloor.selection(out) || gap.("mutant could not list its subjects", out)
 end
 
 # Where this tree defines each subject now; a subject left out counts as still defined.
 def defined_here(subjects)
   return {} if subjects.empty?
 
-  out, status = Open3.capture2e({ "RAILS_ENV" => "test" }, "bin/rails", "runner", DEFINED_AS, *subjects)
-  abort "#{out}\nmutant-floor: could not look up #{subjects.join(", ")} in this tree" unless status.success?
+  out, ok = logged("change", { "RAILS_ENV" => "test" }, "bin/rails", "runner", DEFINED_AS, *subjects)
+  abort "#{out}\nmutant-floor: could not look up #{subjects.join(", ")} in this tree" unless ok
   out.lines.filter_map { |line| line.chomp.split("\t", 3) if line.start_with?("defined_as\t") }
-    .to_h { |_, subject, now| [ subject, now.to_s.empty? ? nil : now ] }
-end
-
-def list(heading, lines)
-  return if lines.empty?
-
-  puts heading
-  lines.each { |line| puts line.gsub(/^/, "  ") }
-end
-
-def survivor_lines(survivors) = survivors.map { |s| "#{s.subject}  #{s.identification}\n#{s.change.gsub(/^/, "  ")}" }
-
-def report(verdict)
-  list "Carried across a rename or move:", verdict.carried.map { |from, to, change| "survivor of #{from} carried to #{to}\n#{change.gsub(/^/, "  ")}" }
-  list "Gone from the change, or run under a new name:", verdict.moved.map { |from, to| to ? "#{from} now runs as #{to}" : "#{from} is no longer defined" }
-  list "Killed only by a timeout, so tolerated (a slow runner can do this):", verdict.timed_out.map { |subject, change| "#{subject}\n#{change.gsub(/^/, "  ")}" }
-  list "Accepted as equivalent by #{MutantFloor::ACCEPTED}:", survivor_lines(verdict.equivalent)
-  list "No longer selected, excused by a config entry in #{MutantFloor::ACCEPTED}:", verdict.excused
-  list "FAIL: the tests fail, abort or time out on the code as written:", verdict.broken.map(&:subject).uniq
-  list "FAIL: mutant stopped short of these subjects' mutations:", verdict.partial
-  list "FAIL: named in config/mutant.yml, but no such subject ran:", verdict.unmatched
-  list "FAIL: still defined here, but no subject runs them any more:", verdict.left
-  list "FAIL: config/mutant.yml no longer selects these, and no config entry in #{MutantFloor::ACCEPTED} gives the reason:", verdict.deselected
-  list "FAIL: equivalents this change adds that match no new survivor:", verdict.unused.map { |subject, change| "#{subject}\n#{change.to_s.gsub(/^/, "  ")}" }
-  list "FAIL: #{verdict.new_survivors.size} survivor(s) the base doesn't have:", survivor_lines(verdict.new_survivors)
-end
-
-# What this change adds to accepted.yml, by list.
-def added_entries(merge_base)
-  head, base = load_yaml(MutantFloor::ACCEPTED), yaml_at(merge_base, MutantFloor::ACCEPTED) || {}
-  %w[equivalents config].to_h { |key| [ key, MutantFloor.added(head[key] || [], base[key] || []) ] }
+    .to_h { |_, subject, now| [ subject, now.to_s.split(",") ] }
 end
 
 # Problems that need no mutant run.
-def static_problems(merge_base, accepted)
+def static_problems(merge_base, accepted, accepted_problems)
+  harness = MutantFloor::HARNESS.drop(1)
   [
     MutantFloor.anchor_problem(load_yaml(MutantFloor::BASELINE), yaml_at(merge_base, MutantFloor::BASELINE)),
+    *accepted_problems,
     MutantFloor.config_problem(load_yaml("config/mutant.yml"), yaml_at(merge_base, "config/mutant.yml"), accepted["config"]),
-    *MutantFloor.reasonless(accepted.values.flatten).map { |entry| "an entry this change adds to #{MutantFloor::ACCEPTED} gives no reason: #{entry.inspect}" }
+    MutantFloor.harness_problem(harness.to_h { |path| [ path, File.exist?(path) ? File.read(path) : nil ] },
+                                harness.to_h { |path| [ path, text_at(merge_base, path) ] }, accepted["config"])
   ].compact
 end
 
 def record(reason)
   abort "usage: bin/mutant-floor --record \"REASON\"" if reason.empty?
+  _, ok = prepare_database("change", {}, APP_ROOT)
+  abort "mutant-floor: bin/rails db:test:prepare failed (#{LOG})" unless ok
   session, output = run_mutant("change")
   abort "#{output}\nmutant-floor: mutant wrote no session result" unless session
   at = git("rev-parse", "--short", "HEAD").strip
@@ -168,19 +150,24 @@ FileUtils.chdir APP_ROOT do
   merge_base = git("merge-base", base, "HEAD").strip
   puts "mutant-floor: every subject runs, here and on the merge base with #{base} (#{merge_base[0, 7]})"
 
-  accepted = added_entries(merge_base)
-  problems = static_problems(merge_base, accepted)
+  accepted, accepted_problems = MutantFloor.accepted(load_yaml(MutantFloor::ACCEPTED), yaml_at(merge_base, MutantFloor::ACCEPTED))
+  problems = static_problems(merge_base, accepted, accepted_problems)
   abort problems.map { |problem| "mutant-floor: #{problem}" }.join("\n") unless problems.empty?
 
+  _, ok = prepare_database("change", {}, APP_ROOT)
+  abort "mutant-floor: bin/rails db:test:prepare failed (#{LOG})" unless ok
   tip, output = run_mutant("change")
   abort "#{output}\nmutant-floor: mutant wrote no session result" unless tip
-  base_session, selected = base_run(merge_base)
 
-  verdict = MutantFloor.compare(tip, base_session, base_selected: selected, accepted:,
-                                expressions: load_yaml("config/mutant.yml").dig("matcher", "subjects") || [],
-                                defined_as: defined_here(selected - MutantFloor.subjects(tip)))
-  puts
-  report(verdict)
+  changed = git("diff", "--name-only", merge_base).lines.map(&:chomp)
+  gap = lambda do |problem, failed|
+    abort [ *MutantFloor.gap_lines(merge_base, problem, output: failed, changed:), "(every command the base ran: #{LOG})" ].join("\n")
+  end
+  base_session, selected = base_run(merge_base, gap)
+
+  verdict = MutantFloor.judge(tip:, base: base_session, selection: selected, config: load_yaml("config/mutant.yml"), accepted:,
+                              defined_as: defined_here(MutantFloor.missing(tip, selected)))
+  puts "", *MutantFloor.report(verdict)
 
   if verdict.pass?
     puts "mutant-floor: no survivor the base doesn't have (mutant's full output: #{LOG})"
