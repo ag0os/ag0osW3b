@@ -259,7 +259,9 @@ steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
   doesn't have, counted per subject and changed lines.
   - A test that kills a known survivor just passes.
   - A method renamed within its own class passes (the class runs a new
-    subject), and survivors carry across a rename or a move into a concern.
+    subject, one for each renamed method), and survivors carry across a
+    rename or a move into a concern. Merging two methods into one drops a
+    subject, so it needs an entry as below.
   - A method the change no longer defines by that name, and didn't rename in
     its own class, fails as removed or renamed out of mutation's reach: a
     deletion, or an extraction under a new name. If you deleted it, add an

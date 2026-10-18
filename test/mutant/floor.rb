@@ -261,22 +261,32 @@ module MutantFloor
   end
 
   # Base subjects the change doesn't run: moved where a subject runs them;
-  # renamed in place, beside the new subjects of their own class; left out of
+  # renamed in place, beside a new subject of their own class; left out of
   # mutation; no longer selected by the change's config; or removed, by name,
   # from everywhere. Each is [subject, where it is now].
   def departures(missing, ran, base_ran, defined_as)
     sorted = { moved: [], renamed: [], left: [], deselected: [], removed: [] }
+    renames = renames(missing.select { |subject| defined_as[subject]&.empty? }, ran - base_ran)
     missing.each do |subject|
       now = defined_as.fetch(subject, [ subject ])
       unrun = now - ran
-      beside = (ran - base_ran).select { |arrived| scope(arrived) == scope(subject) }
-      if now.empty? then sorted[beside.empty? ? :removed : :renamed] << [ subject, beside ]
+      if now.empty? then sorted[renames[subject] ? :renamed : :removed] << [ subject, [ *renames[subject] ] ]
       elsif unrun.empty? then sorted[:moved] << [ subject, now ]
       elsif base_ran.include?(subject) then sorted[:left] << [ subject, unrun ]
       else sorted[:deselected] << [ subject, unrun ]
       end
     end
     sorted
+  end
+
+  # Pairs each subject the change no longer defines with a new subject of its
+  # class, one for one: the same method name first, then in name order.
+  # Returns subject => the new subject (nil: none left).
+  def renames(vanished, arrived)
+    pool = arrived.sort
+    take = ->(subject, &match) { (index = pool.index { |new| scope(new) == scope(subject) && match.(new) }) && pool.delete_at(index) }
+    same = vanished.to_h { |subject| [ subject, take.(subject) { |new| new.partition(/[#.]/).last == subject.partition(/[#.]/).last } ] }
+    vanished.sort.to_h { |subject| [ subject, same[subject] || take.(subject) { true } ] }
   end
 
   # A config entry excuses the subjects it names, and nothing else. Returns
@@ -387,7 +397,7 @@ module MutantFloor
   def report(verdict)
     [
       *section("Carried across a rename or move:", verdict.carried.map { |from, to, change| [ "survivor of #{from} carried to #{to}", change ] }),
-      *section("Gone from the change, or run under a new name:",
+      *section("Moved, or renamed in place:",
                verdict.moved.map { |from, now| "#{from} now runs as #{now.join(", ")}" } +
                verdict.renamed.map { |from, beside| "#{from} is no longer defined; renamed in place, beside #{beside.join(", ")}" }),
       *section("Killed only by a timeout, so tolerated (a slow runner can do this):", verdict.timed_out.map { |subject, change| [ subject, change ] }),
