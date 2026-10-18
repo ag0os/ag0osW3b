@@ -237,14 +237,18 @@ coverage for it.
 2. Write its test, named by the id (`test "MR-22 ..."`), in the component's
    file in `test/contract/`, and run it red
    against the unfixed code. Say in the PR how it was shown red.
-3. Where mutant covers the code (the subjects in `config/mutant.yml`), show
-   that the test kills the matching mutant: run `bundle exec mutant run
-   'Subject#method'` after the fix and check that no survivor undoes it. The
-   run exits nonzero while the baseline's own survivors live.
-4. Fix the code.
+3. Fix the code.
+4. Where mutant covers the code (the subjects in `config/mutant.yml`), run
+   `bundle exec mutant run 'Subject#method'` on the fixed code and check that
+   no survivor undoes the fix; the red run in step 2 is what shows the test
+   catches the bug. The run exits nonzero while the baseline's own survivors
+   live.
 5. Label the PR `fix:` and name the id.
 
 Everything else is `refine:`.
+
+No attribution in commits or pull requests: no `Co-Authored-By` trailer, and
+no "Generated with" footer or other line naming a tool or agent.
 
 **The checks.** Before you say done, run `bin/ci` (fetch first: locally it
 compares with `origin/main`, or `$CI_BASE`). GitHub runs exactly it on every
