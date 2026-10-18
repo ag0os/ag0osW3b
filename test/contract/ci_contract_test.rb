@@ -267,10 +267,26 @@ class CiContractTest < ActiveSupport::TestCase
 
     renamed = compare(session("Home#show" => [], "Home#list" => [], "Home.build" => [], "Pages#show" => []), base, defined_as: { "Home#index" => [] })
     assert renamed.pass?
-    assert_equal [ [ "Home#index", [ "Home#list", "Home.build" ] ] ], renamed.renamed
+    assert_equal [ [ "Home#index", [ "Home#list" ] ] ], renamed.renamed
     assert_empty renamed.removed
     nested = compare(session("Home#show" => [], "Home::Card#list" => [], "Pages#show" => []), base, defined_as: { "Home#index" => [] })
     assert_equal [ [ "Home#index", [] ] ], nested.removed, "a nested constant is another class"
+  end
+
+  test "CI-4 each new subject stands for one vanished subject of its class: the same name first, then in name order" do
+    base = session("Home#show" => [], "Home#index" => [], "Home#list" => [], "Home.build" => [], "Pages#show" => [])
+    gone = { "Home#index" => [], "Home#list" => [], "Home.build" => [] }
+    tip = ->(*arrived) { session(([ "Home#show", "Pages#show" ] + arrived).to_h { |name| [ name, [] ] }) }
+
+    delegator = compare(tip.("Home#locale"), base, defined_as: gone) # an extraction that leaves one delegator behind
+    assert_not delegator.pass?
+    assert_equal [ [ "Home#index", [ "Home#locale" ] ] ], delegator.renamed
+    assert_equal [ [ "Home#list", [] ], [ "Home.build", [] ] ], delegator.removed
+
+    exact = compare(tip.("Home#aaa", "Home#build"), base, defined_as: gone)
+    assert_equal [ [ "Home#index", [ "Home#aaa" ] ], [ "Home.build", [ "Home#build" ] ] ], exact.renamed
+    assert_equal [ [ "Home#list", [] ] ], exact.removed
+    assert compare(tip.("Home#a", "Home#b", "Home#c"), base, defined_as: gone).pass?
   end
 
   test "CI-4 a method moved where a subject runs it passes, and is reported" do
@@ -419,6 +435,35 @@ class CiContractTest < ActiveSupport::TestCase
     assert env.key?("RUBYOPT") && env["RUBYOPT"].nil?, "RUBYOPT is cleared, not inherited"
     assert_match(/^\s*::Minitest\.seed = 0\b/, Rails.root.join("test/mutant/boot.rb").read)
     assert_no_match(/random/, Rails.root.join("test/mutant/boot.rb").read)
+  end
+
+  test "CI-4 bin/mutant-floor wires its checks end to end, on stand-ins for mutant and Rails" do
+    Dir.mktmpdir do |dir|
+      %w[bin/mutant-floor test/mutant/floor.rb test/mutant/boot.rb test/mutant/hooks.rb test/mutant/baseline.yml].each do |path|
+        FileUtils.mkdir_p(File.join(dir, File.dirname(path)))
+        FileUtils.cp(Rails.root.join(path), File.join(dir, path))
+      end
+      FileUtils.mkdir_p([ "#{dir}/config", "#{dir}/stand-in" ])
+      File.write("#{dir}/config/mutant.yml", YAML.dump("matcher" => { "subjects" => [ "Home*" ] }))
+      File.write("#{dir}/stand-in/session.json", JSON.dump(session("Home#show" => [ coverage(DROP_ORDER) ])))
+      File.write("#{dir}/bin/rails", "#!/bin/sh\n")
+      File.write("#{dir}/stand-in/bundle", <<~SH) # `bundle exec mutant run` writes a session; `... subject list` lists it
+        #!/bin/sh
+        if [ "$3" = run ]; then mkdir -p .mutant/results && cp #{dir}/stand-in/session.json .mutant/results/$$.json
+        else printf 'Subjects in environment: 1\nHome#show\n'; fi
+      SH
+      FileUtils.chmod(0o755, [ "#{dir}/bin/rails", "#{dir}/stand-in/bundle" ])
+      git = ->(*args) { assert system("git", "-c", "user.name=ci", "-c", "user.email=ci@example.invalid", *args, chdir: dir, out: File::NULL, err: File::NULL), args.join(" ") }
+      git.("init", "-q") && git.("add", "-A") && git.("commit", "-qm", "base")
+      File.write("#{dir}/test/mutant/boot.rb", "# changed\n", mode: "a")
+      File.write("#{dir}/test/mutant/accepted.yml", YAML.dump("config" => [ config_entry(change: "harness", reason: "The seed is fixed.") ]))
+      git.("add", "-A") && git.("commit", "-qm", "change")
+
+      out, status = Open3.capture2e({ "PATH" => "#{dir}/stand-in:#{ENV["PATH"]}" }, "ruby", "bin/mutant-floor", "HEAD~1", chdir: dir)
+      assert status.success?, out
+      assert_includes out, "  change: harness, for test/mutant/boot.rb\n    The seed is fixed.\n", "the base's harness is read from git"
+      assert_includes out, "mutant-floor: no survivor the base doesn't have", "the base's survivor is counted under its own selection"
+    end
   end
 
   # Stand-ins for app code, to look up the way the gate looks up a subject the tip no longer runs.
