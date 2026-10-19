@@ -1,0 +1,8 @@
+<%# A page's visible sections in order, or its empty state when it has none. %>
+<% if sections.any? %>
+  <% sections.each do |section| %>
+    <%= render "shared/section", section: section %>
+  <% end %>
+<% else %>
+  <p class="muted rail-indent"><%= empty %></p>
+<% end %>

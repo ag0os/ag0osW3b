@@ -4,6 +4,7 @@ class ConsultingPageContractTest < ActionDispatch::IntegrationTest
   cover "PagesController#consulting" if respond_to?(:cover)
 
   HEADING = "Agustín Calabrese: agentic development and AI-native systems"
+  SPANISH_HEADING = "Agustín Calabrese: desarrollo con agentes y sistemas AI-native"
   APPROVED = <<~TEXT
     Agustín Calabrese: agentic development and AI-native systems
 
@@ -109,27 +110,32 @@ class ConsultingPageContractTest < ActionDispatch::IntegrationTest
     assert_equal "Fallback description.", css_select('meta[name="description"]').first["content"]
   end
 
-  test "CP-5 English prose with English chrome and no consulting nav link" do
+  test "CP-5 English copy under English, with English chrome and no consulting nav link" do
     get "/consulting"
     assert_select "html[lang=en]"
-    assert_select "main .page[lang=en]"
+    assert_select "main [lang]", 0
     assert_select "nav a", text: "Home"
     assert_select '.language-controls[aria-label="Language"]'
     assert_select '[data-controller="theme"]'
-    assert_select 'nav[aria-label="Primary"] a[href="/consulting"]', 0
+    assert_select '.site-header nav a[href="/consulting"]', 0
   end
 
-  test "CP-5 English prose with Spanish chrome and no consulting nav link" do
-    get "/consulting"
-    english = css_select("main").to_s
+  test "CP-5 Spanish copy under Spanish, with Spanish chrome and no consulting nav link" do
+    SiteSetting["linkedin_url"] = "https://www.linkedin.com/in/current-profile"
+    spanish = Section.for_page("consulting").ordered
     cookies[:locale] = "es"
     get "/consulting"
-    assert_equal english, css_select("main").to_s
     assert_select "html[lang=es]"
-    assert_select "main .page[lang=en]"
+    assert_select "main h1", count: 1, text: SPANISH_HEADING
+    assert_equal spanish.filter_map(&:heading_es), css_select("main h2").map(&:text)
+    assert_select "main [lang]", 0
+    assert_select "main > .page > p", text: "¿Querés hablar de tu equipo? Escribime por LinkedIn."
+    assert_select 'main a[href="https://www.linkedin.com/in/current-profile"][target="_blank"][rel="noopener"]', count: 1, text: "LinkedIn"
+    assert_select "title", text: "#{SPANISH_HEADING} · #{SiteSetting["site_title"]}"
+    assert_equal spanish.first.body_es.squish, css_select('meta[name="description"]').first["content"]
     assert_select "nav a", text: "Inicio"
     assert_select '.language-controls[aria-label="Idioma"]'
     assert_select '[data-controller="theme"]'
-    assert_select 'nav[aria-label="Primary"] a[href="/consulting"]', 0
+    assert_select '.site-header nav a[href="/consulting"]', 0
   end
 end

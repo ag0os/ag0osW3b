@@ -2,7 +2,7 @@ require "test_helper"
 
 # The home page's Contract, as tests: what the page is once the command line
 # is gone and before the copy replaces it. Each test is named after an
-# obligation in PRODUCT.md ("Contract: the home page") and asserts only on the
+# obligation in docs/contracts/home_page.md and asserts only on the
 # rendered HTML.
 class HomePageContractTest < ActionDispatch::IntegrationTest
   cover "HomeController*" if respond_to?(:cover)

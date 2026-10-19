@@ -69,7 +69,14 @@ cookie set by the footer's language buttons, then `Accept-Language`, then
 English. `LocalesController#update` saves the choice and redirects back to
 this site's referring page. The chrome strings live in `config/locales/en.yml`
 and `es.yml` under one matching tree. Localised settings are sibling keys with
-an `_es` suffix read through `SiteSetting.localized`. The admin stays English.
+an `_es` suffix read through `SiteSetting.localized`. Sections have Spanish
+columns (`heading_es`, `note_es`, `body_es`) read through `Section#localized`,
+which falls back to the English field when the Spanish is blank; the section
+partial marks that English `lang="en"`. Public templates write no words of
+their own: every string goes through `t()` (LC-13 fails the build otherwise),
+dates through `l()`. Posts stay as written. The admin stays English, with
+fields for each section's Spanish. Seeded Spanish lives in
+`db/seeds/sections_es.yml`.
 
 ### Public vs admin
 

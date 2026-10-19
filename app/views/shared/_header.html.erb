@@ -2,7 +2,7 @@
   <div class="container site-header__inner">
     <%= link_to SiteSetting["site_title"], root_path, class: "brand" %>
 
-    <nav class="nav" aria-label="Primary">
+    <nav class="nav" aria-label="<%= t("nav.label") %>">
       <%= link_to t("nav.home"),    root_path,    class: ("is-active" if current_page?(root_path)),    aria: { current: ("page" if current_page?(root_path)) } %>
       <%= link_to t("nav.about"),   about_path,   class: ("is-active" if current_page?(about_path)),   aria: { current: ("page" if current_page?(about_path)) } %>
       <%= link_to t("nav.work"),    work_path,    class: ("is-active" if current_page?(work_path)),    aria: { current: ("page" if current_page?(work_path)) } %>

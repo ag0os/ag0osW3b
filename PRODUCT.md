@@ -120,40 +120,15 @@ One more, from the repo's own rules: nothing that requires a Node toolchain. Tai
 
 ## Contract: the language
 
-Which language a public page is in, and how a visitor changes it. Resolution lives in `SiteController`, which every public controller inherits; the control is `LocalesController#update` at `PATCH /locale` and a pair of buttons in the footer. Every obligation below has a test of the same number in `test/contract/locale_contract_test.rb`. LC-1 to LC-5 shipped with the shell and survive its removal; LC-6 to LC-11 are the footer control that replaces the shell's `lang` command (`ASK.md` §4.8). Decisions and their derivations are in `DECISIONS.md`.
-
-**Which language a page is in** (shipped)
-
-- **LC-1** A `locale` cookie naming a site language (`en` or `es`) decides, whatever the browser asks for, on every public page, and the page says which on `<html lang>`. *Because* the cookie is a choice the visitor made on this site, and the browser's setting is a guess made for every site.
-- **LC-2** Without that cookie, `Accept-Language` decides: the first entry, in the order the browser sent them, whose language (the part before any region, `es` in `es-AR`, case ignored) is a site language. Entries are separated by commas, with or without whitespace: `fr,es` and `fr, es` both give Spanish. The `q` weights are not used to re-sort. *Because* browsers already send entries in their order of preference.
-- **LC-3** Otherwise English. A cookie or an entry naming a language the site does not have is skipped as if it were absent, so an unknown cookie still lets `Accept-Language` decide. A malformed header renders the page in English rather than failing. *Because* no request is refused or broken over its language.
-- **LC-4** The login, password-reset and admin pages are in English whatever the cookie or the browser says, and the admin offers no language control. *Because* the admin has one user, who writes in English, and its strings are not in the locale files.
-- **LC-5** `config/locales/en.yml` and `es.yml` have the same tree of keys. *Because* a key missing from one shows that language's visitors a "translation missing" string.
-
-**Choosing a language** (task 1)
-
-- **LC-6** `PATCH /locale` with `locale` set to `en` or `es` sets the `locale` cookie to that code. The cookie is permanent (it has an expiry years away, not the browser session), `SameSite=Lax` and `HttpOnly`. *Because* a visitor who chose Spanish once should be greeted in Spanish next time, and a link followed from another site should arrive in the language they chose. Only the server reads it, so no script needs to (settled 2026-10-09).
-- **LC-7** The reply is a `303 See Other` back to the page the request came from (its `Referer`, path and query kept). *Because* changing language should not move the visitor, and the follow-up request must be a GET whatever method the form used.
-- **LC-8** With no `Referer`, or one on another host, the redirect is to the home page, still with `303`. *Because* redirecting to an address the request supplied is an open redirect.
-- **LC-9** Any other `locale` (unknown, a different case such as `ES`, blank, or missing) sets no cookie, so an earlier choice stays, and the reply still redirects as LC-7 and LC-8. *Because* a stale form or a hand-written request should land the visitor back where they were, not on an error page; resolution ignores unknown codes the same way (LC-3).
-- **LC-10** Every public page's footer holds the control: one group (`role="group"`) named "Language" in English and "Idioma" in Spanish, holding two buttons, English then Spanish. Each button is the submit button of its own form, which posts to `/locale` with `_method=patch` and its code as `locale`, so it works without JavaScript. Each is labelled with its language's own name, "English" and "Español", whatever the page's language, and carries `lang` for that language. The button for the page's language has `aria-pressed="true"` and the other `aria-pressed="false"`. *Because* a visitor who cannot read the current language must still recognise their own; `lang` has a screen reader pronounce "Español" as Spanish; and which one is current has to be stated in more than hue (Accessibility, above), the same way the mode toggle states it.
-- **LC-11** Pressing a footer button brings the same page back in that language, and every public page after it stays in that language. *Because* that is the control's whole job, end to end, over plain HTTP.
+Moved to `docs/contracts/locale.md` (LC-1 to LC-16).
 
 ## Contract: the home page
 
-What the home page is once the shell is gone and before the copy replaces it (`PLAN.md` task 2 rewrites this section). `HomeController#show` renders it. Every obligation below has a test of the same number in `test/contract/home_page_contract_test.rb`. HP-1 to HP-3 are what the page already shows besides the shell, pinned so that the deletion takes the shell and nothing else; HP-4 and HP-5 are the shell's removal.
-
-- **HP-1** The page's one `<h1>` is the tagline in the page's language (`SiteSetting.localized("tagline")`), with its `==marks==` drawn as `<mark>`. The hero note (`hero_note`, `hero_note_es`), when there is one, sits in the hero's rail. The document title is the site title.
-- **HP-2** Below the hero come the visible home sections in position order, each with its heading as an `<h2>`, its note, and its body rendered as Markdown. Position decides the order, not when a section was created: a home section created last with the lowest position comes first. Hidden sections and other pages' sections are absent.
-- **HP-3** Then the three most recently published posts, newest first, each a link to its post with its publication date in a `<time>`, and a link to all writing. Drafts never appear. With nothing published there is no list and no heading for one.
-- **HP-4** The page has no command line: no form and no text field other than the footer's language control, no typed opening, and no script controller besides the header's theme controls. *Because* the shell is replaced (`ASK.md` §11), and until the invitation arrives the page has to be complete for someone who never types.
-- **HP-5** Query parameters change nothing on the page: `/?line=whoami` renders what `/` renders and echoes nothing from the URL. *Because* links to the shell's old URLs are out in the world and should land on a working page.
+Moved to `docs/contracts/home_page.md` (HP-1 to HP-5).
 
 ## Contract: the post page
 
-The public post at `/writing/:slug` renders through the site layout. Obligations run in `test/contract/post_page_contract_test.rb`.
-
-- **PP-1** When a post has an excerpt, its description and Open Graph description are that excerpt with `==marks==` removed and HTML escaped exactly once, preserving literal entity text. *Because* writing travels through link previews, and double escaping makes an excerpt such as `a < b ==c==` read as `a &lt; b c` instead of `a < b c` (pilot finding F-19).
+Moved to `docs/contracts/post_page.md` (PP-1).
 
 ## Contract: retiring the shell's settings
 
@@ -166,28 +141,11 @@ The shell's copy lived in three `site_settings` rows. A data migration removes t
 
 ## Contract: the consulting page
 
-The approved consulting brief is implemented at `/consulting`. Obligations run in
-`test/contract/consulting_page_contract_test.rb`. Navigation, English in both
-locales, and seeded content are provisional defaults, pending the owner's decision.
-
-- **CP-1** `/consulting` is public without login. Its one h1 is “Agustín Calabrese: agentic development and AI-native systems”. The intro, two numbered offers (including the four bullets and Troupe paragraph), and Background preserve the approved words and order, with no extra claims, placeholders, prices, formats, or em/en dashes. The intro leads with the systems built since 2025 and help for teams, then the 2024 change, because the owner approved that order (D3). Existing Markdown typography may curl the intro's apostrophe. *Because* this is approved copy, not an invitation to rewrite it.
-- **CP-2** The copy is seeded as editable consulting Sections, rendered through the existing section partial: only visible consulting sections, in position then id order, guaranteed regardless of the database scan direction. *Because* the owner manages static copy at `/admin`, and changing one page must not expose another page's content or hidden text.
-- **CP-3** `github.com/ag0os/troupe` links to `https://github.com/ag0os/troupe`. After Background, the only contact line is “Want to talk about your team? Get in touch on LinkedIn.”, with LinkedIn linked to the current `SiteSetting["linkedin_url"]`, opening in a new tab with `target="_blank"` and `rel="noopener"` as on Contact. *Because* the public repository is the proof and the owner's configured profile is the contact destination, with the site's existing external-link behavior.
-- **CP-4** The document and Open Graph title use the approved heading followed by the site title; description and Open Graph description use the visible consulting intro, with marks removed and whitespace collapsed, falling back to the layout's description when absent. Text outputs are escaped, never HTML. *Because* a shared link must identify this page and edits must not inject markup into the head.
-- **CP-5** English copy appears under both locales, with the normal locale-specific chrome, language control and theme controls, and no link to `/consulting` in the primary nav. The copy container declares `lang="en"`. *Because* the owner decided on 2026-10-13 that the page is reached from links in the site's copy rather than the primary nav (reversing the nav half of D5), Spanish translation is deferred (D6), and assistive technology needs the prose's actual language.
+Moved to `docs/contracts/consulting_page.md` (CP-1 to CP-5).
 
 ## Contract: seeded copy
 
-These obligations apply to the first-deploy copy loaded by `db/seeds.rb`, with
-tests in `test/contract/seeded_copy_contract_test.rb` that run the real seeds.
-The owner can still edit the wording in `/admin`; individual sentences are not
-pinned by this contract.
-
-- **SC-1** The seeded public site neither names Claude Forge nor links to `ag0os/claude-forge`. *Because* the retired toolkit must not send visitors to superseded proof.
-- **SC-2** The seeded Work open-source section links Troupe to `https://github.com/ag0os/troupe`. *Because* visitors evaluating the current toolkit need its public repository.
-- **SC-3** The seeded About bio links to `/consulting`, and following that link reaches a public page successfully. *Because* the invitation to consulting must lead to an offer the visitor can read without login.
-- **SC-5** The footer CTA in both locales, the Contact page's intro and the About bio each link to `/consulting`. *Because* the owner decided on 2026-10-13 that the consulting page is reached from these entry points rather than the primary nav.
-- **SC-6** The seeds plant no posts: loading them leaves the posts exactly as they were, so a freshly seeded site has none. *Because* the owner does not want a template post on the live site; the first post is one the owner writes (settled 2026-10-14).
+Moved to `docs/contracts/seeded_copy.md` (SC-1 to SC-3, SC-5 to SC-8).
 
 ## Contract: writing
 

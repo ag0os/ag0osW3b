@@ -47,7 +47,7 @@ module Admin
     end
 
     def section_params
-      params.require(:section).permit(:key, :page, :heading, :note, :body, :visible, :position)
+      params.require(:section).permit(:key, :page, :heading, :note, :body, :heading_es, :note_es, :body_es, :visible, :position)
     end
   end
 end

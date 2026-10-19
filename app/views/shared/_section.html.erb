@@ -8,20 +8,22 @@
     generated content counts toward the accessible name: as a ::before it made
     the heading announce "CH.01 What I do" in console and "$ What I do" in
     terminal, so a cosmetic preference changed heading semantics. Rendered
-    unconditionally in all four presets; workshop resolves it to display: none. %>
+    unconditionally in all four presets; workshop resolves it to display: none.
+
+    Each field shows in the page's language, and one with no Spanish yet shows
+    its English marked lang="en", so a screen reader reads it as English. %>
+<% heading, note = section.localized(:heading), section.localized(:note) %>
 <section class="section railed" id="<%= section.key %>">
-  <% if section.heading.present? || section.note.present? %>
+  <% if heading.present? || note.present? %>
     <div class="rail">
       <span class="section__marker" aria-hidden="true"></span>
-      <% if section.note.present? %>
-        <p class="note"><%= section.note %></p>
+      <% if note.present? %>
+        <%= tag.p note, class: "note", lang: ("en" if section.untranslated?(:note)) %>
       <% end %>
     </div>
   <% end %>
-  <% if section.heading.present? %>
-    <h2 class="section__heading"><%= section.heading %></h2>
+  <% if heading.present? %>
+    <%= tag.h2 heading, class: "section__heading", lang: ("en" if section.untranslated?(:heading)) %>
   <% end %>
-  <div class="prose">
-    <%= markdown(section.body) %>
-  </div>
+  <%= tag.div markdown(section.localized(:body)), class: "prose", lang: ("en" if section.untranslated?(:body)) %>
 </section>

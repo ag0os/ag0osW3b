@@ -11,7 +11,7 @@ class WritingContractTest < ActionDispatch::IntegrationTest
       cookies[:locale] = locale
       PAGES.each do |path|
         get path
-        assert_select "nav[aria-label=Primary] a[href=?]", posts_path, { count: 1, text: label }, "#{path} in #{locale}"
+        assert_select ".site-header nav a[href=?]", posts_path, { count: 1, text: label }, "#{path} in #{locale}"
       end
     end
   end
@@ -24,8 +24,8 @@ class WritingContractTest < ActionDispatch::IntegrationTest
       cookies[:locale] = locale
       PAGES.each do |path|
         get path
-        assert_select "nav[aria-label=Primary] a[href=?]", posts_path, { count: 0 }, "#{path} in #{locale}"
-        assert_select "nav[aria-label=Primary] a", { text: label, count: 0 }, "#{path} in #{locale}"
+        assert_select ".site-header nav a[href=?]", posts_path, { count: 0 }, "#{path} in #{locale}"
+        assert_select ".site-header nav a", { text: label, count: 0 }, "#{path} in #{locale}"
       end
     end
   end
@@ -34,19 +34,19 @@ class WritingContractTest < ActionDispatch::IntegrationTest
     Post.delete_all
 
     get root_path
-    assert_select "nav[aria-label=Primary] a", 4
-    assert_select "nav[aria-label=Primary] a[href=?]", posts_path, 0
+    assert_select ".site-header nav a", 4
+    assert_select ".site-header nav a[href=?]", posts_path, 0
   end
 
   test "WR-1 the first published post brings the link back, with no setting to change" do
     Post.published.delete_all
     get root_path
-    assert_select "nav[aria-label=Primary] a[href=?]", posts_path, 0
+    assert_select ".site-header nav a[href=?]", posts_path, 0
 
     posts(:draft_post).published!
 
     get root_path
-    assert_select "nav[aria-label=Primary] a[href=?]", posts_path, 1
+    assert_select ".site-header nav a[href=?]", posts_path, 1
   end
 
   test "WR-2 /writing answers 200 with the empty state when nothing is published" do

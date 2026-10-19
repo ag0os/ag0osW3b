@@ -1,16 +1,10 @@
-<% content_for :title, "Work · #{SiteSetting["site_title"]}" %>
+<% content_for :title, "#{t("nav.work")} · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
   <header class="page__header railed enter">
-    <h1>Work</h1>
-    <p class="muted">Most of my product work is private. Here's the public proof.</p>
+    <h1><%= t("nav.work") %></h1>
+    <p class="muted"><%= t("pages.work_lead") %></p>
   </header>
 
-  <% if @sections.any? %>
-    <% @sections.each do |section| %>
-      <%= render "shared/section", section: section %>
-    <% end %>
-  <% else %>
-    <p class="muted rail-indent">Projects coming soon.</p>
-  <% end %>
+  <%= render "pages/sections", sections: @sections, empty: t("pages.work_empty") %>
 </div>

@@ -1,10 +1,10 @@
 <footer class="site-footer">
   <div class="container site-footer__inner">
     <p class="site-footer__cta"><%= t("footer.cta_html", consulting_link: link_to(t("footer.consulting"), consulting_path)) %></p>
-    <nav class="social" aria-label="Elsewhere">
+    <nav class="social" aria-label="<%= t("footer.elsewhere") %>">
       <%= link_to "GitHub",   SiteSetting["github_url"],   target: "_blank", rel: "me noopener" %>
       <%= link_to "LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "me noopener" %>
-      <%= mail_to SiteSetting["email"], "Email" %>
+      <%= mail_to SiteSetting["email"], t("footer.email") %>
     </nav>
     <div class="language-controls" role="group" aria-label="<%= t("footer.language") %>">
       <%= button_to "English", locale_path, method: :patch, params: { locale: "en" }, lang: "en", aria: { pressed: I18n.locale == :en } %>
