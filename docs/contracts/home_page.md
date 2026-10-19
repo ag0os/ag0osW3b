@@ -19,7 +19,9 @@ What the home page is once the shell is gone and before the copy replaces it (`P
 
 ### HP-1 The h1 is the tagline in the page's language
 
-The page's one `<h1>` is the tagline in the page's language (`SiteSetting.localized("tagline")`), with its `==marks==` drawn as `<mark>`. The hero note (`hero_note`, `hero_note_es`), when there is one, sits in the hero's rail. The document title is the site title.
+The page's one `<h1>` is the tagline in the page's language (`SiteSetting.localized("tagline")`), with its `==marks==` drawn as `<mark>`. The hero note (`hero_note`, `hero_note_es`), when there is one, sits in the hero's rail. The document title is the site title. Hero values are edited in Copy; missing Spanish uses its default and saved blank Spanish declares English fallback (CO-3, LC-17).
+
+Reworded 2026-10-19 by Copy admin; flagged for owner review.
 
 **Reason.** It is what the page already showed besides the shell, pinned so that the shell's deletion takes the shell and nothing else.
 
@@ -60,5 +62,7 @@ Query parameters change nothing on the page: `/?line=whoami` renders what `/` re
 Kind: functional. Proof: test, HP-5 in `test/contract/home_page_contract_test.rb`.
 
 ## Decisions
+
+- D-30 and D-31, `docs/decisions/copy.md`: editable prose and its unchanged defaults.
 
 - D-12, `docs/decisions/home_page.md`: old shell URLs land on the plain home page (HP-5).

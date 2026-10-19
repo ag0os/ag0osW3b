@@ -10,20 +10,10 @@ en:
   home:
     writing: "Writing"
     all_writing: "All writing →"
-  pages:
-    about_empty: "About content coming soon."
-    work_lead: "Most of my product work is private. Here's the public proof."
-    work_empty: "Projects coming soon."
-  consulting:
-    heading: "Agustín Calabrese: agentic development and AI-native systems"
-    contact_html: "Want to talk about your team? Get in touch on %{linkedin_link}."
   posts:
-    lead: "Notes on AI-native workflows, agent orchestration, and product-minded engineering."
-    empty: "First essays coming soon."
     all: "← All writing"
     feed_title: "Writing by %{name}"
   footer:
-    cta_html: "Open to roles building agent systems and AI-native products, and to %{consulting_link}."
     consulting: "consulting"
     language: "Language"
     elsewhere: "Elsewhere"

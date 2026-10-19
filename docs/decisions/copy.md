@@ -1,0 +1,13 @@
+# Decisions: editable page copy
+
+### D-30. Missing Spanish uses its default; saved blank Spanish requests English
+
+**Decision.** Extend SiteSetting defaults and the existing sibling `_es` keys, keeping the four hero keys. Missing Spanish rows read the unchanged Spanish defaults; saved blank Spanish rows request English, marked `lang="en"`. Ordinary settings retain blank-means-default behavior. Copy and Settings each admit only their own keys. No migration or seed step is needed.
+
+**Derivation.** The owner accepted this distinction on 2026-10-19. A database with no new rows must keep speaking Spanish immediately after deploy, while an author clearing a Spanish field explicitly requests the established section fallback behavior. This reading also applies to rows saved before this change: a pre-existing blank (including nil) or whitespace-only `tagline_es` or `hero_note_es` now shows English marked `lang="en"`, where it previously showed the Spanish default. This is a behavior change flagged for owner acceptance, not a data rewrite; no migration distinguishes when a blank row was saved. A shared default lookup that discards blank rows cannot express both. The copy form shows raw saved blanks for correction, not their rendered fallback. Explicit key lists prevent the generic Settings form from rediscovering moved rows. Obligations: CO-1 to CO-4, LC-17.
+
+### D-31. Linked prose permits marks and one generated anchor
+
+**Decision.** Keep `%{consulting_link}` and `%{linkedin_link}` exactly once in each nonblank linked sentence. Validate the complete submission before saving, then save in one transaction. Escape author text and draw permitted marks before replacing only the designated placeholder with a Rails-generated anchor. No author HTML, URLs or arbitrary interpolation. The footer anchor label remains a locale string and follows the prose's actual language, including English fallback; LinkedIn remains a proper noun.
+
+**Derivation.** The owner accepted this on 2026-10-19. Preserving the existing placeholders preserves the literal defaults and lets the author change surrounding words without capturing a configured URL in the copy. Validating every field before writes prevents a malformed sentence from saving only part of an edit. Marks around a placeholder must encompass its generated link, so escaping and marking precede replacement. The tagline, intros, linked sentences and empty states support escaped plain-string marks in multiline fields; the note and consulting heading stay plain text. Metadata and feed text are escaped and unmarked. The fixed footer link label is a choice the owner can revisit. Obligations: CO-5 to CO-7, LC-17.

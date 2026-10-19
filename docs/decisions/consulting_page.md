@@ -27,3 +27,5 @@ for a single page. Obligations: CP-1 to CP-5.
 **Decision.** The consulting sections get Spanish like every other seeded section, and the page's h1 and contact line move to the locale files. The container's `lang="en"` goes. Any part still shown in English is marked by the section partial instead (LC-14).
 
 **Derivation.** On 2026-10-19 the owner chose to translate the page rather than keep it English under both locales, ending the deferral in D6. The footer CTA and the About and Contact copy already point Spanish readers to `/consulting` (SC-5), and an offer in another language reads as an afterthought. The English wording approved for CP-1 is unchanged. The Spanish is a draft of it, in the same order and with the same link, for the owner to correct in `/admin`. Obligation: CP-5.
+
+D-30 and D-31 in `docs/decisions/copy.md` supersede the locale-file storage of the heading and contact sentence (2026-10-19), retaining their words as defaults.

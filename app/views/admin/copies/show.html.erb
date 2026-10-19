@@ -1,0 +1,42 @@
+<% content_for :title, "Copy" %>
+
+<h1>Copy</h1>
+<p class="form-hint">Edit the words visitors read. A Spanish field left blank shows the English. Sections and posts have their own editors.</p>
+
+<%= form_with url: admin_copy_path, method: :patch, class: "form" do %>
+  <% if @records&.any? { |record| record.errors.any? } %>
+    <div class="form-errors" role="alert">
+      <p>Copy could not be saved. Correct the following:</p>
+      <ul>
+        <% @records.each do |record| %>
+          <% record.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <% SiteSetting::COPY_FIELDS.each do |key, label| %>
+    <h2 class="section-group" id="copy-<%= key %>"><%= label %></h2>
+    <p class="form-hint" id="hint-<%= key %>">
+      <% if SiteSetting::COPY_LINKS[key] %>
+        Keep <code><%= SiteSetting::COPY_LINKS[key] %></code> exactly once in each nonblank sentence. It becomes the link. Wrap a phrase in ==equals== to mark it. HTML and URLs are displayed as text.
+      <% elsif %w[hero_note consulting_heading].include?(key) %>
+        Plain text.
+      <% else %>
+        Wrap a phrase in ==equals== to mark it. HTML is displayed as text.
+      <% end %>
+    </p>
+    <div class="field-row" role="group" aria-labelledby="copy-<%= key %>">
+      <% [ [key, "English", "en"], ["#{key}_es", "Spanish", "es"] ].each do |field, language, code| %>
+        <label class="field">
+          <span><%= language %></span>
+          <%= text_area_tag "copy[#{field}]", @settings[field], rows: 3, lang: code, aria: { describedby: "hint-#{key}" } %>
+        </label>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="form-actions">
+    <%= submit_tag "Save copy", class: "btn btn--primary" %>
+  </div>
+<% end %>

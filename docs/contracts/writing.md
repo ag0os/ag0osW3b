@@ -32,7 +32,9 @@ Kind: functional. Proof: test, the four tests named WR-1 in `test/contract/writi
 
 ### WR-2 /writing answers with its empty state
 
-`/writing` stays public and answers 200 with nothing published, showing the empty state "First essays coming soon." and no post list. Without a nav link (WR-1) it is reached only by its address.
+`/writing` stays public and answers 200 with nothing published, showing the editable empty state, whose default is "First essays coming soon." and no post list. Without a nav link (WR-1) it is reached only by its address.
+
+Reworded 2026-10-19 by Copy admin; flagged for owner review.
 
 **Reason.** The address may already be shared or bookmarked, and a 404 there reads as a broken site. (D-15)
 
@@ -65,6 +67,8 @@ The site layout's head links to the feed (`<link rel="alternate" type="applicati
 Kind: functional. Proof: test, WR-4 in `test/contract/writing_contract_test.rb`.
 
 ## Decisions
+
+- D-30 and D-31, `docs/decisions/copy.md`: editable prose and its unchanged defaults.
 
 - D-15, `docs/decisions/writing.md`: Writing hides itself by asking whether anything is published (WR-1 to WR-3).
 - D-16, `docs/decisions/writing.md`: the feed link stays in the head when nothing is published, provisional (WR-4).

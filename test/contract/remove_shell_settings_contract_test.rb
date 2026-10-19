@@ -1,9 +1,9 @@
 require "test_helper"
 
 # The Contract for retiring the command line's settings, as tests. Each test is
-# named after an obligation in PRODUCT.md ("Contract: retiring the shell's
-# settings"). This is the one test file that names the three keys: it exists to
-# prove they are gone.
+# named after an obligation in docs/contracts/remove_shell_settings.md.
+# This is the one test file that names the three keys: it exists to prove they
+# are gone.
 class RemoveShellSettingsContractTest < ActionDispatch::IntegrationTest
   RETIRED = %w[ shell_opening shell_whoami shell_whoami_es ].freeze
 
@@ -56,7 +56,7 @@ class RemoveShellSettingsContractTest < ActionDispatch::IntegrationTest
       assert_select "[name=?]", "settings[#{key}]", { count: 0 }, key
       assert_nil SiteSetting[key], key
     end
-    assert_select "[name=?]", "settings[tagline]", 1
+    assert_select "[name=?]", "settings[site_title]", 1
   end
 
   private

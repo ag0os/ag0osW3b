@@ -55,9 +55,12 @@ bin/ci                # the full check, exactly what GitHub runs; run it before 
   `visible`. An optional `note` puts a short line in the page margin. Public pages render `Section.for_page(x).visible.ordered`.
 - **`Post`** — Markdown blog posts, `draft`/`published` (enum), public at
   `/writing/:slug`. `published_at` is set automatically on publish.
-- **`SiteSetting`** — key/value site-wide values (title, tagline, links,
-  `hero_note`). Read via `SiteSetting["key"]`, which falls back to
-  `SiteSetting::DEFAULTS`.
+- **`SiteSetting`** — key/value site-wide settings and bilingual page prose.
+  Ordinary settings read via `SiteSetting["key"]`, with blank values falling
+  back to `SiteSetting::DEFAULTS`. Copy keys read through `SiteSetting.localized`:
+  a missing Spanish row uses its Spanish default; a saved blank Spanish row
+  uses English, including rows saved before this change (D-30 in
+  `docs/decisions/copy.md`). The Copy helpers mark English fallback `lang="en"`.
 
 ### The front door
 
@@ -73,9 +76,10 @@ an `_es` suffix read through `SiteSetting.localized`. Sections have Spanish
 columns (`heading_es`, `note_es`, `body_es`) read through `Section#localized`,
 which falls back to the English field when the Spanish is blank; the section
 partial marks that English `lang="en"`. Public templates write no words of
-their own: every string goes through `t()` (LC-13 fails the build otherwise),
-dates through `l()`. Posts stay as written. The admin stays English, with
-fields for each section's Spanish. Seeded Spanish lives in
+their own: interface strings go through `t()`, page prose comes from Admin →
+Copy through the copy helpers, and sections/posts supply their own content
+(LC-13 guards these sources). Dates go through `l()`. Posts stay as written.
+The admin stays English, with fields for each section's Spanish. Seeded Spanish lives in
 `db/seeds/sections_es.yml`.
 
 ### Public vs admin
@@ -219,6 +223,7 @@ coverage for it.
 |---|---|---|---|
 | Contract: the Markdown renderer | MR | `markdown_renderer_contract_test.rb` | `markdown_renderer.md` |
 | Contract: the language | LC | `locale_contract_test.rb` | `locale.md` |
+| Contract: editable page copy | CO | `copy_contract_test.rb` | `copy.md` |
 | Contract: the home page | HP | `home_page_contract_test.rb` | `home_page.md` |
 | Contract: the post page | PP | `post_page_contract_test.rb` | `post_page.md` |
 | Contract: retiring the shell's settings | DM | `remove_shell_settings_contract_test.rb` | `remove_shell_settings.md` |

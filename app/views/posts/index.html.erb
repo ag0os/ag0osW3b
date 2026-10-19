@@ -1,10 +1,7 @@
 <% content_for :title, "#{t("nav.writing")} · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
-  <header class="page__header railed enter">
-    <h1><%= t("nav.writing") %></h1>
-    <p class="muted"><%= t("posts.lead") %></p>
-  </header>
+  <%= render "shared/page_header", title: t("nav.writing"), intro_key: "writing_intro" %>
 
   <% if @posts.any? %>
     <ul class="post-list">
@@ -21,6 +18,6 @@
       <% end %>
     </ul>
   <% else %>
-    <p class="muted rail-indent"><%= t("posts.empty") %></p>
+    <%= tag.p copy_text("writing_empty"), class: "muted rail-indent", lang: copy_lang("writing_empty") %>
   <% end %>
 </div>

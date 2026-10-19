@@ -1,9 +1,9 @@
 <section class="hero container railed enter">
   <%# The note precedes the h1 so it sits in the rail's first row, beside the title. %>
   <% if SiteSetting.localized("hero_note").present? %>
-    <p class="note rail"><%= SiteSetting.localized("hero_note") %></p>
+    <%= tag.p SiteSetting.localized("hero_note"), class: "note rail", lang: copy_lang("hero_note") %>
   <% end %>
-  <h1 class="hero__title"><%= marked(SiteSetting.localized("tagline")) %></h1>
+  <%= tag.h1 copy_text("tagline"), class: "hero__title", lang: copy_lang("tagline") %>
 </section>
 
 <div class="container stack">

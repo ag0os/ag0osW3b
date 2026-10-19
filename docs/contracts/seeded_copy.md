@@ -43,7 +43,9 @@ Kind: functional. Proof: test, SC-3 in `test/contract/seeded_copy_contract_test.
 
 ### SC-5 The footer CTA, Contact intro and About bio link to consulting
 
-The footer CTA in both locales, the Contact page's intro and the About bio each link to `/consulting`.
+The default footer CTA in both locales (editable in Copy with its consulting link retained), the Contact page's intro and the About bio each link to `/consulting`.
+
+Reworded 2026-10-19 by Copy admin; flagged for owner review.
 
 **Reason.** The owner decided on 2026-10-13 that the consulting page is reached from these entry points rather than the primary nav.
 
@@ -78,6 +80,8 @@ Kind: functional. Proof: test, the two tests named SC-7 in `test/contract/seeded
 Kind: functional. Proof: test, the three tests named SC-8 in `test/contract/seeded_copy_contract_test.rb`.
 
 ## Decisions
+
+- D-30 and D-31, `docs/decisions/copy.md`: editable prose and its unchanged defaults.
 
 - D-15, `docs/decisions/writing.md`: Writing hides itself by asking whether anything is published (SC-6, with WR-1 to WR-3).
 - D-28, `docs/decisions/seeded_copy.md`: the Spanish copy lives in one file, which the seeds and a fill-the-blanks migration both read (SC-7, SC-8).

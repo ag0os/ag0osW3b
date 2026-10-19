@@ -35,11 +35,12 @@
       <div class="admin-header__inner">
         <%= link_to "Admin", admin_root_path, class: "brand" %>
         <nav class="admin-nav" aria-label="Admin">
-          <%= link_to "Dashboard", admin_root_path %>
-          <%= link_to "Posts", admin_posts_path %>
-          <%= link_to "Sections", admin_sections_path %>
-          <%= link_to "Settings", admin_site_settings_path %>
-          <%= link_to "View site ↗", root_path, target: "_blank", rel: "noopener" %>
+          <%= link_to "Dashboard", admin_root_path, aria: { current: ("page" if current_page?(admin_root_path)) } %>
+          <%= link_to "Posts", admin_posts_path, aria: { current: ("page" if current_page?(admin_posts_path)) } %>
+          <%= link_to "Sections", admin_sections_path, aria: { current: ("page" if current_page?(admin_sections_path)) } %>
+          <%= link_to "Copy", admin_copy_path, aria: { current: ("page" if current_page?(admin_copy_path)) } %>
+          <%= link_to "Settings", admin_site_settings_path, aria: { current: ("page" if current_page?(admin_site_settings_path)) } %>
+          <%= link_to "View site ↗", root_path, aria: { current: ("page" if current_page?(root_path)) }, target: "_blank", rel: "noopener" %>
         </nav>
         <%= render "shared/theme_controls" %>
         <%= button_to "Sign out", session_path, method: :delete, class: "btn btn--ghost btn--sm" %>
