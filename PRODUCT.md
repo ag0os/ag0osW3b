@@ -132,12 +132,7 @@ Moved to `docs/contracts/post_page.md` (PP-1).
 
 ## Contract: retiring the shell's settings
 
-The shell's copy lived in three `site_settings` rows. A data migration removes them, because seeds are not a deploy step and a migration is. Every obligation below has a test of the same number in `test/contract/remove_shell_settings_contract_test.rb`.
-
-- **DM-1** One migration, `db/migrate/<timestamp>_remove_shell_settings.rb`, defining `RemoveShellSettings`, deletes the rows whose key is `shell_opening`, `shell_whoami` or `shell_whoami_es`, and changes no other row. *Because* a stored row outlives its default: the admin's settings form lists every stored key, so the rows would otherwise stay there as three fields that change nothing.
-- **DM-2** It runs cleanly on a database that never had the rows, and twice in a row. Rolling it back raises nothing and restores nothing. *Because* most databases never stored an override, and copy for a deleted component has nothing to come back to; an irreversible migration would only block rolling back past it.
-- **DM-3** It works on the table in SQL and never names the `SiteSetting` model. *Because* a migration runs against whatever the model is on the day it runs, and a model it leaned on may since have changed.
-- **DM-4** Afterwards the admin's settings page offers no field for any of the three, and `SiteSetting` has no value or default for them. The other settings are still offered. *Because* that is where the owner would otherwise meet the shell again.
+Moved to `docs/contracts/remove_shell_settings.md` (DM-1 to DM-4).
 
 ## Contract: the consulting page
 
@@ -247,3 +242,7 @@ What a green `ci` check on a pull request means. `bin/ci` runs the steps in `con
 - **CI-9** The Rails tests and the system tests pass only when the output of each run ends with Minitest's summary line, showing 0 failures, 0 errors, exactly the skips `test/ci/test_removals.yml` lists for that suite, and at least as many runs as the base has tests. The output is read by a process that doesn't load the app. The base's count comes from loading the base's own test files, exported from git, and counting their tests without running them. An export git doesn't complete, or a count of 0, fails. A change that removes tests on purpose adds an entry to `test/ci/test_removals.yml`, naming the suite, how many and why. Each entry the change adds lowers the count by its number for that suite, and an entry without a reason fails. A test that stays skipped is listed under `skips`, with its suite, how many and why. The list must match the run exactly, so a skip that is fixed comes off the list. *Because* any file the app loads can make the test process exit 0 without running a test (`at_exit { exit!(0) }`), and a deleted test is otherwise invisible. Minitest counts a skipped test as a run, and skipping a test that fails is the easiest way to make a suite pass. The base is main's code, which the change can't alter. A removal is a decision, so its reason goes in an owned file.
 
 What this does not cover: mutation runs only on the subjects listed in `config/mutant.yml`, the ones with a Contract test that declares `cover`. Code outside them is tested but not mutated. A pull request runs its own code, so a test that rewrites the test framework could pass anything. CODEOWNERS covers the gate's files, not every file the gate executes. A change to the mutation harness (`test/mutant/boot.rb`, `test/mutant/hooks.rb`) weakens both runs alike, so the comparison can't see it; only the `change: harness` reason (CI-5) and CODEOWNERS guard it. A rename in place is known only by its class gaining a subject, one for one, so deleting one method of a selected class while adding another to it passes as a rename. More widely, mutation's selection is the explicit list in `config/mutant.yml`: logic moved into a class the list doesn't select, behind a one-line delegate that keeps the old method's name so that no subject vanishes, is not mutated, and only the review of the pull request sees that. The test count is a tripwire, not a proof: app code that prints a convincing summary line before exiting would pass it.
+
+## Contract: editable page copy
+
+See `docs/contracts/copy.md` (CO-1 to CO-7).

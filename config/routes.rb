@@ -30,6 +30,7 @@ Rails.application.routes.draw do
     resources :sections do
       patch :toggle, on: :member
     end
+    resource :copy, only: %i[show update], controller: "copies"
     get   "settings", to: "site_settings#index",  as: :site_settings
     patch "settings", to: "site_settings#update", as: :update_site_settings
   end

@@ -255,7 +255,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     # Each page, by the heading that says which page it is.
     pages = I18n.with_locale(:es) do
       { root_path => MarkdownRenderer.unmark(SiteSetting.localized("tagline")), about_path => I18n.t("nav.about"), work_path => I18n.t("nav.work"),
-        contact_path => I18n.t("nav.contact"), consulting_path => I18n.t("consulting.heading"), posts_path => I18n.t("nav.writing"), post_path(published) => published.title }
+        contact_path => I18n.t("nav.contact"), consulting_path => SiteSetting.localized("consulting_heading"), posts_path => I18n.t("nav.writing"), post_path(published) => published.title }
     end
 
     pages.each do |path, heading|
@@ -477,4 +477,42 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
         value.is_a?(Hash) ? flatten(value, path) : [ path ]
       end
     end
+end
+
+class CopyLocaleContractTest < ActionDispatch::IntegrationTest
+  cover "SiteSetting*" if respond_to?(:cover)
+
+  test "LC-17 every saved blank Spanish copy field declares English fallback" do
+    Section.delete_all
+    Post.delete_all
+    cases = {
+      "tagline" => [ "/", ".hero h1" ], "hero_note" => [ "/", ".hero .note" ],
+      "work_intro" => [ "/work", ".page__header p" ], "writing_intro" => [ "/writing", ".page__header p" ],
+      "footer_pitch" => [ "/contact", ".site-footer__cta" ], "consulting_heading" => [ "/consulting", "main h1" ],
+      "consulting_contact" => [ "/consulting", "main > .page > p" ], "about_empty" => [ "/about", "main .muted" ],
+      "work_empty" => [ "/work", "main .rail-indent.muted" ], "writing_empty" => [ "/writing", "main .rail-indent.muted" ]
+    }
+    cases.each_key { |key| SiteSetting["#{key}_es"] = " \n " }
+    cookies[:locale] = "es"
+    cases.each do |key, (path, selector)|
+      get path
+      english = SiteSetting::DEFAULTS.fetch(key).gsub("%{consulting_link}", "consulting").gsub("%{linkedin_link}", "LinkedIn")
+      assert_select "#{selector}[lang=en]", 1, key
+      assert_select selector, text: english, count: 1
+    end
+    get contact_path
+    assert_select ".site-footer__cta[lang=en] a", text: "consulting"
+    cookies[:locale] = "en"
+    cases.each_value do |path, selector|
+      get path
+      assert_select "#{selector}[lang]", 0
+    end
+    # The form preserves a deliberate blank, while ordinary settings retain
+    # their existing blank-means-default rule.
+    sign_in_as users(:one)
+    get "/admin/copy"
+    assert_select 'textarea[name="copy[tagline_es]"]', text: " \n "
+    SiteSetting["email"] = " "
+    assert_equal SiteSetting::DEFAULTS.fetch("email"), SiteSetting["email"]
+  end
 end

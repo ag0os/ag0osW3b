@@ -4,5 +4,5 @@
     <%= render "shared/section", section: section %>
   <% end %>
 <% else %>
-  <p class="muted rail-indent"><%= empty %></p>
+  <%= tag.p copy_text(empty_key), class: "muted rail-indent", lang: copy_lang(empty_key) %>
 <% end %>

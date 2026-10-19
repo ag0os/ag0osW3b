@@ -15,7 +15,7 @@ depends_on: []
 tests:
   - test/contract/locale_contract_test.rb
 ---
-Coverage: 16 obligations; 16 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
+Coverage: 17 obligations; 17 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
 
 # Contract: the language
 
@@ -155,10 +155,20 @@ The admin's section form has fields for the Spanish heading, note and body. Savi
 
 Kind: functional. Proof: test, LC-16 in `test/contract/locale_contract_test.rb`.
 
+### LC-17 Editable page copy falls back field by field
+
+On a Spanish page, each editable copy field uses its Spanish default when its row is missing, and its English value when the saved Spanish is blank. English fallback declares `lang="en"` on its prose element; translated prose has no language override. English pages never use Spanish copy. Link labels follow the actual prose language.
+
+**Reason.** Defaults keep production translated without a data step, and a saved blank requests the same readable, correctly pronounced fallback as sections. (D-30, D-31)
+
+Kind: functional. Proof: test, LC-17 in `test/contract/locale_contract_test.rb`.
+
 ## Decisions
+
+- D-30 and D-31, `docs/decisions/copy.md`: editable copy fallback and generated link labels (LC-17).
 
 - D-8, `docs/decisions/locale.md`: the language control is a form that PATCHes, not a link (LC-6, LC-7, LC-10).
 - D-9, `docs/decisions/locale.md`: back where the visitor was; home when that is unknown or foreign (LC-7, LC-8, LC-9).
 - D-10, `docs/decisions/locale.md`: `Accept-Language` is read in the order sent (LC-2).
 - D-11, `docs/decisions/locale.md`: each button names its language in that language (LC-10).
-- D-27, `docs/decisions/locale.md`: Spanish sections are three columns that fall back field by field, and the chrome comes only from the locale files (LC-12 to LC-16).
+- D-27, `docs/decisions/locale.md`: Spanish sections are three columns that fall back field by field, and the interface chrome comes from the locale files (LC-12 to LC-16); editable prose is superseded by D-30.

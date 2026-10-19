@@ -1,15 +1,15 @@
-<% heading = t("consulting.heading") %>
-<% content_for :title, "#{heading} · #{SiteSetting["site_title"]}" %>
+<% heading = SiteSetting.localized("consulting_heading") %>
+<% content_for :title, "#{unmarked(heading)} · #{SiteSetting["site_title"]}" %>
 <% content_for :description, unmarked(@sections.find { |section| section.key == "consulting_intro" }&.localized(:body)).squish %>
 
 <div class="container stack page">
   <header class="page__header railed enter">
-    <h1><%= heading %></h1>
+    <%= tag.h1 heading, lang: copy_lang("consulting_heading") %>
   </header>
 
   <% @sections.each do |section| %>
     <%= render "shared/section", section: section %>
   <% end %>
 
-  <p class="prose rail-indent"><%= t("consulting.contact_html", linkedin_link: link_to("LinkedIn", SiteSetting["linkedin_url"], target: "_blank", rel: "noopener")) %></p>
+  <%= tag.p copy_text("consulting_contact"), class: "prose rail-indent", lang: copy_lang("consulting_contact") %>
 </div>
