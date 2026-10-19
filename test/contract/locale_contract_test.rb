@@ -251,14 +251,21 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
 
   test "LC-12 no page in Spanish shows a string the locale files give in English" do
     cookies[:locale] = "es"
-    pages = [ root_path, about_path, work_path, contact_path, consulting_path, posts_path, post_path(posts(:published_post)) ]
+    published = posts(:published_post)
+    # Each page, by the heading that says which page it is.
+    pages = I18n.with_locale(:es) do
+      { root_path => MarkdownRenderer.unmark(SiteSetting.localized("tagline")), about_path => I18n.t("nav.about"), work_path => I18n.t("nav.work"),
+        contact_path => I18n.t("nav.contact"), consulting_path => I18n.t("consulting.heading"), posts_path => I18n.t("nav.writing"), post_path(published) => published.title }
+    end
 
-    pages.each do |path|
+    pages.each do |path, heading|
       get path
+      assert_response :success, path
+      assert_language "es", path
+      assert_select "main h1", { count: 1, text: heading }, path
       assert_no_english_chrome visible_text(response.parsed_body), path
     end
-    get feed_path
-    assert_no_english_chrome Nokogiri::XML(response.body).text, "the feed"
+    assert_no_english_chrome atom_feed("es").text, "the feed"
   end
 
   test "LC-12 nor does Writing with nothing published" do
@@ -267,16 +274,19 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
 
     get posts_path
 
+    assert_response :success
+    assert_language "es"
     assert_no_english_chrome visible_text(response.parsed_body), posts_path
     assert_select "main", text: /Muy pronto, los primeros ensayos/
   end
 
   test "LC-13 no public template holds a word of its own outside the proper nouns" do
-    templates = Pathname.glob(Rails.root.join("app/views/{home,pages,posts,shared}/**/*.erb")) << Rails.root.join("app/views/layouts/application.html.erb")
+    templates = Pathname.glob(Rails.root.join("app/views/{home,pages,posts,shared}/**/*.{erb,builder}")) << Rails.root.join("app/views/layouts/application.html.erb")
     assert_operator templates.size, :>, 10
+    assert_includes templates, Rails.root.join("app/views/posts/feed.atom.builder")
 
     templates.each do |template|
-      words = literal_words(template.read)
+      words = literal_words(template.read, ruby: template.extname == ".builder")
       assert_empty words - PROPER_NOUNS, "#{template.relative_path_from(Rails.root)} writes these itself instead of through t()"
     end
   end
@@ -287,6 +297,8 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     assert_equal %w[ Elsewhere ], literal_words(%(<%= link_to "Elsewhere", root_path, class: "nav-link" %>))
     assert_equal %w[ About ], literal_words(%(<% content_for :title, "About · \#{site}" %>))
     assert_empty literal_words(%(<p class="muted"><%= t("nav.about") %> · <%= link_to "GitHub", url %></p>)) - PROPER_NOUNS
+    assert_equal %w[ All ], literal_words(%(feed.rights("All rights reserved")), ruby: true)
+    assert_empty literal_words(%(feed.title(t("posts.feed_title", name: SiteSetting["site_title"]))), ruby: true)
   end
 
   test "LC-14 a section shows its Spanish heading, note and body on a Spanish page" do
@@ -344,11 +356,11 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
   test "LC-15 the feed declares the page's language and reads in it" do
     SiteSetting["tagline_es"] = "Construye ==software== cuidadoso."
 
-    cookies[:locale] = "es"
-    get feed_path
+    cookies[:locale] = "en"
+    assert_equal "Writing by Test Site", atom_feed("en").remove_namespaces!.at("feed > title").text
 
-    feed = Nokogiri::XML(response.body).remove_namespaces!
-    assert_equal "es", feed.root["lang"]
+    cookies[:locale] = "es"
+    feed = atom_feed("es").remove_namespaces!
     assert_equal "Escritos de Test Site", feed.at("feed > title").text
     assert_equal "Construye software cuidadoso.", feed.at("feed > subtitle").text
   end
@@ -393,14 +405,32 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
       (text + labels).join("\n")
     end
 
+    # The feed at the request's locale, after asserting it is an Atom feed that
+    # declares that language as xml:lang, not as a lang of no namespace.
+    def atom_feed(code)
+      get feed_path
+      assert_response :success
+      feed = Nokogiri::XML(response.body) { |config| config.strict }
+      assert_equal [ "http://www.w3.org/2005/Atom", "feed" ], [ feed.root.namespace&.href, feed.root.name ]
+      assert_equal code, feed.root.attribute_with_ns("lang", "http://www.w3.org/XML/1998/namespace")&.value, "xml:lang"
+      feed
+    end
+
     # The words a template writes itself: in its markup's text and labelling
-    # attributes, and capitalised in the string literals of its Ruby.
-    def literal_words(source)
+    # attributes, and capitalised in the string literals of its Ruby. A Builder
+    # template (ruby: true) is all Ruby.
+    def literal_words(source, ruby: false)
+      return capitalised_words(Prism.parse(source).value) if ruby
+
       source = source.gsub(/<%#.*?%>/m, "").gsub(/<%= javascript_tag.*?<% end %>/m, "")
       markup = Nokogiri::HTML5(source.gsub(/<%.*?%>/m, "·"))
       text = markup.xpath("//text() | //@aria-label | //@title | //@alt | //@placeholder").map { |node| node.text }
       ruby = Prism.parse(source.scan(/<%=?(.*?)-?%>/m).flatten.join("\n")).value
-      text.flat_map { |string| string.scan(/\p{L}{2,}/) } + strings_in(ruby).flat_map { |string| string.scan(/\p{Lu}\p{L}+/) }
+      text.flat_map { |string| string.scan(/\p{L}{2,}/) } + capitalised_words(ruby)
+    end
+
+    def capitalised_words(ruby)
+      strings_in(ruby).flat_map { |string| string.scan(/\p{Lu}\p{L}+/) }
     end
 
     def strings_in(node)

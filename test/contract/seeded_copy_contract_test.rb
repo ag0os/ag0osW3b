@@ -89,30 +89,39 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
 
   test "SC-8 it leaves English, Spanish already written, and other sections as they are" do
     Section.update_all(heading_es: nil, note_es: nil, body_es: nil)
-    edited = Section.find_by!(key: "home_featured")
-    edited.update!(heading: "Edited in the admin", heading_es: "Escrito en el admin")
+    # The owner's edits in every field, English and Spanish, some emptied or
+    # left as whitespace. Blank Spanish is filled; nothing else moves.
+    Section.find_by!(key: "home_featured").update!(heading: "Edited heading", note: "", body: "Edited body.",
+      heading_es: "Encabezado editado", note_es: "Nota editada.", body_es: "Cuerpo editado.")
+    Section.find_by!(key: "home_what_i_do").update!(heading: "  ", note: "Edited note.", body: "",
+      heading_es: "", note_es: " \n", body_es: "\t")
+    Section.find_by!(key: "about_bio").update!(heading: "Edited bio", note: " ", body: "Edited bio body.",
+      heading_es: "Encabezado escrito", note_es: "", body_es: "Cuerpo escrito.")
+    before = Section.order(:id).map(&:attributes)
     others = Section.where(key: %w[ home_intro home_hidden ]).map(&:attributes)
 
     migrate :up
 
-    edited.reload
-    assert_equal [ "Edited in the admin", "Escrito en el admin" ], [ edited.heading, edited.heading_es ]
-    assert_equal "Lo hice porque lo necesitaba.", edited.note_es
-    assert_predicate edited.body_es, :present?
+    spanish = YAML.load_file(Rails.root.join("db/seeds/sections_es.yml"))
+    expected = before.map { |row| row.merge(spanish.fetch(row["key"], {}).select { |field, _| row[field].blank? }) }
+    assert_equal expected.map { |row| row.except("updated_at") }, Section.order(:id).map { |row| row.attributes.except("updated_at") }
     assert_equal others, Section.where(key: %w[ home_intro home_hidden ]).map(&:attributes)
   end
 
   test "SC-8 it creates nothing, runs twice cleanly, and rolls back as a no-op" do
     Section.find_by!(key: "about_bio").destroy
     Section.update_all(body_es: nil)
+    ids = Section.ids.sort
 
     migrate :up
+    once = Section.order(:id).map(&:attributes)
     migrate :up
-    rows = Section.order(:key).map(&:attributes)
+    assert_equal once, Section.order(:id).map(&:attributes), "the second run"
     migrate :down
+    assert_equal once, Section.order(:id).map(&:attributes), "the rollback"
 
     assert_nil Section.find_by(key: "about_bio")
-    assert_equal rows, Section.order(:key).map(&:attributes)
+    assert_equal ids, Section.ids.sort
   end
 
   test "settled taglines describe the home page and its link previews in both languages" do
