@@ -1,9 +1,9 @@
-<% content_for :title, "Writing · #{SiteSetting["site_title"]}" %>
+<% content_for :title, "#{t("nav.writing")} · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
   <header class="page__header railed enter">
-    <h1>Writing</h1>
-    <p class="muted">Notes on AI-native workflows, agent orchestration, and product-minded engineering.</p>
+    <h1><%= t("nav.writing") %></h1>
+    <p class="muted"><%= t("posts.lead") %></p>
   </header>
 
   <% if @posts.any? %>
@@ -11,7 +11,7 @@
       <% @posts.each do |post| %>
         <li class="post-list__item railed">
           <time class="post-list__date rail" datetime="<%= post.published_at&.iso8601 %>">
-            <%= post.published_at&.strftime("%b %-d, %Y") %>
+            <%= l(post.published_at, format: :list) %>
           </time>
           <%= link_to post.title, post_path(post), class: "post-list__title" %>
           <% if post.excerpt.present? %>
@@ -21,6 +21,6 @@
       <% end %>
     </ul>
   <% else %>
-    <p class="muted rail-indent">First essays coming soon.</p>
+    <p class="muted rail-indent"><%= t("posts.empty") %></p>
   <% end %>
 </div>

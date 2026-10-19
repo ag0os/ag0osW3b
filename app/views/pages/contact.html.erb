@@ -1,8 +1,8 @@
-<% content_for :title, "Contact · #{SiteSetting["site_title"]}" %>
+<% content_for :title, "#{t("nav.contact")} · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
   <header class="page__header railed enter">
-    <h1>Contact</h1>
+    <h1><%= t("nav.contact") %></h1>
   </header>
 
   <% @sections.each do |section| %>

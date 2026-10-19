@@ -53,6 +53,68 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     assert_equal posts(:draft_post, :published_post).map(&:id).sort, Post.ids.sort
   end
 
+  test "SC-7 every seeded section has Spanish for each field it has in English, with the same links and marks" do
+    only_seeded_sections
+    assert_operator Section.count, :>, 10
+
+    Section.find_each do |section|
+      %w[ heading note body ].each do |field|
+        assert_equal section[field].present?, section["#{field}_es"].present?, "#{section.key}.#{field}_es"
+      end
+      english, spanish = [ section.body, section.body_es ].map { |body| Nokogiri::HTML5.fragment(MarkdownRenderer.render(body)) }
+      assert_equal english.css("a").map { |a| a["href"] }, spanish.css("a").map { |a| a["href"] }, "#{section.key} links"
+      assert_equal english.css("mark").size, spanish.css("mark").size, "#{section.key} marks"
+    end
+  end
+
+  test "SC-7 a seeded page in Spanish shows its Spanish, none of it marked as English" do
+    only_seeded_sections
+    cookies[:locale] = "es"
+    { "/" => "home_what_i_do", "/about" => "about_bio", "/work" => "work_open_source", "/contact" => "contact_intro", "/consulting" => "consulting_intro" }.each do |path, key|
+      get path
+      assert_select "main [lang]", { count: 0 }, path
+      spanish = Nokogiri::HTML5.fragment(MarkdownRenderer.render(Section.find_by!(key: key).body_es))
+      assert_equal spanish.text.squish, css_select("##{key} .prose").text.squish, path
+    end
+  end
+
+  test "SC-8 the migration fills every blank Spanish field of the seeded sections" do
+    spanish = Section.pluck(:key, :heading_es, :note_es, :body_es).sort
+    Section.update_all(heading_es: nil, note_es: nil, body_es: nil)
+
+    migrate :up
+
+    assert_equal spanish, Section.pluck(:key, :heading_es, :note_es, :body_es).sort
+  end
+
+  test "SC-8 it leaves English, Spanish already written, and other sections as they are" do
+    Section.update_all(heading_es: nil, note_es: nil, body_es: nil)
+    edited = Section.find_by!(key: "home_featured")
+    edited.update!(heading: "Edited in the admin", heading_es: "Escrito en el admin")
+    others = Section.where(key: %w[ home_intro home_hidden ]).map(&:attributes)
+
+    migrate :up
+
+    edited.reload
+    assert_equal [ "Edited in the admin", "Escrito en el admin" ], [ edited.heading, edited.heading_es ]
+    assert_equal "Lo hice porque lo necesitaba.", edited.note_es
+    assert_predicate edited.body_es, :present?
+    assert_equal others, Section.where(key: %w[ home_intro home_hidden ]).map(&:attributes)
+  end
+
+  test "SC-8 it creates nothing, runs twice cleanly, and rolls back as a no-op" do
+    Section.find_by!(key: "about_bio").destroy
+    Section.update_all(body_es: nil)
+
+    migrate :up
+    migrate :up
+    rows = Section.order(:key).map(&:attributes)
+    migrate :down
+
+    assert_nil Section.find_by(key: "about_bio")
+    assert_equal rows, Section.order(:key).map(&:attributes)
+  end
+
   test "settled taglines describe the home page and its link previews in both languages" do
     SiteSetting.where(key: %w[tagline tagline_es]).delete_all
     { "en" => "Senior Software Engineer. I build the systems that let agents build good software.",
@@ -107,4 +169,16 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
       assert_select ".site-footer__cta", text: invitation
     end
   end
+
+  private
+    # The fixtures' sections are English only; this leaves just the seeded ones.
+    def only_seeded_sections
+      Section.delete_all
+      capture_io { load Rails.root.join("db/seeds.rb") }
+    end
+
+    def migrate(direction)
+      load Rails.root.join("db/migrate/20261019120100_fill_spanish_sections.rb").to_s
+      ActiveRecord::Migration.suppress_messages { FillSpanishSections.new.migrate(direction) }
+    end
 end

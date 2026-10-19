@@ -1,0 +1,118 @@
+# Spanish for every seeded section, by key: the Spanish sibling of the
+# heading, note and body in db/seeds.rb, which merges this file in. The
+# FillSpanishSections migration reads it too, to put the Spanish on a
+# database seeded before there was any. Drafted from the English for the owner
+# to correct in /admin, in the same voice and with the same links and marks.
+
+home_what_i_do:
+  heading_es: Qué hago
+  note_es: Las herramientas son nuevas. El criterio, no.
+  body_es: |
+    - Construyo los sistemas que permiten a los agentes construir buen software: planes y contexto, orquestación, y la verificación que hace confiable el resultado.
+    - Convierto una intención de producto difusa en ==sistemas planificados, testeados y mantenibles==.
+    - Tengo experiencia senior en **backend, full-stack y cloud**: Ruby on Rails como base en producción, TypeScript en mis propias herramientas.
+
+home_featured:
+  heading_es: "Destacado: Shepherd"
+  note_es: Lo hice porque lo necesitaba.
+  body_es: |
+    **Shepherd** es lo que uso todos los días: un agente por proyecto que guarda el contexto, sigue el trabajo entre sesiones y dirige a los demás agentes, sobre Claude Code o Codex. Tengo un rebaño entero. Vive en Troupe, mi kit de herramientas para agentes.
+
+    [Troupe en GitHub →](https://github.com/ag0os/troupe)
+
+    Antes de Shepherd construí **Cosmonauts**, un framework de orquestación de agentes con la verificación dentro del pipeline. El desarrollo está pausado; el código es público.
+
+    [Cosmonauts en GitHub →](https://github.com/ag0os/cosmonauts)
+
+home_proof:
+  heading_es: Pruebas concretas
+  note_es: Números, no adjetivos.
+  body_es: |
+    - Flujos de pago seguros para **cientos de organizaciones deportivas**, miles de transacciones por día.
+    - Extendí un patrón de migración de **AWS SQS→Kafka** para los flujos de una plataforma de video.
+    - Funcionalidades Kanban entre equipos para una plataforma interna con **más de 10.000 usuarios activos por día**.
+    - **45%** menos de bundle en el frontend; **30%** menos de almacenamiento en mainframe (unos USD 50.000 por año).
+
+about_bio:
+  note_es: San Isidro, GMT-3.
+  body_es: |
+    Soy ingeniero de software y vivo en San Isidro, Buenos Aires (GMT-3). Más de 16 años en IT y más de 6 en ingeniería de software, en pagos, streaming de video y plataformas corporativas. Ruby on Rails como base en producción, TypeScript en mis propias herramientas. Claude Certified Architect (Foundations).
+
+    Antes del software pasé 13 años como DJ, productor musical e ingeniero de sonido, una formación creativa y técnica que todavía aprovecho. Pasé a IT y después a la ingeniería de software full-stack, y hoy mi trabajo combina fundamentos sólidos de ingeniería con una forma de trabajar nativa de IA: construyo harnesses de agentes, sistemas de flujo de trabajo y ciclos de verificación.
+
+    En 2024 cambiaron las herramientas y dejé de escribir código a mano. Pasé el año siguiente entendiendo qué me pedía esta forma de trabajar, y desde 2025 lo construyo en sistemas propios. Me interesan los roles que construyen sistemas de agentes y productos AI-native, y ayudo a equipos a trabajar de la misma manera: [consultoría](/consulting).
+
+about_how_i_work:
+  heading_es: Cómo trabajo
+  note_es: Este es todo el argumento.
+  body_es: |
+    > La IA no elimina la necesidad de criterio de ingeniería. ==Adelanta el criterio==:
+    > a la planificación, la arquitectura, los tests, los límites y los ciclos de feedback.
+
+    Me importan tanto la salud del código como el diseño del trabajo con agentes: contexto,
+    restricciones, tests, verificación y mantenibilidad.
+
+about_languages:
+  heading_es: Idiomas
+  body_es: |
+    - Español: nativo
+    - Portugués: nativo / bilingüe
+    - Inglés: fluido
+
+work_open_source:
+  heading_es: Código abierto
+  note_es: Todo público.
+  body_es: |
+    - **[Troupe](https://github.com/ag0os/troupe)**. Mi kit de herramientas para agentes, empezado en 2025 como fork de un proyecto de taller. Es la casa de Shepherd, el agente por proyecto que uso todos los días.
+    - **[Cosmonauts](https://github.com/ag0os/cosmonauts)**. Framework de orquestación de agentes, 2026, el predecesor de Shepherd. El desarrollo está pausado.
+    - **[Bright Tauri](https://github.com/ag0os/bright-tauri)**. App de React + Rust/Tauri en etapa temprana.
+
+work_experience:
+  heading_es: Experiencia seleccionada
+  note_es: Casi todo lo demás es privado.
+  body_es: |
+    - **Senior Full-Stack Engineer**. Sistemas fintech y de pagos en Rails para una gran plataforma de tecnología deportiva; flujos de pago seguros para ==cientos de organizaciones== y miles de transacciones por día.
+    - **Software Engineer, streaming de video**. Extendí un patrón de migración de AWS SQS→Kafka; mejoré servicios de suscripción (validación de recibos de Apple/Google Play, integraciones con AWS Marketplace).
+    - **Full-Stack Developer, IBM**. Plataforma interna con más de 10.000 usuarios activos por día; componentes Vue reutilizables; 45% menos de bundle en el frontend.
+    - **Líder de automatización de mainframe / compliance, IBM**. 30% menos de almacenamiento, unos USD 50.000 ahorrados por año.
+
+consulting_intro:
+  body_es: |
+    Soy ingeniero de software. Desde 2025 construyo los sistemas que permiten a los agentes escribir buen software, y ayudo a equipos a hacer lo mismo. En 2024 dejé de escribir código a mano.
+
+consulting_agentic:
+  heading_es: 1. Desarrollo con agentes para equipos de software
+  body_es: |
+    Tus desarrolladores ya tienen Claude Code, Codex o Cursor. Sacarles trabajo
+    real es otra cosa. Ayudo a los equipos a armar su forma de trabajar con
+    agentes:
+
+    - Planes antes del código, y contexto que el próximo agente pueda retomar.
+    - Revisión con otro modelo, para que un agente controle a otro.
+    - Coordinación cuando muchos agentes trabajan a la vez, en varios proyectos.
+    - Los fundamentos de ingeniería dentro del sistema: tests que significan algo,
+      un código que la próxima persona pueda leer, deuda técnica detectada a tiempo.
+
+    Así trabajo todos los días, con Shepherd: un agente por proyecto que guarda
+    el contexto, sigue el trabajo y dirige a los demás agentes. Es parte de
+    Troupe, que es público: [github.com/ag0os/troupe](https://github.com/ag0os/troupe).
+
+consulting_systems:
+  heading_es: 2. Construir sistemas AI-native
+  body_es: |
+    Vos conocés tu dominio. Yo sé cómo convertir ese conocimiento en un sistema
+    que funcione: agentes, herramientas y los controles que hacen confiable el
+    resultado. Te puedo ayudar a diseñarlo y a construirlo.
+
+consulting_background:
+  heading_es: Trayectoria
+  body_es: |
+    Más de 16 años en IT y más de 6 en ingeniería de software, en pagos,
+    streaming de video y plataformas corporativas. Ruby on Rails, TypeScript.
+    Claude Certified Architect (Foundations).
+
+contact_intro:
+  note_es: Respondo los mails.
+  body_es: |
+    Estoy abierto a roles que construyen sistemas de agentes y productos AI-native, y a [consultoría](/consulting) para equipos que adoptan agentes.
+    La forma más rápida de contactarme es por mail, o encontrame en LinkedIn y GitHub acá abajo.

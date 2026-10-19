@@ -1,6 +1,6 @@
-atom_feed(language: "en", url: feed_url) do |feed|
-  feed.title("Writing by #{SiteSetting['site_title']}")
-  feed.subtitle(SiteSetting["tagline"])
+atom_feed(language: I18n.locale.to_s, url: feed_url) do |feed|
+  feed.title(t("posts.feed_title", name: SiteSetting["site_title"]))
+  feed.subtitle(MarkdownRenderer.unmark(SiteSetting.localized("tagline")))
   feed.updated(@posts.first&.published_at)
 
   @posts.each do |post|

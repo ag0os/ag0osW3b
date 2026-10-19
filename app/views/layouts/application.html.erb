@@ -28,7 +28,7 @@
     <meta name="twitter:card" content="summary">
 
     <link rel="alternate" type="application/atom+xml"
-          title="Writing by <%= SiteSetting["site_title"] %>" href="<%= feed_url %>">
+          title="<%= t("posts.feed_title", name: SiteSetting["site_title"]) %>" href="<%= feed_url %>">
 
     <%# Applies the visitor's saved preset and mode before first paint.
         data-theme always has a server-rendered value (the site default).

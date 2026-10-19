@@ -120,7 +120,11 @@ sections = [
   MD
 ]
 
+# Each section's Spanish, by key. fetch, so a seeded section without its
+# Spanish fails here rather than showing English on the Spanish site.
+spanish = YAML.load_file(Rails.root.join("db/seeds/sections_es.yml"))
+
 sections.each do |attrs|
-  Section.find_or_initialize_by(key: attrs[:key]).update!(attrs.merge(visible: true))
+  Section.find_or_initialize_by(key: attrs[:key]).update!(attrs.merge(spanish.fetch(attrs[:key]), visible: true))
 end
 puts "→ Upserted #{sections.size} sections"

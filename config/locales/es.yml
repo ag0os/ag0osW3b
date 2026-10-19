@@ -1,6 +1,7 @@
 es:
   skip_link: "Ir al contenido"
   nav:
+    label: "Principal"
     home: "Inicio"
     about: "Sobre mí"
     work: "Trabajo"
@@ -9,7 +10,32 @@ es:
   home:
     writing: "Escritos"
     all_writing: "Todos los escritos →"
+  pages:
+    about_empty: "Muy pronto, más sobre mí."
+    work_lead: "Casi todo mi trabajo de producto es privado. Esta es la prueba pública."
+    work_empty: "Muy pronto, proyectos."
+  consulting:
+    heading: "Agustín Calabrese: desarrollo con agentes y sistemas AI-native"
+    contact_html: "¿Querés hablar de tu equipo? Escribime por %{linkedin_link}."
+  posts:
+    lead: "Notas sobre flujos de trabajo AI-native, orquestación de agentes e ingeniería con mirada de producto."
+    empty: "Muy pronto, los primeros ensayos."
+    all: "← Todos los escritos"
+    feed_title: "Escritos de %{name}"
   footer:
     cta_html: "Abierto a roles construyendo sistemas de agentes y productos AI-native, y a %{consulting_link}."
     consulting: "consultoría"
     language: "Idioma"
+    elsewhere: "En otros sitios"
+    email: "Mail"
+  theme:
+    switcher: "Tema de diseño"
+    preset: "Tema %{name}"
+    dark_mode: "Modo oscuro"
+  date:
+    month_names: [~, enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, octubre, noviembre, diciembre]
+    abbr_month_names: [~, ene, feb, mar, abr, may, jun, jul, ago, sep, oct, nov, dic]
+  time:
+    formats:
+      list: "%-d %b %Y"
+      post: "%-d de %B de %Y"

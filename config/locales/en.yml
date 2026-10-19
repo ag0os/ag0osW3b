@@ -1,6 +1,7 @@
 en:
   skip_link: "Skip to content"
   nav:
+    label: "Primary"
     home: "Home"
     about: "About"
     work: "Work"
@@ -9,7 +10,34 @@ en:
   home:
     writing: "Writing"
     all_writing: "All writing →"
+  pages:
+    about_empty: "About content coming soon."
+    work_lead: "Most of my product work is private. Here's the public proof."
+    work_empty: "Projects coming soon."
+  consulting:
+    heading: "Agustín Calabrese: agentic development and AI-native systems"
+    contact_html: "Want to talk about your team? Get in touch on %{linkedin_link}."
+  posts:
+    lead: "Notes on AI-native workflows, agent orchestration, and product-minded engineering."
+    empty: "First essays coming soon."
+    all: "← All writing"
+    feed_title: "Writing by %{name}"
   footer:
     cta_html: "Open to roles building agent systems and AI-native products, and to %{consulting_link}."
     consulting: "consulting"
     language: "Language"
+    elsewhere: "Elsewhere"
+    email: "Email"
+  theme:
+    switcher: "Design theme"
+    preset: "%{name} theme"
+    dark_mode: "Dark mode"
+  # Rails ships the English month names; they are repeated here so the two
+  # files keep one tree of keys (LC-5) and the Spanish has a twin to match.
+  date:
+    month_names: [~, January, February, March, April, May, June, July, August, September, October, November, December]
+    abbr_month_names: [~, Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
+  time:
+    formats:
+      list: "%b %-d, %Y"
+      post: "%B %-d, %Y"

@@ -44,6 +44,24 @@
     <%= form.text_area :body, rows: 14, class: "mono" %>
   </label>
 
+  <h2 class="section-group">Spanish</h2>
+  <p class="form-hint">Shown to visitors reading in Spanish. A field left blank shows the English above.</p>
+
+  <label class="field">
+    <span>Heading <small class="muted">(Spanish, optional)</small></span>
+    <%= form.text_field :heading_es, lang: "es" %>
+  </label>
+
+  <label class="field">
+    <span>Margin note <small class="muted">(Spanish, optional)</small></span>
+    <%= form.text_field :note_es, lang: "es" %>
+  </label>
+
+  <label class="field">
+    <span>Body <small class="muted">(Spanish, Markdown)</small></span>
+    <%= form.text_area :body_es, rows: 14, class: "mono", lang: "es" %>
+  </label>
+
   <div class="form-actions">
     <%= form.submit class: "btn btn--primary" %>
     <%= link_to "Cancel", admin_sections_path, class: "btn btn--ghost" %>

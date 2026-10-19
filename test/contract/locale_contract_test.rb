@@ -1,9 +1,11 @@
 require "test_helper"
 
 # The language's Contract, as tests. Each test is named after an obligation in
-# PRODUCT.md ("Contract: the language") and asserts only on HTTP: the status,
-# the redirect, the cookie and the rendered HTML. LC-1 to LC-5 decide which
-# language a page is in; LC-6 to LC-11 are the footer control.
+# docs/contracts/locale.md and asserts only on HTTP: the status, the redirect,
+# the cookie and the rendered HTML, except LC-5 and LC-13, which read the
+# locale files and the templates. LC-1 to LC-5 decide which language a page is
+# in; LC-6 to LC-11 are the footer control; LC-12 to LC-16 are what a page in
+# Spanish reads.
 class LocaleContractTest < ActionDispatch::IntegrationTest
   cover "SiteController*" if respond_to?(:cover)
   cover "LocalesController*" if respond_to?(:cover)
@@ -245,7 +247,175 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     assert_language "es"
   end
 
+  # --- What a page in Spanish reads -------------------------------------------
+
+  test "LC-12 no page in Spanish shows a string the locale files give in English" do
+    cookies[:locale] = "es"
+    pages = [ root_path, about_path, work_path, contact_path, consulting_path, posts_path, post_path(posts(:published_post)) ]
+
+    pages.each do |path|
+      get path
+      assert_no_english_chrome visible_text(response.parsed_body), path
+    end
+    get feed_path
+    assert_no_english_chrome Nokogiri::XML(response.body).text, "the feed"
+  end
+
+  test "LC-12 nor does Writing with nothing published" do
+    Post.update_all(status: :draft, published_at: nil)
+    cookies[:locale] = "es"
+
+    get posts_path
+
+    assert_no_english_chrome visible_text(response.parsed_body), posts_path
+    assert_select "main", text: /Muy pronto, los primeros ensayos/
+  end
+
+  test "LC-13 no public template holds a word of its own outside the proper nouns" do
+    templates = Pathname.glob(Rails.root.join("app/views/{home,pages,posts,shared}/**/*.erb")) << Rails.root.join("app/views/layouts/application.html.erb")
+    assert_operator templates.size, :>, 10
+
+    templates.each do |template|
+      words = literal_words(template.read)
+      assert_empty words - PROPER_NOUNS, "#{template.relative_path_from(Rails.root)} writes these itself instead of through t()"
+    end
+  end
+
+  test "LC-13 the scan finds a word in text, in a labelling attribute and in a Ruby string" do
+    assert_equal %w[ Hello ], literal_words("<p>Hello <%= name %></p>")
+    assert_equal %w[ Close ], literal_words(%(<button aria-label="Close"></button>))
+    assert_equal %w[ Elsewhere ], literal_words(%(<%= link_to "Elsewhere", root_path, class: "nav-link" %>))
+    assert_equal %w[ About ], literal_words(%(<% content_for :title, "About · \#{site}" %>))
+    assert_empty literal_words(%(<p class="muted"><%= t("nav.about") %> · <%= link_to "GitHub", url %></p>)) - PROPER_NOUNS
+  end
+
+  test "LC-14 a section shows its Spanish heading, note and body on a Spanish page" do
+    sections(:home_intro).update!(heading_es: "Introducción", note_es: "Una nota al margen.", body_es: "Hola desde ==inicio==.")
+
+    get root_path
+    assert_select "#home_intro h2", text: "Intro"
+    assert_select "#home_intro .note", text: "A note in the margin."
+    assert_select "#home_intro .prose mark", text: "home"
+
+    cookies[:locale] = "es"
+    get root_path
+    assert_select "#home_intro h2:not([lang])", text: "Introducción"
+    assert_select "#home_intro .note:not([lang])", text: "Una nota al margen."
+    assert_select "#home_intro .prose:not([lang]) mark", text: "inicio"
+    assert_select "#home_intro [lang]", 0
+  end
+
+  test "LC-14 a Spanish field left blank shows the English, marked as English" do
+    sections(:home_intro).update!(heading_es: "Introducción", note_es: "", body_es: nil)
+    cookies[:locale] = "es"
+
+    get root_path
+
+    assert_select "#home_intro h2:not([lang])", text: "Introducción"
+    assert_select "#home_intro .note[lang=en]", text: "A note in the margin."
+    assert_select "#home_intro .prose[lang=en] mark", text: "home"
+  end
+
+  test "LC-14 an English page never shows Spanish, nor marks its own language" do
+    sections(:home_intro).update!(heading_es: "Introducción", note_es: "Una nota al margen.", body_es: "Hola.")
+
+    get root_path
+
+    assert_select "#home_intro h2", text: "Intro"
+    assert_select "#home_intro [lang]", 0
+    assert_no_match(/Introducción|Una nota al margen/, response.body)
+  end
+
+  test "LC-15 dates read in the page's language" do
+    published = posts(:published_post)
+    published.update!(published_at: Time.zone.local(2026, 10, 19, 12))
+
+    { "en" => [ "Oct 19, 2026", "October 19, 2026" ], "es" => [ "19 oct 2026", "19 de octubre de 2026" ] }.each do |locale, (listed, dated)|
+      cookies[:locale] = locale
+      get root_path
+      assert_select ".post-list__date", text: listed
+      get posts_path
+      assert_select ".post-list__date", text: listed
+      get post_path(published)
+      assert_select ".post__meta time", text: dated
+    end
+  end
+
+  test "LC-15 the feed declares the page's language and reads in it" do
+    SiteSetting["tagline_es"] = "Construye ==software== cuidadoso."
+
+    cookies[:locale] = "es"
+    get feed_path
+
+    feed = Nokogiri::XML(response.body).remove_namespaces!
+    assert_equal "es", feed.root["lang"]
+    assert_equal "Escritos de Test Site", feed.at("feed > title").text
+    assert_equal "Construye software cuidadoso.", feed.at("feed > subtitle").text
+  end
+
+  test "LC-16 the admin's section form edits the Spanish heading, note and body" do
+    sign_in_as users(:one)
+    section = sections(:home_intro)
+
+    patch admin_section_path(section), params: { section: { heading_es: "Introducción", note_es: "Al margen.", body_es: "Hola." } }
+    assert_redirected_to admin_sections_path
+    assert_equal [ "Introducción", "Al margen.", "Hola." ], section.reload.values_at(:heading_es, :note_es, :body_es)
+
+    get edit_admin_section_path(section)
+    assert_select "input[name='section[heading_es]'][value=?]", "Introducción"
+    assert_select "input[name='section[note_es]'][value=?]", "Al margen."
+    assert_select "textarea[name='section[body_es]']", text: "Hola."
+  end
+
   private
+    PROPER_NOUNS = %w[ English Español GitHub LinkedIn ].freeze
+
+    # Every English string in en.yml whose Spanish twin differs, cut at its
+    # placeholders (%{name}, %b) into the pieces that are words.
+    def english_chrome
+      en = leaves(YAML.load_file(Rails.root.join("config/locales/en.yml")).fetch("en"))
+      es = leaves(YAML.load_file(Rails.root.join("config/locales/es.yml")).fetch("es"))
+      en.reject { |path, value| es[path] == value }.values.flat_map do |value|
+        value.split(/%\{\w+\}|%-?\w/).map(&:strip).grep(/\p{L}{2}/)
+      end.uniq
+    end
+
+    def assert_no_english_chrome(text, where)
+      found = english_chrome.select { |english| text.match?(/(?<!\p{L})#{Regexp.escape(english)}(?!\p{L})/) }
+      assert_empty found, "English chrome on #{where} in Spanish"
+    end
+
+    # What a reader gets from a page: its text, outside scripts, and the
+    # attributes that name things to a screen reader or a link preview.
+    def visible_text(page)
+      text = page.xpath("//text()[not(ancestor::script) and not(ancestor::style)]").map(&:text)
+      labels = page.xpath("//@aria-label | //@title | //@alt | //@placeholder | //meta[@name='description' or @property='og:title' or @property='og:description']/@content").map(&:value)
+      (text + labels).join("\n")
+    end
+
+    # The words a template writes itself: in its markup's text and labelling
+    # attributes, and capitalised in the string literals of its Ruby.
+    def literal_words(source)
+      source = source.gsub(/<%#.*?%>/m, "").gsub(/<%= javascript_tag.*?<% end %>/m, "")
+      markup = Nokogiri::HTML5(source.gsub(/<%.*?%>/m, "·"))
+      text = markup.xpath("//text() | //@aria-label | //@title | //@alt | //@placeholder").map { |node| node.text }
+      ruby = Prism.parse(source.scan(/<%=?(.*?)-?%>/m).flatten.join("\n")).value
+      text.flat_map { |string| string.scan(/\p{L}{2,}/) } + strings_in(ruby).flat_map { |string| string.scan(/\p{Lu}\p{L}+/) }
+    end
+
+    def strings_in(node)
+      own = node.is_a?(Prism::StringNode) ? [ node.unescaped ] : []
+      own + node.compact_child_nodes.flat_map { |child| strings_in(child) }
+    end
+
+    def leaves(value, path = nil)
+      case value
+      when Hash then value.reduce({}) { |all, (key, child)| all.merge(leaves(child, [ path, key ].compact.join("."))) }
+      when Array then value.each_with_index.reduce({}) { |all, (child, index)| all.merge(leaves(child, "#{path}.#{index}")) }
+      when String then { path => value }
+      else {}
+      end
+    end
     def assert_language(code, message = nil)
       assert_select "html[lang=?]", code, message: [ message, "page in #{code}" ].compact.join(": ")
     end

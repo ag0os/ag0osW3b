@@ -8,7 +8,7 @@
 <article class="container post railed enter">
   <p class="post__meta rail">
     <time datetime="<%= @post.published_at&.iso8601 %>">
-      <%= @post.published_at&.strftime("%B %-d, %Y") %>
+      <%= l(@post.published_at, format: :post) %>
     </time>
     <% @post.tag_list.each do |tag| %><span class="tag"><%= tag %></span><% end %>
   </p>
@@ -20,7 +20,7 @@
   </div>
 
   <footer class="post__footer">
-    <%= link_to "← All writing", posts_path, class: "link-more" %>
+    <%= link_to t("posts.all"), posts_path, class: "link-more" %>
     <%# Rendered in every preset, drawn by one: terminal ends a post the way a
         session ends, on a prompt and a waiting cursor. Everywhere else the
         tokens resolve to display: none and nothing is generated. %>

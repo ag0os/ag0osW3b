@@ -1,15 +1,9 @@
-<% content_for :title, "About · #{SiteSetting["site_title"]}" %>
+<% content_for :title, "#{t("nav.about")} · #{SiteSetting["site_title"]}" %>
 
 <div class="container stack page">
   <header class="page__header railed enter">
-    <h1>About</h1>
+    <h1><%= t("nav.about") %></h1>
   </header>
 
-  <% if @sections.any? %>
-    <% @sections.each do |section| %>
-      <%= render "shared/section", section: section %>
-    <% end %>
-  <% else %>
-    <p class="muted rail-indent">About content coming soon.</p>
-  <% end %>
+  <%= render "pages/sections", sections: @sections, empty: t("pages.about_empty") %>
 </div>
