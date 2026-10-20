@@ -8,20 +8,20 @@ Rails.application.routes.draw do
   resource  :session
   resources :passwords, param: :token
 
-  # Public site
-  root "home#show"
-  get "about",   to: "pages#about"
-  get "work",    to: "pages#work"
-  get "contact", to: "pages#contact"
-  get "consulting", to: "pages#consulting"
-
   resource :locale, only: :update
 
-  # Blog
-  get "writing",       to: "posts#index", as: :posts
-  get "writing/:slug", to: "posts#show",  as: :post
-  # .xml is where feed readers guess a feed lives; any other format is no address (WR-5).
-  get "feed",          to: "posts#feed",  as: :feed, defaults: { format: "atom" }, constraints: { format: /atom|xml/ }
+  # Bare addresses negotiate; each language also has a stable public address.
+  scope "(:locale)", locale: Regexp.union(I18n.available_locales.map(&:to_s)) do
+    root "home#show"
+    get "about", to: "pages#about"
+    get "work", to: "pages#work"
+    get "contact", to: "pages#contact"
+    get "consulting", to: "pages#consulting"
+    get "writing", to: "posts#index", as: :posts
+    get "writing/:slug", to: "posts#show", as: :post
+    # Unsupported feed formats are no address (WR-5).
+    get "feed", to: "posts#feed", as: :feed, defaults: { format: "atom" }, constraints: { format: /atom|xml/ }
+  end
 
   # Admin
   namespace :admin do

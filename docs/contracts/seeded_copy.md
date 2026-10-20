@@ -35,7 +35,9 @@ Kind: functional. Proof: test, SC-2 in `test/contract/seeded_copy_contract_test.
 
 ### SC-3 About bio links to a public consulting page
 
-The seeded About bio links to `/consulting`, and following that link reaches a public page successfully.
+Reworded 2026-10-20 by refine: locale URLs; flagged for owner review.
+
+The rendered seeded About bio links to the consulting address of the rendered language (`/en/consulting` or `/es/consulting`), and following that link reaches a public page successfully.
 
 **Reason.** The invitation to consulting must lead to an offer the visitor can read without login.
 
@@ -43,7 +45,9 @@ Kind: functional. Proof: test, SC-3 in `test/contract/seeded_copy_contract_test.
 
 ### SC-5 The footer CTA, Contact intro and About bio link to consulting
 
-The default footer CTA in both locales (editable in Copy with its consulting link retained), the Contact page's intro and the About bio each link to `/consulting`.
+Reworded 2026-10-20 by refine: locale URLs; flagged for owner review.
+
+The default footer CTA in both locales (editable in Copy with its consulting link retained), the Contact page's intro and the About bio each render a link to the consulting address of the rendered language (`/en/consulting` or `/es/consulting`).
 
 Reworded 2026-10-19 by Copy admin; flagged for owner review.
 
@@ -65,11 +69,13 @@ Kind: functional. Proof: test, SC-6 in `test/contract/seeded_copy_contract_test.
 
 ### SC-7 Every seeded section has its Spanish
 
-Every seeded section has Spanish for each field it has in English: a heading, a note, a body. A field blank in English is blank in Spanish too. The Spanish body links to the same addresses, in the same order, and marks the same number of phrases. On a seeded site, each page in Spanish shows its sections' Spanish, and nothing in them is marked as English.
+Reworded 2026-10-20 by refine: locale URLs; flagged for owner review.
+
+Every seeded section has Spanish for each field it has in English: a heading, a note, a body. A field blank in English is blank in Spanish too. The stored Spanish body links to the same addresses, in the same order, and marks the same number of phrases. On a seeded site, each page in Spanish shows its sections' Spanish, and nothing in them is marked as English. Rendering localises recognised public links to the page’s language without changing the stored bodies (D-34).
 
 **Reason.** The seeded copy is what the site says on its first deploy, and in Spanish it should read as Spanish from the start, not fall back to English (LC-14). The links and marks are what the English deliberately carries: the consulting link (SC-3, SC-5), the public repositories (SC-2), the phrases the presets draw. A translation that dropped one would quietly undo an obligation that the English passes. The wording is a draft for the owner to correct in `/admin`, so it is not pinned. (D-28)
 
-Kind: functional. Proof: test, the two tests named SC-7 in `test/contract/seeded_copy_contract_test.rb`.
+Kind: functional. Proof: test, the three tests named SC-7 in `test/contract/seeded_copy_contract_test.rb`.
 
 ### SC-8 The migration fills blank Spanish and nothing else
 
@@ -80,6 +86,8 @@ Kind: functional. Proof: test, the two tests named SC-7 in `test/contract/seeded
 Kind: functional. Proof: test, the three tests named SC-8 in `test/contract/seeded_copy_contract_test.rb`.
 
 ## Decisions
+
+- D-34, `docs/decisions/locale.md`: render-time public link localisation (SC-3, SC-5, SC-7).
 
 - D-30 and D-31, `docs/decisions/copy.md`: editable prose and its unchanged defaults.
 

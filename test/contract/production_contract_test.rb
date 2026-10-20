@@ -2,7 +2,7 @@ require "test_helper"
 require "open3"
 
 # The production deploy's Contract, as tests. Each test is named after an
-# obligation in PRODUCT.md ("Contract: the production deploy"). PD-1 to PD-3
+# obligation in docs/contracts/production.md. PD-1 to PD-3
 # run the real seeds with Rails.env switched; PD-4 boots production.
 class ProductionContractTest < ActiveSupport::TestCase
   ADMIN_EMAIL = "agoos@hey.com"

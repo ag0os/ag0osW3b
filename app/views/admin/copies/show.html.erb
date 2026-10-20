@@ -1,6 +1,7 @@
 <% content_for :title, "Copy" %>
 
 <h1>Copy</h1>
+<p><%= link_to "View English", root_path(locale: :en) %> · <%= link_to "View Spanish", root_path(locale: :es) %></p>
 <p class="form-hint">Edit the words visitors read. A Spanish field left blank shows the English. Sections and posts have their own editors.</p>
 
 <%= form_with url: admin_copy_path, method: :patch, class: "form" do %>

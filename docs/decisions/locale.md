@@ -14,6 +14,8 @@ Why the language works the way it does, with the derivation behind each choice. 
 
 **Derivation.** The visitor pressed the button to read the page they were on in another language, so that page is the destination. The `Referer` is supplied by the request, so following it to another host would make `/locale` an open redirect; Rails refuses other hosts in `redirect_back_or_to` and falls back. An unknown code can only come from a stale page or a hand-written request; an error page punishes the first and tells the second nothing, so the request is treated as a no-op. Only the exact codes the buttons send are accepted: `ES` is not one of them, and accepting it would mean the control normalises codes that nothing it renders ever sends. Obligations: LC-7, LC-8, LC-9.
 
+Mechanism superseded by D-35 (2026-10-20)
+
 ### D-10. `Accept-Language` is read in the order sent
 
 **Decision.** The first entry whose language is a site language wins; `q` weights are not used to re-sort. This is the behaviour the shell shipped, pinned as it is.
@@ -33,3 +35,29 @@ Why the language works the way it does, with the derivation behind each choice. 
 **Derivation.** `PLAN.md` chose the columns as the smallest change: a translations table pays for itself only with a third language. Settings already use the same pattern, a sibling with an `_es` suffix, read through `SiteSetting.localized`. Falling back one field at a time means a section can be translated in stages and stays readable throughout, and `lang` keeps assistive technology honest about which language each part is in. That is the reason CP-5 gave for marking the English consulting copy. Two checks hold the chrome: LC-12 compares pages with `en.yml`, and LC-13 reads the templates. The comparison alone misses a string that never made it into a locale file, and the scan alone misses English that reaches the page from a locale file whose Spanish twin is wrong. Posts stay as written (`ASK.md` §4.8). Obligations: LC-12 to LC-16.
 
 Editable page prose is superseded by D-30 and D-31 in `docs/decisions/copy.md` (2026-10-19); interface translations remain in the locale files.
+
+### D-33. Each language has a public path; bare addresses negotiate in place
+
+**Decision.** Constrain an optional public locale scope from available_locales. Only request.path_parameters selects the path language; then the cookie, browser order and English decide. Public URL defaults use path_params so unused locale values never leak into admin, auth, health or control queries. Bare HTML and Atom responses stay in place with private caching and merged Accept-Language Vary; prefixed responses stay private without adding that field. Feed alternate, self and ids are explicit, preserving the existing English id.
+
+**Derivation.** The owner chose scheme B on 2026-10-20. English-unprefixed would still negotiate Spanish, leaving English without a stable address. A redirect from bare would move shared addresses by a guess; a single Spanish landing page would leave the rest monolingual. Rails’ optional scope and path_params handle these requirements without a new routing abstraction. URL defaults are cached per request; alternate generation uses explicit locale arguments rather than changing I18n.locale. A future shared cache must honour private; Vary alone cannot express cookie or future country choices. Promises apply to fresh responses, not a stale snapshot in another browser tab.
+
+Obligations: LC-1 to LC-3, LC-7 to LC-9, LC-11, LC-18, LC-19, LC-21, LC-23, WR-4, WR-5.
+
+### D-34. Metadata names the representation; links localise at rendering
+
+**Decision.** Each public HTML representation has its rendered-language canonical and og:url, reciprocal en/es alternates and bare x-default, plus rendered Open Graph locale. Localise recognised single-slash public links in section/post rendered Markdown, including Atom content, preserving raw query and fragment and leaving storage unchanged. The owner settled that every post is English on 2026-10-20; mark its title/body and Atom title/summary/content as English only within Spanish representations. Admin Copy offers explicit language previews.
+
+**Derivation.** Bare URLs are selectors; language URLs are stable shareable versions. Hreflang supports translated templates even where posts are unchanged. A sitemap adds no separate requirement beyond the equivalent head links. Rewriting seeded bodies by migration would bind stored content to routing and overwrite owner edits. On 2026-10-20 the owner confirmed preservation of raw query/fragment, localisation of already-prefixed authored links and Atom entry content, and metadata/Copy preview evidence under LC-18/LC-20/LC-21. Text fallback language does not change the rendered language that links follow. Third-language Copy storage is excluded.
+
+Obligations: LC-18, LC-20, LC-21, LC-22, SC-3, SC-5, SC-7.
+
+### D-35. The PATCH form redirects to a safely rebuilt counterpart
+
+**Decision.** Keep the PATCH forms and permanent cookie of D-8. Validate a choice exactly, check url_from and explicit URI constraints, recognise only a public GET route, and rebuild a local path from recognised parameters. Append the raw query as text; redirect 303 using Rails’ default refusal of open redirects. Root-relative public referrers work. Missing, foreign, malformed, protocol-relative, user-info-bearing, non-http/https, wrong-port, unknown and non-public referrers fall back to chosen-language home. Invalid choices write no cookie and preserve a safe public original path locale/query or fall back to bare home. A recognised nonexistent post slug still leads to its normal 404.
+
+**Derivation.** D-8’s prefetch/crawler reasons for a form survive. Recognition alone accepts non-public routes and foreign hosts, so it cannot establish the boundary. Query keys merged as URL options can configure host/protocol; keeping raw query avoids that. Correction to design 1.3, accepted by the owner on 2026-10-20: Rails 8.1.3.1 url_from checks the host, not the entire stated origin policy. Explicitly reject protocol-relative spelling and user-info, require http or https and the request’s port on absolute referrers, before recognition. Root-relative referrers are allowed. Both http and https are allowed on the request’s port; scheme equality is not imposed. The installed source and https://api.rubyonrails.org/v8.1.3/classes/ActionController/Redirecting.html establish the API limitation.
+
+**Further correction, owner ruling 2026-10-20.** Design 1.3’s explicit `allow_other_host: false` is omitted. With `load_defaults 8.1`, this app’s `ActionController::Base.action_on_open_redirect` is `:raise`; LC-8 pins that policy so a configuration change weakening the independent guard fails the suite. The already-local rebuilt destination makes the explicit option observationally redundant. Rails convention over configuration retains the guard without an equivalent-survivor acceptance. The original permanent-cookie assignment is retained after validation to preserve baseline comparison of its SameSite defaults. Rebuilding uses the native view `url_for`, whose `only_path` default is true when no host option is supplied; trusted route parameters carry no host, and query keys are never merged into those options. The local-path tests pin that output. This removes redundant configuration rather than accepting equivalent mutants (https://api.rubyonrails.org/v8.1.3/classes/ActionView/RoutingUrlFor.html).
+
+Obligations: LC-7, LC-8, LC-9, LC-11.

@@ -67,10 +67,14 @@ bin/ci                # the full check, exactly what GitHub runs; run it before 
 Read **`ASK.md`** for the front door being built. The home page currently
 renders its tagline, visible sections and recent writing.
 
-**Two languages.** `SiteController` picks the locale per request: the `locale`
-cookie set by the footer's language buttons, then `Accept-Language`, then
-English. `LocalesController#update` saves the choice and redirects back to
-this site's referring page. The chrome strings live in `config/locales/en.yml`
+**Two languages.** Public pages and feeds have fixed `/en` and `/es` addresses;
+bare addresses negotiate in place. `SiteController` picks the locale from the
+path segment, then the `locale` cookie set by the footer’s language buttons,
+then `Accept-Language`, then English. Query parameters never choose the page’s
+language. `LocalesController#update` saves a valid choice and redirects to the
+same public page at its chosen-language address, after checking the referrer.
+`LocalizedLinksHelper` localises public links in rendered Markdown without
+changing stored prose. The chrome strings live in `config/locales/en.yml`
 and `es.yml` under one matching tree. Localised settings are sibling keys with
 an `_es` suffix read through `SiteSetting.localized`. Sections have Spanish
 columns (`heading_es`, `note_es`, `body_es`) read through `Section#localized`,

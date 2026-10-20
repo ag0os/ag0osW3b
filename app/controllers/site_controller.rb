@@ -1,12 +1,16 @@
 # Base controller for the public-facing site. The auth concern requires a
 # session by default, so public pages opt out here.
 #
-# It also picks the language. A choice saved in the locale cookie wins;
-# otherwise the browser's Accept-Language decides; otherwise English.
+# The path language wins, then the saved cookie, the browser and English.
 # The admin does not go through here and stays English.
 class SiteController < ApplicationController
   allow_unauthenticated_access
   around_action :switch_locale
+  after_action :locale_cache_headers
+
+  def default_url_options
+    { path_params: { locale: locale } }
+  end
 
   private
     def switch_locale(&action)
@@ -14,9 +18,15 @@ class SiteController < ApplicationController
     end
 
     def preferred_locale
-      candidates = [ cookies[:locale], *accept_language ]
+      candidates = [ request.path_parameters[:locale], cookies[:locale], *accept_language ]
       candidates.map { |code| code.to_s.downcase.to_sym }.find { |code| I18n.available_locales.include?(code) } ||
         I18n.default_locale
+    end
+
+    def locale_cache_headers
+      unless request.path_parameters.key?(:locale)
+        headers["Vary"] = [ headers["Vary"], "Accept-Language" ].compact.join(", ")
+      end
     end
 
     # "es-AR,es;q=0.9,en;q=0.8" => ["es", "es", "en"]. Browsers already list

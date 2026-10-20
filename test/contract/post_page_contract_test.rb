@@ -7,7 +7,7 @@ class PostPageContractTest < ActionDispatch::IntegrationTest
     post = posts(:published_post)
     post.update!(excerpt: 'a < b ==c== & "quotes" &lt;tag&gt;')
 
-    get post_path(post)
+    get post_path(slug: post)
     assert_response :success
 
     description = 'a < b c & "quotes" &lt;tag&gt;'

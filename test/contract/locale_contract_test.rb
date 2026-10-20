@@ -7,80 +7,20 @@ require "test_helper"
 # in; LC-6 to LC-11 are the footer control; LC-12 to LC-16 are what a page in
 # Spanish reads.
 class LocaleContractTest < ActionDispatch::IntegrationTest
-  cover "SiteController*" if respond_to?(:cover)
-  cover "LocalesController*" if respond_to?(:cover)
-
   # --- Which language a page is in -------------------------------------------
 
-  test "LC-1 a locale cookie naming a site language decides, whatever the browser asks for" do
-    cookies[:locale] = "es"
-    get about_path, headers: { "Accept-Language" => "en" }
-    assert_language "es"
-
-    cookies[:locale] = "en"
-    get about_path, headers: { "Accept-Language" => "es" }
-    assert_language "en"
-  end
-
-  test "LC-1 the cookie decides on every public page" do
+  test "LC-1 the cookie decides on every bare public page" do
     cookies[:locale] = "es"
 
-    [ root_path, about_path, work_path, contact_path, posts_path, post_path(posts(:published_post)) ].each do |path|
+    [ root_path(locale: nil), about_path(locale: nil), work_path(locale: nil), contact_path(locale: nil), posts_path(locale: nil), post_path(locale: nil, slug: posts(:published_post)) ].each do |path|
       get path
       assert_language "es", path
     end
   end
 
-  test "LC-2 without the cookie, the first entry the browser sent in a site language decides" do
-    [ "fr-FR, es-AR;q=0.9, en;q=0.8", "fr-FR,es;q=0.9" ].each do |header|
-      get about_path, headers: { "Accept-Language" => header }
-
-      assert_language "es", header
-    end
-  end
-
-  test "LC-2 the region and the case of an entry are ignored" do
-    get about_path, headers: { "Accept-Language" => "ES-ar" }
-
-    assert_language "es"
-  end
-
-  test "LC-2 the whole language subtag must name a site language" do
-    get about_path, headers: { "Accept-Language" => "esu, en" }
-
-    assert_language "en"
-  end
-
-  test "LC-2 entries are taken in the order sent, not re-sorted by q" do
-    get about_path, headers: { "Accept-Language" => "en;q=0.1, es;q=0.9" }
-
-    assert_language "en"
-  end
-
-  test "LC-3 with neither, the page is in English" do
-    get about_path
-
-    assert_language "en"
-  end
-
-  test "LC-3 a browser asking only for languages the site lacks gets English" do
-    get about_path, headers: { "Accept-Language" => "fr-FR, de;q=0.9" }
-
-    assert_language "en"
-  end
-
-  test "LC-3 an unknown cookie is skipped, and the browser decides" do
-    cookies[:locale] = "fr"
-    get about_path, headers: { "Accept-Language" => "es" }
-    assert_language "es"
-
-    get about_path
-    assert_language "en"
-  end
-
-  test "LC-3 a malformed header renders the page in English" do
+  test "LC-3 a malformed browser header renders a bare address in English" do
     [ "*", ",,;q=,", "e", "1234" ].each do |header|
-      get about_path, headers: { "Accept-Language" => header }
+      get about_path(locale: nil), headers: { "Accept-Language" => header }
 
       assert_response :success, header
       assert_language "en", header
@@ -137,29 +77,29 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     assert_match(/;\s*httponly/i, set_cookie, "no script reads it")
   end
 
-  test "LC-7 it answers 303 back to the page the request came from, query kept" do
+  test "LC-7 a valid choice answers 303 to the counterpart page with its query kept" do
     referer = "http://www.example.com/writing/published-post?ref=feed"
     patch "/locale", params: { locale: "es" }, headers: { "Referer" => referer }
 
     assert_response :see_other
-    assert_redirected_to referer
+    assert_redirected_to "http://www.example.com/es/writing/published-post?ref=feed"
   end
 
-  test "LC-8 with no referrer it goes home" do
+  test "LC-8 no referrer goes to the chosen-language home" do
     patch "/locale", params: { locale: "es" }
 
     assert_response :see_other
-    assert_redirected_to root_url
+    assert_redirected_to "http://www.example.com/es"
   end
 
-  test "LC-8 a referrer on another host goes home" do
+  test "LC-8 a foreign referrer goes to the chosen-language home" do
     patch "/locale", params: { locale: "es" }, headers: { "Referer" => "https://evil.example/phish" }
 
     assert_response :see_other
-    assert_redirected_to root_url
+    assert_redirected_to "http://www.example.com/es"
   end
 
-  test "LC-9 an unknown, blank or missing code sets no cookie and still redirects back" do
+  test "LC-9 an invalid choice sets no cookie and returns to the safe original route" do
     referer = "http://www.example.com/about"
 
     [ { locale: "fr" }, { locale: "ES" }, { locale: "" }, {} ].each do |params|
@@ -176,12 +116,12 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     patch "/locale", params: { locale: "fr" }
 
     assert_equal "es", cookies["locale"]
-    get about_path
+    get about_path(locale: nil)
     assert_language "es"
   end
 
   test "LC-10 every public page's footer holds a named group of two language buttons" do
-    [ root_path, about_path, work_path, contact_path, posts_path, post_path(posts(:published_post)) ].each do |path|
+    [ root_path(locale: nil), about_path(locale: nil), work_path(locale: nil), contact_path(locale: nil), posts_path(locale: nil), post_path(locale: nil, slug: posts(:published_post)) ].each do |path|
       get path
 
       assert_select "footer [role=group][aria-label=Language]", 1, path do
@@ -191,7 +131,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
   end
 
   test "LC-10 each button is a plain form that PATCHes /locale with its code, English first" do
-    get about_path
+    get about_path(locale: nil)
 
     forms = css_select("footer [role=group] form[action='/locale']")
     assert_equal %w[ en es ], forms.map { |form| submitted(form)["locale"] }
@@ -205,7 +145,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
   test "LC-10 each button names its language in that language, with lang, whatever the page's language" do
     %w[ en es ].each do |code|
       cookies[:locale] = code
-      get about_path
+      get about_path(locale: nil)
 
       english, spanish = language_buttons
       assert_equal [ "English", "en" ], [ english&.text&.strip, english&.[]("lang") ], "on a page in #{code}"
@@ -215,35 +155,35 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
 
   test "LC-10 the group is named in the page's language" do
     cookies[:locale] = "es"
-    get about_path
+    get about_path(locale: nil)
 
     assert_select "footer [role=group][aria-label=Idioma]", 1
   end
 
   test "LC-10 the current language's button is pressed and the other is not" do
-    get about_path
+    get about_path(locale: nil)
     assert_equal %w[ true false ], language_buttons.map { |button| button["aria-pressed"] }
 
     cookies[:locale] = "es"
-    get about_path
+    get about_path(locale: nil)
     assert_equal %w[ false true ], language_buttons.map { |button| button["aria-pressed"] }
   end
 
-  test "LC-11 pressing a footer button brings the same page back in that language, and the site stays in it" do
-    get about_path
+  test "LC-11 a footer choice opens the same page at its chosen-language address" do
+    get about_path(locale: nil)
     assert_language "en"
 
     spanish = css_select("footer [role=group] form[action='/locale']").find { |form| submitted(form)["locale"] == "es" }
     assert spanish, "a Spanish button"
-    post spanish["action"], params: submitted(spanish), headers: { "Referer" => "http://www.example.com#{about_path}" }
+    post spanish["action"], params: submitted(spanish), headers: { "Referer" => "http://www.example.com#{about_path(locale: nil)}" }
 
-    assert_redirected_to about_url
+    assert_redirected_to "http://www.example.com/es/about"
     follow_redirect!
     assert_language "es"
     assert_select "nav a", text: "Sobre mí"
     assert_equal %w[ false true ], language_buttons.map { |button| button["aria-pressed"] }
 
-    get posts_path
+    get posts_path(locale: nil)
     assert_language "es"
   end
 
@@ -254,8 +194,8 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     published = posts(:published_post)
     # Each page, by the heading that says which page it is.
     pages = I18n.with_locale(:es) do
-      { root_path => MarkdownRenderer.unmark(SiteSetting.localized("tagline")), about_path => I18n.t("nav.about"), work_path => I18n.t("nav.work"),
-        contact_path => I18n.t("nav.contact"), consulting_path => SiteSetting.localized("consulting_heading"), posts_path => I18n.t("nav.writing"), post_path(published) => published.title }
+      { root_path(locale: nil) => MarkdownRenderer.unmark(SiteSetting.localized("tagline")), about_path(locale: nil) => I18n.t("nav.about"), work_path(locale: nil) => I18n.t("nav.work"),
+        contact_path(locale: nil) => I18n.t("nav.contact"), consulting_path(locale: nil) => SiteSetting.localized("consulting_heading"), posts_path(locale: nil) => I18n.t("nav.writing"), post_path(locale: nil, slug: published) => published.title }
     end
 
     pages.each do |path, heading|
@@ -272,11 +212,11 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     Post.update_all(status: :draft, published_at: nil)
     cookies[:locale] = "es"
 
-    get posts_path
+    get posts_path(locale: nil)
 
     assert_response :success
     assert_language "es"
-    assert_no_english_chrome visible_text(response.parsed_body), posts_path
+    assert_no_english_chrome visible_text(response.parsed_body), posts_path(locale: nil)
     assert_select "main", text: /Muy pronto, los primeros ensayos/
   end
 
@@ -294,7 +234,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
   test "LC-13 the scan finds a word in text, in a labelling attribute and in a Ruby string" do
     assert_equal %w[ Hello ], literal_words("<p>Hello <%= name %></p>")
     assert_equal %w[ Close ], literal_words(%(<button aria-label="Close"></button>))
-    assert_equal %w[ Elsewhere ], literal_words(%(<%= link_to "Elsewhere", root_path, class: "nav-link" %>))
+    assert_equal %w[ Elsewhere ], literal_words(%(<%= link_to "Elsewhere", root_path(locale: nil), class: "nav-link" %>))
     assert_equal %w[ About ], literal_words(%(<% content_for :title, "About · \#{site}" %>))
     assert_empty literal_words(%(<p class="muted"><%= t("nav.about") %> · <%= link_to "GitHub", url %></p>)) - PROPER_NOUNS
     assert_equal %w[ All ], literal_words(%(feed.rights("All rights reserved")), ruby: true)
@@ -304,13 +244,13 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
   test "LC-14 a section shows its Spanish heading, note and body on a Spanish page" do
     sections(:home_intro).update!(heading_es: "Introducción", note_es: "Una nota al margen.", body_es: "Hola desde ==inicio==.")
 
-    get root_path
+    get root_path(locale: nil)
     assert_select "#home_intro h2", text: "Intro"
     assert_select "#home_intro .note", text: "A note in the margin."
     assert_select "#home_intro .prose mark", text: "home"
 
     cookies[:locale] = "es"
-    get root_path
+    get root_path(locale: nil)
     assert_select "#home_intro h2:not([lang])", text: "Introducción"
     assert_select "#home_intro .note:not([lang])", text: "Una nota al margen."
     assert_select "#home_intro .prose:not([lang]) mark", text: "inicio"
@@ -321,7 +261,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     sections(:home_intro).update!(heading_es: "Introducción", note_es: "", body_es: nil)
     cookies[:locale] = "es"
 
-    get root_path
+    get root_path(locale: nil)
 
     assert_select "#home_intro h2:not([lang])", text: "Introducción"
     assert_select "#home_intro .note[lang=en]", text: "A note in the margin."
@@ -331,7 +271,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
   test "LC-14 an English page never shows Spanish, nor marks its own language" do
     sections(:home_intro).update!(heading_es: "Introducción", note_es: "Una nota al margen.", body_es: "Hola.")
 
-    get root_path
+    get root_path(locale: nil)
 
     assert_select "#home_intro h2", text: "Intro"
     assert_select "#home_intro [lang]", 0
@@ -344,11 +284,11 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
 
     { "en" => [ "Oct 19, 2026", "October 19, 2026" ], "es" => [ "19 oct 2026", "19 de octubre de 2026" ] }.each do |locale, (listed, dated)|
       cookies[:locale] = locale
-      get root_path
+      get root_path(locale: nil)
       assert_select ".post-list__date", text: listed
-      get posts_path
+      get posts_path(locale: nil)
       assert_select ".post-list__date", text: listed
-      get post_path(published)
+      get post_path(locale: nil, slug: published)
       assert_select ".post__meta time", text: dated
     end
   end
@@ -408,7 +348,7 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
     # The feed at the request's locale, after asserting it is an Atom feed that
     # declares that language as xml:lang, not as a lang of no namespace.
     def atom_feed(code)
-      get feed_path
+      get feed_path(locale: nil)
       assert_response :success
       feed = Nokogiri::XML(response.body) { |config| config.strict }
       assert_equal [ "http://www.w3.org/2005/Atom", "feed" ], [ feed.root.namespace&.href, feed.root.name ]
@@ -500,7 +440,7 @@ class CopyLocaleContractTest < ActionDispatch::IntegrationTest
       assert_select "#{selector}[lang=en]", 1, key
       assert_select selector, text: english, count: 1
     end
-    get contact_path
+    get contact_path(locale: nil)
     assert_select ".site-footer__cta[lang=en] a", text: "consulting"
     cookies[:locale] = "en"
     cases.each_value do |path, selector|

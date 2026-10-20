@@ -31,7 +31,7 @@ class LayoutTest < ApplicationSystemTestCase
   end
 
   test "metadata sits beside the writing rather than on top of it" do
-    visit post_path(posts(:published_post))
+    visit post_path(slug: posts(:published_post))
 
     date = rect("main time")
     title = rect("h1")
@@ -52,7 +52,7 @@ class LayoutTest < ApplicationSystemTestCase
   end
 
   test "the margin folds away on a narrow screen" do
-    visit post_path(posts(:published_post))
+    visit post_path(slug: posts(:published_post))
     resize(*NARROW)
 
     date = rect("main time")

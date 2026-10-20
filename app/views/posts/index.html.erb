@@ -10,7 +10,7 @@
           <time class="post-list__date rail" datetime="<%= post.published_at&.iso8601 %>">
             <%= l(post.published_at, format: :list) %>
           </time>
-          <%= link_to post.title, post_path(post), class: "post-list__title" %>
+          <%= link_to post.title, post_path(slug: post), class: "post-list__title" %>
           <% if post.excerpt.present? %>
             <p class="post-list__excerpt"><%= post.excerpt %></p>
           <% end %>
