@@ -6,6 +6,9 @@ require "rails/all"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# The middleware stack retains this class across reloads; load it once at boot.
+require_relative "../app/middleware/client_address"
+
 module Ag0osW3b
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -15,6 +18,9 @@ module Ag0osW3b
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
+
+    Rails.autoloaders.main.ignore(root.join("app/middleware"))
+    config.middleware.insert_before ActionDispatch::RemoteIp, ClientAddress
 
     # Configuration for the application, engines, and railties goes here.
     #
