@@ -25,5 +25,5 @@
   <% if heading.present? %>
     <%= tag.h2 heading, class: "section__heading", lang: ("en" if section.untranslated?(:heading)) %>
   <% end %>
-  <%= tag.div markdown(section.localized(:body)), class: "prose", lang: ("en" if section.untranslated?(:body)) %>
+  <%= tag.div localized_links(markdown(section.localized(:body))), class: "prose", lang: ("en" if section.untranslated?(:body)) %>
 </section>

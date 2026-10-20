@@ -8,13 +8,22 @@
     # plain text, which ERB escapes once for each meta attribute below.
     description = content_for(:description).presence
     page_description = unmarked(description ? CGI.unescapeHTML(description) : SiteSetting.localized("tagline"))
-    canonical_url = request.base_url + request.path
+    localized_page = controller.is_a?(SiteController)
+    canonical_url = localized_page ? localized_page_url(locale: I18n.locale) : request.base_url + request.path
   %>
   <head>
     <title><%= page_title %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="description" content="<%= page_description %>">
     <link rel="canonical" href="<%= canonical_url %>">
+    <% if localized_page %>
+      <% I18n.available_locales.each do |locale| %>
+        <link rel="alternate" hreflang="<%= locale %>" href="<%= localized_page_url(locale: locale) %>">
+      <% end %>
+      <link rel="alternate" hreflang="x-default" href="<%= localized_page_url(locale: nil) %>">
+      <meta property="og:locale" content="<%= open_graph_locale(I18n.locale) %>">
+      <meta property="og:locale:alternate" content="<%= open_graph_locale(I18n.locale == :es ? :en : :es) %>">
+    <% end %>
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 

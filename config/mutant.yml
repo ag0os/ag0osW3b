@@ -17,6 +17,7 @@ matcher:
     - MarkdownRenderer*
     - SiteController*
     - LocalesController*
+    - LocalizedLinksHelper*
     - HomeController*
     - PagesController#consulting
 hooks:

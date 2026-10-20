@@ -50,23 +50,29 @@ Kind: functional. Proof: test, WR-3 in `test/contract/writing_contract_test.rb`.
 
 ### WR-5 /feed.xml is the same feed; any other format is no address
 
-`/feed.xml` answers 200 with the same document as `/feed`: the same Atom feed, served as `application/atom+xml`, whose self link is `/feed`. A request for the feed in any other format (`/feed.json`, `/feed.rss`, `/feed.html`) answers 404. No format answers with a server error.
+Reworded 2026-10-20 by refine: locale URLs; flagged for owner review.
+
+`/feed.xml` answers 200 with the same document as `/feed`: the same Atom feed, served as `application/atom+xml`, whose self link is the format-free feed address of the rendered language. `/en/feed` and `/es/feed` and their `.xml`/`.atom` aliases follow the same rule; queries and aliases do not change feed or entry ids (LC-23). A request for the feed in any other format (`/feed.json`, `/feed.rss`, `/feed.html`) answers 404. No format answers with a server error.
 
 **Reason.** `/feed.xml` is an address feed readers and people try when they look for a feed, and it answered 500 in production because only an Atom template exists. A 500 tells a reader the site is broken; a 404 tells it the address does not exist, which for a format the site has no feed in is true. (D-26)
 
-Kind: functional. Proof: test, the two tests named WR-5 in `test/contract/writing_contract_test.rb`.
+Kind: functional. Proof: test, the three tests named WR-5 in `test/contract/writing_contract_test.rb`.
 
 ## The head
 
 ### WR-4 The head links to the feed whether or not anything is published
 
-The site layout's head links to the feed (`<link rel="alternate" type="application/atom+xml">`) whether or not anything is published.
+Reworded 2026-10-20 by refine: locale URLs; flagged for owner review.
+
+The site layout's head links to the feed (`<link rel="alternate" type="application/atom+xml">`) for the rendered language whether or not anything is published.
 
 **Reason.** The link is for feed readers, not visitors: it adds nothing to the page, and a subscription taken early delivers the first post when it lands. The empty feed is valid (WR-3). Provisional default, pending the owner's decision. (D-16)
 
-Kind: functional. Proof: test, WR-4 in `test/contract/writing_contract_test.rb`.
+Kind: functional. Proof: test, the two tests named WR-4 in `test/contract/writing_contract_test.rb`.
 
 ## Decisions
+
+- D-33, `docs/decisions/locale.md`: language-specific feed discovery and stable identities (WR-4, WR-5).
 
 - D-30 and D-31, `docs/decisions/copy.md`: editable prose and its unchanged defaults.
 

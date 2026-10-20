@@ -19,7 +19,7 @@ class SiteFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "a published post renders its markdown body" do
-    get post_path(posts(:published_post))
+    get post_path(slug: posts(:published_post))
     assert_response :success
     assert_select "h1", /Published Post/
     assert_match %r{<strong>markdown</strong>}, @response.body

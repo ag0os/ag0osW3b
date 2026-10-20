@@ -21,13 +21,18 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
   end
 
   test "SC-3 About bio links to an existing public consulting page" do
-    get "/about"
-    assert_response :success
-    assert_select '#about_bio a[href="/consulting"]', count: 1
-
-    get css_select('#about_bio a[href="/consulting"]').first["href"]
-    assert_response :success
-    assert_select "main #consulting_intro"
+    %w[en es].each do |locale|
+      cookies[:locale] = locale
+      [ "/about", "/#{locale}/about" ].each do |address|
+        get address
+        assert_response :success
+        assert_select "#about_bio a[href='/#{locale}/consulting']", count: 1
+        get css_select("#about_bio a[href='/#{locale}/consulting']").first["href"]
+        assert_response :success
+        assert_select "html[lang=?]", locale
+        assert_select "main #consulting_intro"
+      end
+    end
   end
   { "en" => "consulting", "es" => "consultoría" }.each do |locale, label|
     [ "/", "/about", "/work", "/contact", "/consulting", "/writing", "/writing/published-post" ].each do |path|
@@ -35,7 +40,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
         cookies[:locale] = locale
         get path
         assert_response :success
-        assert_select '.site-footer__cta a[href="/consulting"]', count: 1, text: label
+        assert_select ".site-footer__cta a[href='/#{locale}/consulting']", count: 1, text: label
       end
     end
 
@@ -44,7 +49,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
       { "/contact" => "contact_intro", "/about" => "about_bio" }.each do |path, section|
         get path
         assert_response :success
-        assert_select "##{section} a[href=\"/consulting\"]", count: 1
+        assert_select "##{section} a[href=\"/#{locale}/consulting\"]", count: 1
       end
     end
   end
@@ -76,6 +81,13 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
       spanish = Nokogiri::HTML5.fragment(MarkdownRenderer.render(Section.find_by!(key: key).body_es))
       assert_equal spanish.text.squish, css_select("##{key} .prose").text.squish, path
     end
+  end
+
+  test "SC-7 rendered Spanish public links localise while stored links remain equal" do
+    before = Section.order(:id).pluck(:body, :body_es)
+    get "/es/about"
+    assert_select '#about_bio a[href="/es/consulting"]'
+    assert_equal before, Section.order(:id).pluck(:body, :body_es)
   end
 
   test "SC-8 the migration fills every blank Spanish field of the seeded sections" do
@@ -174,7 +186,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
       "es" => "Abierto a roles construyendo sistemas de agentes y productos AI-native, y a consultoría." }.each do |locale, invitation|
       cookies[:locale] = locale
       get "/contact"
-      assert_select '#contact_intro a[href="/consulting"]', count: 1
+      assert_select "#contact_intro a[href='/#{locale}/consulting']", count: 1
       assert_select ".site-footer__cta", text: invitation
     end
   end

@@ -1,6 +1,6 @@
 require "test_helper"
 
-# PD-5 from PRODUCT.md ("Contract: the production deploy"), as tests: the
+# PD-5 from docs/contracts/production.md, as tests: the
 # www host redirects to the apex, and the apex is untouched. It asserts only on
 # HTTP: the status and the Location header.
 class CanonicalHostContractTest < ActionDispatch::IntegrationTest
@@ -48,6 +48,6 @@ class CanonicalHostContractTest < ActionDispatch::IntegrationTest
 
     patch "/locale", params: { locale: "es" }
     assert_response :see_other
-    assert_redirected_to "http://agoos.dev/"
+    assert_redirected_to "http://agoos.dev/es"
   end
 end

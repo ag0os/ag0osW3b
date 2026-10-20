@@ -148,13 +148,7 @@ Moved to `docs/contracts/writing.md` (WR-1 to WR-5).
 
 ## Contract: the production deploy
 
-What the first deploy to agoos.dev depends on. Obligations run in `test/contract/production_contract_test.rb`, and PD-5 in `test/contract/canonical_host_contract_test.rb`. Decisions are in `DECISIONS.md` (D-17 to D-19).
-
-- **PD-1** In production, `db/seeds.rb` raises unless `ADMIN_PASSWORD` is set and not blank, with a message that names `ADMIN_PASSWORD`, before it writes anything: no user, section, setting or post. That holds whether or not the admin user already exists. *Because* the repository is public, so the development default password is public, and an admin created with it on the live site is an open door. Failing before the first write leaves the database as it was, so setting the variable and seeding again is the whole fix.
-- **PD-2** In production with `ADMIN_PASSWORD` set, seeding creates the admin with that password, and nothing it prints contains the password. *Because* deploy output goes to logs that outlive the session, and a password in a log is shared with whoever reads the log.
-- **PD-3** In development and test, seeding without `ADMIN_PASSWORD` creates the admin with the default password, `change-me-please`, and prints it. *Because* a local database needs an admin someone can log in as without setup.
-- **PD-4** In production, links in mail are built for `https://agoos.dev`: the password-reset link is `https://agoos.dev/passwords/<token>/edit`. The test boots the production environment in a separate process and builds the link there. *Because* the password-reset mail is the only way back into the admin, and a link to `example.com` leads nowhere. `.dev` is HTTPS only (HSTS preloaded), so an `http` link would depend on the browser to upgrade it.
-- **PD-5** Any request to host `www.agoos.dev`, whatever its method or path, answers a permanent redirect (301) to `https://agoos.dev` with the same path and query string. Requests to `agoos.dev` are unaffected. *Because* the site should have one canonical address, so it doesn't appear twice to visitors and search engines. The owner chose to do this in the app rather than in the server's Caddy config (2026-10-16), following Hatchbox's documented approach: a host-constrained route placed first in `config/routes.rb`.
+Moved to `docs/contracts/production.md` (PD-1 to PD-5).
 
 ## Contract: continuous integration
 

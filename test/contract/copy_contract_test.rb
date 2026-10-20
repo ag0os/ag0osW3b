@@ -157,8 +157,8 @@ class CopyContractTest < ActionDispatch::IntegrationTest
     SiteSetting["linkedin_url"] = "https://www.linkedin.com/in/updated"
     %w[en es].each do |locale|
       cookies[:locale] = locale
-      get consulting_path
-      assert_select '.site-footer__cta a[href="/consulting"]', text: locale == "en" ? "consulting" : "consultoría"
+      get consulting_path(locale: nil)
+      assert_select ".site-footer__cta a[href='/#{locale}/consulting']", text: locale == "en" ? "consulting" : "consultoría"
       assert_select 'main p a[href="https://www.linkedin.com/in/updated"][target="_blank"][rel="noopener"]', text: "LinkedIn"
     end
   end
@@ -177,7 +177,7 @@ class CopyContractTest < ActionDispatch::IntegrationTest
       assert_includes css_select(selector).first.text, attack, key
       assert_select "#{selector} a", TOKENS.key?(key) ? 1 : 0
     end
-    get consulting_path
+    get consulting_path(locale: nil)
     assert_equal "#{attack} · Test Site", css_select("title").first.text
     assert_equal "#{attack} · Test Site", css_select('meta[property="og:title"]').first["content"]
     get root_path
@@ -213,7 +213,7 @@ class CopyContractTest < ActionDispatch::IntegrationTest
     assert_equal "First careful\nwork.", css_select('meta[name="description"]').first["content"]
     get feed_path
     assert_equal "First careful\nwork.", Nokogiri::XML(response.body).at_xpath('//*[local-name()="subtitle"]').text
-    get consulting_path
+    get consulting_path(locale: nil)
     assert_equal "First careful\nwork. · Test Site", css_select("title").first.text
   end
 

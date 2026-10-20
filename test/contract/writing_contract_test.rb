@@ -11,7 +11,7 @@ class WritingContractTest < ActionDispatch::IntegrationTest
       cookies[:locale] = locale
       PAGES.each do |path|
         get path
-        assert_select ".site-header nav a[href=?]", posts_path, { count: 1, text: label }, "#{path} in #{locale}"
+        assert_select ".site-header nav a[href=?]", posts_path(locale: locale), { count: 1, text: label }, "#{path} in #{locale}"
       end
     end
   end
@@ -46,7 +46,7 @@ class WritingContractTest < ActionDispatch::IntegrationTest
     posts(:draft_post).published!
 
     get root_path
-    assert_select ".site-header nav a[href=?]", posts_path, 1
+    assert_select ".site-header nav a[href=?]", posts_path(locale: :en), 1
   end
 
   test "WR-2 /writing answers 200 with the empty state when nothing is published" do
@@ -77,12 +77,44 @@ class WritingContractTest < ActionDispatch::IntegrationTest
     assert_empty feed.xpath("//atom:entry", atom)
   end
 
-  test "WR-4 the head links to the feed when nothing is published" do
+  test "WR-4 bare English pages discover their feed even while empty" do
     Post.delete_all
 
     PAGES.each do |path|
       get path
-      assert_select "head link[rel=alternate][type=?][href=?]", "application/atom+xml", feed_url, { count: 1 }, path
+      assert_select "head link[rel=alternate][type=?][href=?]", "application/atom+xml", feed_url(locale: :en), { count: 1 }, path
+    end
+  end
+
+  test "WR-4 bare and fixed-language pages discover the rendered-language feed while empty" do
+    Post.delete_all
+    %w[en es].each do |locale|
+      get "/#{locale}/writing"
+      assert_select 'link[rel=alternate][type="application/atom+xml"][href=?]', "http://www.example.com/#{locale}/feed"
+      cookies[:locale] = locale
+      PAGES.each do |path|
+        get path
+        assert_select 'head link[rel=alternate][type="application/atom+xml"][href=?]', "http://www.example.com/#{locale}/feed"
+      end
+    end
+  end
+
+  test "WR-5 language feed aliases agree and unsupported formats are 404" do
+    freeze_time
+    %w[en es].each do |locale|
+      get "/#{locale}/feed"
+      assert_response :success
+      document = response.body
+      %w[xml atom].each do |format|
+        get "/#{locale}/feed.#{format}"
+        assert_response :success
+        assert_equal "application/atom+xml", response.media_type
+        assert_equal document, response.body
+      end
+      %w[json rss html txt].each do |format|
+        get "/#{locale}/feed.#{format}"
+        assert_response :not_found
+      end
     end
   end
 
