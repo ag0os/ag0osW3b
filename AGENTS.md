@@ -259,12 +259,10 @@ coverage for it.
    no survivor undoes the fix; the red run in step 2 is what shows the test
    catches the bug. The run exits nonzero while the baseline's own survivors
    live.
-5. Label the PR `fix:` and name the id.
+5. Run `bin/ci`, as under "The checks" below.
+6. Label the PR `fix:` and name the id.
 
 Everything else is `refine:`.
-
-No attribution in commits or pull requests: no `Co-Authored-By` trailer, and
-no "Generated with" footer or other line naming a tool or agent.
 
 **The checks.** Before you say done, run `bin/ci` (fetch first: locally it
 compares with `origin/main`, or `$CI_BASE`). GitHub runs exactly it on every
