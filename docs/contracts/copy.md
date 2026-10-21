@@ -16,7 +16,7 @@ depends_on:
 tests:
   - test/contract/copy_contract_test.rb
 ---
-Coverage: 7 obligations; 7 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
+Coverage: 8 obligations; 8 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
 
 # Contract: editable page copy
 
@@ -79,6 +79,16 @@ Mark-capable copy has multiline fields and renders ==marks== using the existing 
 **Reason.** Moving prose must preserve emphasis and link previews without changing its formatting language. (D-30, D-31)
 
 Kind: functional. Proof: test, CO-7 in `test/contract/copy_contract_test.rb`.
+
+### CO-8 A malformed submission is refused and writes nothing
+
+A Copy or Settings submission whose `copy` or `settings` group is missing, is a single value or a list rather than a set of fields, holds none of its editor's own keys, or carries any of its own keys as a list or a set of fields is answered 400 Bad Request, never a server error, and saves no value, even when its other own fields are valid. Keys outside the editor's own set, nested or not, are still ignored (CO-2), and blank values still save.
+
+Reworded 2026-10-21 by fix round 1 of this PR: a malformed own field refuses the whole submission.
+
+**Reason.** Neither editor's form can produce such a request, so it is a mistake or a probe. Rejecting it whole keeps the endpoint from crashing and keeps a partial or stray write out of the settings. Close call on the membership test: the 400 is an HTTP answer any implementation can give, not Rails' parameter error.
+
+Kind: functional. Proof: test, CO-8 in `test/contract/copy_contract_test.rb`.
 
 ## Decisions
 

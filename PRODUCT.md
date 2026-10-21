@@ -239,4 +239,4 @@ What this does not cover: mutation runs only on the subjects listed in `config/m
 
 ## Contract: editable page copy
 
-See `docs/contracts/copy.md` (CO-1 to CO-7).
+See `docs/contracts/copy.md` (CO-1 to CO-8).
