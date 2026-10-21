@@ -5,7 +5,8 @@ module Admin
     end
 
     def update
-      values = params.fetch(:copy, ActionController::Parameters.new).permit(*SiteSetting::COPY_KEYS).to_h
+      values = params.expect(copy: SiteSetting::COPY_KEYS).to_h
+      raise ActionController::BadRequest if params[:copy].keys.intersection(SiteSetting::COPY_KEYS).size > values.size
       @records = values.map do |key, value|
         SiteSetting.find_or_initialize_by(key: key).tap { |record| record.value = value }
       end

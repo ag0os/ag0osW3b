@@ -5,7 +5,9 @@ module Admin
     end
 
     def update
-      params.fetch(:settings, ActionController::Parameters.new).permit(*SiteSetting::SETTINGS_KEYS).each do |key, value|
+      settings = params.expect(settings: SiteSetting::SETTINGS_KEYS)
+      raise ActionController::BadRequest if params[:settings].keys.intersection(SiteSetting::SETTINGS_KEYS).size > settings.keys.size
+      settings.each do |key, value|
         SiteSetting[key] = value
       end
       redirect_to admin_site_settings_path, notice: "Settings saved."

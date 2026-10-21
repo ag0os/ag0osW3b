@@ -6,7 +6,10 @@ class SessionsController < ApplicationController
   end
 
   def create
-    if user = User.authenticate_by(params.permit(:email_address, :password))
+    credentials = params.permit(:email_address, :password)
+    return head :bad_request unless credentials.values_at(:email_address, :password).all?(String)
+
+    if user = User.authenticate_by(credentials)
       start_new_session_for user
       redirect_to after_authentication_url
     else

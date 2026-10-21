@@ -217,6 +217,42 @@ class CopyContractTest < ActionDispatch::IntegrationTest
     assert_equal "First careful\nwork. · Test Site", css_select("title").first.text
   end
 
+  { "/admin/copy" => :copy, "/admin/settings" => :settings }.each do |path, group|
+    test "CO-8 a malformed #{group} submission is refused with 400 and writes nothing" do
+      sign_in_as users(:one)
+      [ { group => "oops" }, { group => [ "oops" ] }, {}, { group => { unknown: "Wrong key" } } ].each do |params|
+        before = SiteSetting.pluck(:key, :value).sort
+        patch path, params: params
+        assert_response :bad_request, "for #{params.inspect}"
+        assert_equal before, SiteSetting.pluck(:key, :value).sort
+      end
+    end
+  end
+
+  { "/admin/copy" => [ :copy, "tagline", "hero_note" ], "/admin/settings" => [ :settings, "site_title", "email" ] }.each do |path, (group, valid, owned)|
+    test "CO-8 a malformed owned #{group} field refuses the whole submission, in form and JSON" do
+      sign_in_as users(:one)
+      [ [ "oops" ], { address: "oops" } ].each do |bad|
+        [ nil, :json ].each do |format|
+          before = SiteSetting.pluck(:key, :value).sort
+          patch path, params: { group => { valid => "Must not save", owned => bad } }, as: format
+          assert_response :bad_request, "for #{owned}=#{bad.inspect} as #{format.inspect}"
+          assert_equal before, SiteSetting.pluck(:key, :value).sort
+        end
+      end
+    end
+
+    test "CO-8 nested foreign values are still ignored and blank owned values still save in #{group}" do
+      sign_in_as users(:one)
+      SiteSetting[valid] = "Existing"
+      patch path, params: { group => { valid => "", unknown: { nested: "Wrong key" }, other: [ "Wrong key" ] } }
+      assert_response :redirect
+      assert_equal "", SiteSetting.find_by!(key: valid).value
+      assert_nil SiteSetting.find_by(key: "unknown")
+      assert_nil SiteSetting.find_by(key: "other")
+    end
+  end
+
   private
 
   def edited_copy
