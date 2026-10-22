@@ -15,7 +15,7 @@ Coverage: 8 obligations; 8 proved by test, 0 by PR evidence, 0 mixed, 0 unproved
 
 # Contract: seeded copy
 
-These obligations apply to the first-deploy copy loaded by `db/seeds.rb`, with tests that run the real seeds, to the migration that brings its Spanish to a database seeded before there was any, and to the migration that carries the owner's approved sentence changes to the live copy. The owner can still edit the wording in `/admin`; individual sentences are not pinned by this Contract.
+These obligations apply to the first-deploy copy loaded by `db/seeds.rb`, with tests that run the real seeds, to the migration that brings its Spanish to a database seeded before there was any, and to the migration that carries the owner's approved fragment changes to the live copy. The owner can still edit the wording in `/admin`; individual sentences are not pinned by this Contract.
 
 ## Links
 
@@ -91,13 +91,13 @@ Kind: functional. Proof: test, the three tests named SC-8 in `test/contract/seed
 
 ## Approved changes
 
-### SC-9 The SDLC copy migration swaps the approved sentences and nothing else
+### SC-9 The SDLC copy migration swaps the approved fragments and nothing else
 
-`SwapSdlcCopy` replaces each sentence the owner approved on 2026-10-22 with its new wording, in exactly these stored fields: the `tagline` and `tagline_es` settings, the English and Spanish bodies of `home_what_i_do`, and the English bodies of `contact_intro` and `about_bio`. It replaces only in a field that still holds the old sentence. It changes no other field, setting or section, creates no row (a tagline never saved in the admin stays unsaved), runs twice to the same result, and rolling it back changes nothing. On a database holding the old sentences, each page then shows the new ones in both languages.
+`SwapSdlcCopy` replaces each approved old fragment from 2026-10-22 with its new wording, in exactly these stored fields: the `tagline` and `tagline_es` settings, the English and Spanish bodies of `home_what_i_do`, and the English bodies of `contact_intro` and `about_bio`. In a named field it replaces every exact occurrence of the approved old fragment and keeps the content around it; a field without the exact fragment is left alone. It changes no other field (the row's timestamps included), setting or section, creates no row (a tagline never saved in the admin stays unsaved), runs twice to the same result, and rolling it back changes nothing. On a database holding the old fragments, each page then shows the new wording in both languages.
 
-**Reason.** Seeds are not a deploy step, and running them again would overwrite whatever the owner has since edited in `/admin` (SC-8). A swap that requires the old sentence cannot overwrite one the owner has rewritten, and leaves everything else as the owner left it. (D-36)
+**Reason.** Seeds are not a deploy step, and running them again would overwrite whatever the owner has since edited in `/admin` (SC-8). Requiring the exact old fragment leaves alone any field where the owner removed or changed it, and everything else as the owner left it; a rewrite that kept the exact fragment still gets the swap. (D-36)
 
-Kind: functional. Proof: test, the three tests named SC-9 in `test/contract/seeded_copy_contract_test.rb`.
+Kind: functional. Proof: test, the five tests named SC-9 in `test/contract/seeded_copy_contract_test.rb`.
 
 ## Decisions
 
@@ -107,4 +107,4 @@ Kind: functional. Proof: test, the three tests named SC-9 in `test/contract/seed
 
 - D-15, `docs/decisions/writing.md`: Writing hides itself by asking whether anything is published (SC-6, with WR-1 to WR-3).
 - D-28, `docs/decisions/seeded_copy.md`: the Spanish copy lives in one file, which the seeds and a fill-the-blanks migration both read (SC-7, SC-8).
-- D-36, `docs/decisions/seeded_copy.md`: approved copy changes reach the live site through a migration that swaps only the old sentences; the fill migration's input is frozen (SC-8, SC-9).
+- D-36, `docs/decisions/seeded_copy.md`: approved copy changes reach the live site through a migration that swaps only the approved old fragments; the fill migration's input is frozen (SC-8, SC-9).

@@ -158,15 +158,17 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
       "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software, en todo el ciclo de desarrollo." ]
   }.freeze
 
-  test "SC-9 the migration swaps each approved sentence, stored and rendered" do
-    seeded = Section.order(:id).map { |section| section.attributes.except("updated_at") }
+  test "SC-9 the migration swaps each approved fragment, stored and rendered" do
+    seeded = SDLC_SECTIONS.keys.to_h { |key, field| [ [ key, field ], Section.find_by!(key: key)[field] ] }
     live_before_the_swap
     SDLC_TAGLINES.each { |key, (old, _)| SiteSetting.create!(key: key, value: old) }
+    before = stored
 
     swap :up
 
-    assert_equal seeded, Section.order(:id).map { |section| section.attributes.except("updated_at") }
-    SDLC_TAGLINES.each { |key, (_, new)| assert_equal new, SiteSetting.find_by!(key: key).value, key }
+    # Only the named content fields move: back to the seeded text, and the
+    # saved taglines to the new ones. Timestamps included.
+    assert_equal expected_after(before, seeded.merge(SDLC_TAGLINES.to_h { |key, (_, new)| [ [ key, "value" ], new ] })), stored
     pages = { "home_what_i_do" => "", "contact_intro" => "/contact", "about_bio" => "/about" }
     { "en" => [ "tagline", "body" ], "es" => [ "tagline_es", "body_es" ] }.each do |locale, (tagline, field)|
       get "/#{locale}"
@@ -181,43 +183,67 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "SC-9 it leaves fields without the old sentence, other fields, other sections and other settings as they are" do
-    live_before_the_swap
-    # The owner rewrote two of the sentences in /admin, emptied a third, and
-    # pasted old sentences where the swap must not look.
-    Section.find_by!(key: "home_what_i_do").update!(body: "- Edited item.", body_es: " \n", heading: SDLC_SECTIONS[[ "about_bio", "body" ]].first)
-    Section.find_by!(key: "contact_intro").update!(body: "I answer email, and automate nothing.", note: "and automate SDLC.", body_es: "and automate SDLC.")
-    Section.find_by!(key: "about_bio").update!(body_es: "Buenos Aires Argentina (GMT-3)", note_es: "Buenos Aires Argentina (GMT-3)")
-    Section.find_by!(key: "consulting_intro").update!(body: SDLC_SECTIONS.values.map(&:first).join("\n\n"))
-    SiteSetting.create!(key: "tagline", value: "Edited tagline.")
-    SiteSetting.create!(key: "tagline_es", value: "")
-    SiteSetting.create!(key: "hero_note", value: SDLC_TAGLINES["tagline"].first)
-    SiteSetting.create!(key: "work_intro_es", value: SDLC_TAGLINES["tagline_es"].first)
-    before = Section.order(:id).map(&:attributes)
-    settings = SiteSetting.order(:id).map(&:attributes)
+  test "SC-9 it replaces every exact occurrence and keeps the owner's text around it" do
+    # The seeded text holds no old fragment; these two fields hold each twice.
+    old, new = SDLC_SECTIONS[[ "about_bio", "body" ]]
+    Section.find_by!(key: "about_bio").update!(body: "Owner intro, #{old}.\n\nAgain: #{old}, owner outro.")
+    old_tagline, new_tagline = SDLC_TAGLINES["tagline"]
+    SiteSetting.create!(key: "tagline", value: "Owner prefix. #{old_tagline} Owner middle. #{old_tagline} Owner suffix.")
+    before = stored
 
     swap :up
 
-    # Only about_bio's English body still held its old sentence.
-    old, new = SDLC_SECTIONS[[ "about_bio", "body" ]]
-    expected = before.map { |row| row["key"] == "about_bio" ? row.merge("body" => row["body"].sub(old, new)) : row }
-    assert_equal expected.map { |row| row.except("updated_at") }, Section.order(:id).map { |row| row.attributes.except("updated_at") }
-    assert_equal before.reject { |row| row["key"] == "about_bio" }, Section.where.not(key: "about_bio").order(:id).map(&:attributes)
-    assert_equal settings, SiteSetting.order(:id).map(&:attributes)
+    assert_equal expected_after(before,
+      [ "about_bio", "body" ] => "Owner intro, #{new}.\n\nAgain: #{new}, owner outro.",
+      [ "tagline", "value" ] => "Owner prefix. #{new_tagline} Owner middle. #{new_tagline} Owner suffix."), stored
   end
 
-  test "SC-9 it creates nothing, runs twice cleanly, and rolls back as a no-op" do
+  test "SC-9 it leaves fields without the exact fragment, other fields, other sections and other settings as they are" do
+    seeded_bio = Section.find_by!(key: "about_bio").body
+    live_before_the_swap
+    home_en, home_es = SDLC_SECTIONS.values_at([ "home_what_i_do", "body" ], [ "home_what_i_do", "body_es" ]).map(&:first)
+    # The owner rewrote or emptied some fragments in /admin, kept near-misses
+    # of others (a doubled space, an entity, a line break, the other
+    # language), and pasted exact fragments where the swap must not look.
+    Section.find_by!(key: "home_what_i_do").update!(body: "- #{home_es}", body_es: "- #{home_es.sub(' los ', '  los ')}",
+      heading: SDLC_SECTIONS[[ "about_bio", "body" ]].first, note: home_en)
+    Section.find_by!(key: "contact_intro").update!(body: "I answer email, and automate&#32;SDLC.", note: "and automate SDLC.", body_es: "and automate SDLC.")
+    Section.find_by!(key: "about_bio").update!(body_es: "Buenos Aires Argentina (GMT-3)", note_es: "Buenos Aires Argentina (GMT-3)")
+    Section.find_by!(key: "consulting_intro").update!(body: SDLC_SECTIONS.values.map(&:first).join("\n\n"))
+    SiteSetting.create!(key: "tagline", value: SDLC_TAGLINES["tagline"].first.sub(" I build", "\nI build"))
+    SiteSetting.create!(key: "tagline_es", value: "")
+    SiteSetting.create!(key: "hero_note", value: SDLC_TAGLINES["tagline"].first)
+    SiteSetting.create!(key: "work_intro_es", value: SDLC_TAGLINES["tagline_es"].first)
+    before = stored
+
+    swap :up
+
+    # Only about_bio's English body still held its exact fragment.
+    assert_equal expected_after(before, [ "about_bio", "body" ] => seeded_bio), stored
+  end
+
+  test "SC-9 with every target present, it runs twice to the same result and rolls back as a no-op" do
+    live_before_the_swap
+    SDLC_TAGLINES.each { |key, (old, _)| SiteSetting.create!(key: key, value: "#{old} #{old}") }
+    before = stored
+
+    swap :up
+    once = stored
+    assert_not_equal before, once, "the first run"
+    swap :up
+    assert_equal once, stored, "the second run"
+    swap :down
+    assert_equal once, stored, "the rollback"
+  end
+
+  test "SC-9 it creates nothing where a target is missing" do
     live_before_the_swap
     Section.find_by!(key: "contact_intro").destroy
     ids = Section.ids.sort
     settings = SiteSetting.order(:id).map(&:attributes)
 
     swap :up
-    once = Section.order(:id).map(&:attributes)
-    swap :up
-    assert_equal once, Section.order(:id).map(&:attributes), "the second run"
     swap :down
-    assert_equal once, Section.order(:id).map(&:attributes), "the rollback"
 
     assert_equal ids, Section.ids.sort
     assert_equal settings, SiteSetting.order(:id).map(&:attributes)
@@ -299,6 +325,22 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
         section = Section.find_by!(key: key)
         assert_includes section[field], new, "the seeded #{key}.#{field}"
         section.update!(field => section[field].sub(new, old))
+      end
+    end
+
+    # Every stored section and setting, complete, after dating each row in
+    # the past, so a write that touches its timestamp shows.
+    def stored
+      [ Section, SiteSetting ].each { |model| model.update_all(updated_at: Time.utc(2001, 1, 1)) } unless @dated
+      @dated = true
+      { sections: Section.order(:id).map(&:attributes), settings: SiteSetting.order(:id).map(&:attributes) }
+    end
+
+    # The stored state with only the named content fields replaced:
+    # { [ key, field ] => value }, a setting's field being "value".
+    def expected_after(before, changes)
+      before.transform_values do |rows|
+        rows.map { |row| changes.reduce(row) { |acc, ((key, field), value)| acc["key"] == key && acc.key?(field) ? acc.merge(field => value) : acc } }
       end
     end
 
