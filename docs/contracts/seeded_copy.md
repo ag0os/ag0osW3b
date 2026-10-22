@@ -4,16 +4,18 @@ covers:
   - db/seeds.rb
   - db/seeds/sections_es.yml
   - db/migrate/20261019120100_fill_spanish_sections.rb
+  - db/migrate/20261019120100_fill_spanish_sections.yml
+  - db/migrate/20261022120000_swap_sdlc_copy.rb
 depends_on:
   - locale
 tests:
   - test/contract/seeded_copy_contract_test.rb
 ---
-Coverage: 7 obligations; 7 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
+Coverage: 8 obligations; 8 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
 
 # Contract: seeded copy
 
-These obligations apply to the first-deploy copy loaded by `db/seeds.rb`, with tests that run the real seeds, and to the migration that brings its Spanish to a database seeded before there was any. The owner can still edit the wording in `/admin`; individual sentences are not pinned by this Contract.
+These obligations apply to the first-deploy copy loaded by `db/seeds.rb`, with tests that run the real seeds, to the migration that brings its Spanish to a database seeded before there was any, and to the migration that carries the owner's approved sentence changes to the live copy. The owner can still edit the wording in `/admin`; individual sentences are not pinned by this Contract.
 
 ## Links
 
@@ -79,11 +81,23 @@ Kind: functional. Proof: test, the three tests named SC-7 in `test/contract/seed
 
 ### SC-8 The migration fills blank Spanish and nothing else
 
-`FillSpanishSections` copies each seeded section's Spanish into the section with the same key, one field at a time, and only into fields that are blank. It changes no English, no Spanish already written, and no section the copy does not name. It creates no section, it runs twice to the same result, and rolling it back changes nothing.
+Reworded 2026-10-22 by refine: copy SDLC; flagged for owner review.
+
+`FillSpanishSections` copies each seeded section's Spanish, as seeded on 2026-10-19 and frozen beside the migration, into the section with the same key, one field at a time, and only into fields that are blank. It changes no English, no Spanish already written, and no section the copy does not name. It creates no section, it runs twice to the same result, and rolling it back changes nothing.
 
 **Reason.** Seeds are not a deploy step, and running them again would overwrite whatever the owner has since edited in `/admin`. The migration runs with the deploy and only adds. (D-28)
 
 Kind: functional. Proof: test, the three tests named SC-8 in `test/contract/seeded_copy_contract_test.rb`.
+
+## Approved changes
+
+### SC-9 The SDLC copy migration swaps the approved sentences and nothing else
+
+`SwapSdlcCopy` replaces each sentence the owner approved on 2026-10-22 with its new wording, in exactly these stored fields: the `tagline` and `tagline_es` settings, the English and Spanish bodies of `home_what_i_do`, and the English bodies of `contact_intro` and `about_bio`. It replaces only in a field that still holds the old sentence. It changes no other field, setting or section, creates no row (a tagline never saved in the admin stays unsaved), runs twice to the same result, and rolling it back changes nothing. On a database holding the old sentences, each page then shows the new ones in both languages.
+
+**Reason.** Seeds are not a deploy step, and running them again would overwrite whatever the owner has since edited in `/admin` (SC-8). A swap that requires the old sentence cannot overwrite one the owner has rewritten, and leaves everything else as the owner left it. (D-36)
+
+Kind: functional. Proof: test, the three tests named SC-9 in `test/contract/seeded_copy_contract_test.rb`.
 
 ## Decisions
 
@@ -93,3 +107,4 @@ Kind: functional. Proof: test, the three tests named SC-8 in `test/contract/seed
 
 - D-15, `docs/decisions/writing.md`: Writing hides itself by asking whether anything is published (SC-6, with WR-1 to WR-3).
 - D-28, `docs/decisions/seeded_copy.md`: the Spanish copy lives in one file, which the seeds and a fill-the-blanks migration both read (SC-7, SC-8).
+- D-36, `docs/decisions/seeded_copy.md`: approved copy changes reach the live site through a migration that swaps only the old sentences; the fill migration's input is frozen (SC-8, SC-9).
