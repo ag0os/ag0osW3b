@@ -1,6 +1,9 @@
 require "test_helper"
 
 class SeededCopyContractTest < ActionDispatch::IntegrationTest
+  # FillSpanishSections' input, frozen as the seeded Spanish stood on 2026-10-19.
+  FROZEN_SPANISH = YAML.load_file(Rails.root.join("db/migrate/20261019120100_fill_spanish_sections.yml")).freeze
+
   setup do
     # Exercise first-deploy content rather than fixtures that could drift.
     capture_io { load Rails.root.join("db/seeds.rb") }
@@ -91,12 +94,13 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
   end
 
   test "SC-8 the migration fills every blank Spanish field of the seeded sections" do
-    spanish = Section.pluck(:key, :heading_es, :note_es, :body_es).sort
     Section.update_all(heading_es: nil, note_es: nil, body_es: nil)
 
     migrate :up
 
-    assert_equal spanish, Section.pluck(:key, :heading_es, :note_es, :body_es).sort
+    blank = { "heading_es" => nil, "note_es" => nil, "body_es" => nil }
+    expected = Section.pluck(:key).to_h { |key| [ key, blank.merge(FROZEN_SPANISH.fetch(key, {})) ] }
+    assert_equal expected, Section.all.to_h { |section| [ section.key, section.attributes.slice(*blank.keys) ] }
   end
 
   test "SC-8 it leaves English, Spanish already written, and other sections as they are" do
@@ -114,8 +118,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
 
     migrate :up
 
-    spanish = YAML.load_file(Rails.root.join("db/seeds/sections_es.yml"))
-    expected = before.map { |row| row.merge(spanish.fetch(row["key"], {}).select { |field, _| row[field].blank? }) }
+    expected = before.map { |row| row.merge(FROZEN_SPANISH.fetch(row["key"], {}).select { |field, _| row[field].blank? }) }
     assert_equal expected.map { |row| row.except("updated_at") }, Section.order(:id).map { |row| row.attributes.except("updated_at") }
     assert_equal others, Section.where(key: %w[ home_intro home_hidden ]).map(&:attributes)
   end
@@ -136,10 +139,97 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     assert_equal ids, Section.ids.sort
   end
 
+  # The approved sentences, as the live site held them on 2026-10-22 and as
+  # they read after the swap: [ section key, field ] => [ old, new ].
+  SDLC_SECTIONS = {
+    [ "home_what_i_do", "body" ] => [
+      "I build the systems that let agents build good software: plans and context, orchestration, and the verification that makes the output trustworthy.",
+      "I automate the software development lifecycle (SDLC) with agents: plans and context, orchestration, review, and the verification that makes the output trustworthy." ],
+    [ "home_what_i_do", "body_es" ] => [
+      "Construyo los sistemas que permiten a los agentes construir buen software: planes y contexto, orquestación, y la verificación que hace confiable el resultado.",
+      "Automatizo el ciclo de vida del desarrollo de software (SDLC) con agentes: planes y contexto, orquestación, revisión, y la verificación que hace confiable el resultado." ],
+    [ "contact_intro", "body" ] => [ "and automate SDLC.", "and automating their SDLC." ],
+    [ "about_bio", "body" ] => [ "Buenos Aires Argentina (GMT-3)", "Buenos Aires, Argentina (GMT-3)" ]
+  }.freeze
+  SDLC_TAGLINES = {
+    "tagline" => [ "Senior Software Engineer. I build the systems that let agents build good software.",
+      "Senior Software Engineer. I build the systems that let agents build good software, across the whole SDLC." ],
+    "tagline_es" => [ "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software.",
+      "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software, en todo el ciclo de desarrollo." ]
+  }.freeze
+
+  test "SC-9 the migration swaps each approved sentence, stored and rendered" do
+    seeded = Section.order(:id).map { |section| section.attributes.except("updated_at") }
+    live_before_the_swap
+    SDLC_TAGLINES.each { |key, (old, _)| SiteSetting.create!(key: key, value: old) }
+
+    swap :up
+
+    assert_equal seeded, Section.order(:id).map { |section| section.attributes.except("updated_at") }
+    SDLC_TAGLINES.each { |key, (_, new)| assert_equal new, SiteSetting.find_by!(key: key).value, key }
+    pages = { "home_what_i_do" => "", "contact_intro" => "/contact", "about_bio" => "/about" }
+    { "en" => [ "tagline", "body" ], "es" => [ "tagline_es", "body_es" ] }.each do |locale, (tagline, field)|
+      get "/#{locale}"
+      assert_select "main h1", text: SDLC_TAGLINES[tagline].last
+      SDLC_SECTIONS.each do |(key, swapped), (old, new)|
+        next unless swapped == field
+        get "/#{locale}#{pages.fetch(key)}"
+        text = css_select("##{key} .prose").text.squish
+        assert_includes text, new, "#{key} in #{locale}"
+        assert_not_includes text, old, "#{key} in #{locale}"
+      end
+    end
+  end
+
+  test "SC-9 it leaves fields without the old sentence, other fields, other sections and other settings as they are" do
+    live_before_the_swap
+    # The owner rewrote two of the sentences in /admin, emptied a third, and
+    # pasted old sentences where the swap must not look.
+    Section.find_by!(key: "home_what_i_do").update!(body: "- Edited item.", body_es: " \n", heading: SDLC_SECTIONS[[ "about_bio", "body" ]].first)
+    Section.find_by!(key: "contact_intro").update!(body: "I answer email, and automate nothing.", note: "and automate SDLC.", body_es: "and automate SDLC.")
+    Section.find_by!(key: "about_bio").update!(body_es: "Buenos Aires Argentina (GMT-3)", note_es: "Buenos Aires Argentina (GMT-3)")
+    Section.find_by!(key: "consulting_intro").update!(body: SDLC_SECTIONS.values.map(&:first).join("\n\n"))
+    SiteSetting.create!(key: "tagline", value: "Edited tagline.")
+    SiteSetting.create!(key: "tagline_es", value: "")
+    SiteSetting.create!(key: "hero_note", value: SDLC_TAGLINES["tagline"].first)
+    SiteSetting.create!(key: "work_intro_es", value: SDLC_TAGLINES["tagline_es"].first)
+    before = Section.order(:id).map(&:attributes)
+    settings = SiteSetting.order(:id).map(&:attributes)
+
+    swap :up
+
+    # Only about_bio's English body still held its old sentence.
+    old, new = SDLC_SECTIONS[[ "about_bio", "body" ]]
+    expected = before.map { |row| row["key"] == "about_bio" ? row.merge("body" => row["body"].sub(old, new)) : row }
+    assert_equal expected.map { |row| row.except("updated_at") }, Section.order(:id).map { |row| row.attributes.except("updated_at") }
+    assert_equal before.reject { |row| row["key"] == "about_bio" }, Section.where.not(key: "about_bio").order(:id).map(&:attributes)
+    assert_equal settings, SiteSetting.order(:id).map(&:attributes)
+  end
+
+  test "SC-9 it creates nothing, runs twice cleanly, and rolls back as a no-op" do
+    live_before_the_swap
+    Section.find_by!(key: "contact_intro").destroy
+    ids = Section.ids.sort
+    settings = SiteSetting.order(:id).map(&:attributes)
+
+    swap :up
+    once = Section.order(:id).map(&:attributes)
+    swap :up
+    assert_equal once, Section.order(:id).map(&:attributes), "the second run"
+    swap :down
+    assert_equal once, Section.order(:id).map(&:attributes), "the rollback"
+
+    assert_equal ids, Section.ids.sort
+    assert_equal settings, SiteSetting.order(:id).map(&:attributes)
+    assert_nil SiteSetting.find_by(key: %w[ tagline tagline_es ])
+    get "/en"
+    assert_select "main h1", text: SDLC_TAGLINES["tagline"].last
+  end
+
   test "settled taglines describe the home page and its link previews in both languages" do
     SiteSetting.where(key: %w[tagline tagline_es]).delete_all
-    { "en" => "Senior Software Engineer. I build the systems that let agents build good software.",
-      "es" => "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software." }.each do |locale, tagline|
+    { "en" => "Senior Software Engineer. I build the systems that let agents build good software, across the whole SDLC.",
+      "es" => "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software, en todo el ciclo de desarrollo." }.each do |locale, tagline|
       cookies[:locale] = locale
       get "/"
       assert_select "main h1", count: 1, text: tagline
@@ -150,16 +240,16 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "settled Featured copy features Shepherd and identifies Cosmonauts as its paused predecessor" do
+  test "settled Featured copy features Shepherd and names Cosmonauts as its predecessor" do
     featured = Section.find_by!(key: "home_featured")
-    assert_equal "Featured: Shepherd", featured.heading
+    assert_equal "Shepherd", featured.heading
     assert_equal "Built it because I needed it.", featured.note
     assert_equal <<~MD.strip, featured.body.strip
       **Shepherd** is what I run every day: one agent per project that keeps the context, tracks the work across sessions and runs the other agents, on Claude Code or Codex. I run a flock of them. It lives in Troupe, my agent toolkit.
 
       [Troupe on GitHub →](https://github.com/ag0os/troupe)
 
-      Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. Development is paused; the code is public.
+      Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline.
 
       [Cosmonauts on GitHub →](https://github.com/ag0os/cosmonauts)
     MD
@@ -179,7 +269,7 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
 
   test "settled Contact invitation and localized footer offer roles and consulting" do
     assert_equal <<~MD.strip, Section.find_by!(key: "contact_intro").body.strip
-      I'm open to roles building agent systems and AI-native products, and to [consulting](/consulting) for teams adopting agents.
+      I'm open to roles building agent systems and AI-native products, and to [consulting](/consulting) for teams adopting agents and automating their SDLC.
       The fastest way to reach me is email, or find me on LinkedIn and GitHub below.
     MD
     { "en" => "Open to roles building agent systems and AI-native products, and to consulting.",
@@ -201,5 +291,19 @@ class SeededCopyContractTest < ActionDispatch::IntegrationTest
     def migrate(direction)
       load Rails.root.join("db/migrate/20261019120100_fill_spanish_sections.rb").to_s
       ActiveRecord::Migration.suppress_messages { FillSpanishSections.new.migrate(direction) }
+    end
+
+    # Puts back the sentences the live site held before the approved swap.
+    def live_before_the_swap
+      SDLC_SECTIONS.each do |(key, field), (old, new)|
+        section = Section.find_by!(key: key)
+        assert_includes section[field], new, "the seeded #{key}.#{field}"
+        section.update!(field => section[field].sub(new, old))
+      end
+    end
+
+    def swap(direction)
+      load Rails.root.join("db/migrate/20261022120000_swap_sdlc_copy.rb").to_s
+      ActiveRecord::Migration.suppress_messages { SwapSdlcCopy.new.migrate(direction) }
     end
 end

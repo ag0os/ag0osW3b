@@ -35,14 +35,14 @@ class SiteSetting < ApplicationRecord
   DEFAULTS = {
     "site_title"   => "Agustin Calabrese",
     # The hero tagline and link-preview description, until overridden in admin.
-    "tagline"      => "Senior Software Engineer. I build the systems that let agents build good software.",
+    "tagline"      => "Senior Software Engineer. I build the systems that let agents build good software, across the whole SDLC.",
     # The note in the margin of the hero, in the visitor's chosen hand. The
     # rail is 7.5rem wide, so a note is a handful of words: marginalia, not a
     # paragraph that happens to live in the margin.
     "hero_note"    => "Thirteen years in audio first. Same job.",
     # Spanish copy is a sibling key read through SiteSetting.localized.
     # Missing rows use these defaults; saved blanks request English.
-    "tagline_es"   => "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software.",
+    "tagline_es"   => "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software, en todo el ciclo de desarrollo.",
     "hero_note_es" => "Trece años en audio primero. El mismo trabajo.",
     "work_intro" => "Most of my product work is private. Here's the public proof.",
     "writing_intro" => "Notes on AI-native workflows, agent orchestration, and product-minded engineering.",

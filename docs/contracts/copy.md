@@ -40,7 +40,9 @@ Kind: functional. Proof: test, CO-2 in `test/contract/copy_contract_test.rb`.
 
 ### CO-3 Defaults and existing hero overrides survive
 
-Without stored copy rows, public copy retains the exact English and Spanish defaults from 4d307e9. Existing tagline, hero_note, tagline_es and hero_note_es rows retain their keys and values. D-30 also applies to rows saved before this change: a pre-existing blank (including nil) or whitespace-only tagline_es or hero_note_es now shows English marked `lang="en"`, where it previously showed the Spanish default. Deploying requires no migration or seed run.
+Reworded 2026-10-22 by refine: copy SDLC; flagged for owner review.
+
+Without stored copy rows, public copy retains the exact English and Spanish defaults from 4d307e9, except the tagline and its Spanish, changed by refine: copy SDLC (owner-approved 2026-10-22). Existing tagline, hero_note, tagline_es and hero_note_es rows retain their keys and values, except that a saved tagline or tagline_es still holding the old approved sentence takes the new one (SC-9). D-30 also applies to rows saved before this change: a pre-existing blank (including nil) or whitespace-only tagline_es or hero_note_es now shows English marked `lang="en"`, where it previously showed the Spanish default. Deploying requires no migration or seed run.
 
 Clarified 2026-10-19 in fix round 1; the changed reading of pre-existing blank Spanish hero rows is flagged for owner acceptance.
 

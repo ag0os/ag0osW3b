@@ -1,26 +1,25 @@
 # Spanish for every seeded section, by key: the Spanish sibling of the
-# heading, note and body in db/seeds.rb, which merges this file in. The
-# FillSpanishSections migration reads it too, to put the Spanish on a
-# database seeded before there was any. Drafted from the English for the owner
-# to correct in /admin, in the same voice and with the same links and marks.
+# heading, note and body in db/seeds.rb, which merges this file in. It follows
+# the live text as edited in /admin; FillSpanishSections reads its own frozen
+# copy of the 2026-10-19 draft. Same links and marks as the English.
 
 home_what_i_do:
-  heading_es: Qué hago
-  note_es: Las herramientas son nuevas. El criterio, no.
+  heading_es: A que me dedico
+  note_es: Nuevas herramientas, misma metodologia.
   body_es: |
-    - Construyo los sistemas que permiten a los agentes construir buen software: planes y contexto, orquestación, y la verificación que hace confiable el resultado.
+    - Automatizo el ciclo de vida del desarrollo de software (SDLC) con agentes: planes y contexto, orquestación, revisión, y la verificación que hace confiable el resultado.
     - Convierto una intención de producto difusa en ==sistemas planificados, testeados y mantenibles==.
     - Tengo experiencia senior en **backend, full-stack y cloud**: Ruby on Rails como base en producción, TypeScript en mis propias herramientas.
 
 home_featured:
-  heading_es: "Destacado: Shepherd"
+  heading_es: Shepherd
   note_es: Lo hice porque lo necesitaba.
   body_es: |
-    **Shepherd** es lo que uso todos los días: un agente por proyecto que guarda el contexto, sigue el trabajo entre sesiones y dirige a los demás agentes, sobre Claude Code o Codex. Tengo un rebaño entero. Vive en Troupe, mi kit de herramientas para agentes.
+    **Shepherd** es lo que uso todos los días: un agente por proyecto que guarda contexto, sigue el trabajo entre sesiones y dirige a los demás agentes, sobre Claude Code o Codex. Parte de Troupe, mi kit de herramientas para agentes.
 
     [Troupe en GitHub →](https://github.com/ag0os/troupe)
 
-    Antes de Shepherd construí **Cosmonauts**, un framework de orquestación de agentes con la verificación dentro del pipeline. El desarrollo está pausado; el código es público.
+    Antes de Shepherd construí **Cosmonauts**, un framework de orquestación de agentes con la verificación dentro del pipeline.
 
     [Cosmonauts en GitHub →](https://github.com/ag0os/cosmonauts)
 
@@ -36,7 +35,7 @@ home_proof:
 about_bio:
   note_es: San Isidro, GMT-3.
   body_es: |
-    Soy ingeniero de software y vivo en San Isidro, Buenos Aires (GMT-3). Más de 16 años en IT y más de 6 en ingeniería de software, en pagos, streaming de video y plataformas corporativas. Ruby on Rails como base en producción, TypeScript en mis propias herramientas. Claude Certified Architect (Foundations).
+    Soy ingeniero de software y vivo en Buenos Aires, Argentina (GMT-3). 17 años en IT y 7 en ingeniería de software, en plateformas de pagos, streaming de video y soluciones corporativas. Ruby on Rails como base en producción, TypeScript en mis propias herramientas. Claude Certified Architect (Foundations).
 
     Antes del software pasé 13 años como DJ, productor musical e ingeniero de sonido, una formación creativa y técnica que todavía aprovecho. Pasé a IT y después a la ingeniería de software full-stack, y hoy mi trabajo combina fundamentos sólidos de ingeniería con una forma de trabajar nativa de IA: construyo harnesses de agentes, sistemas de flujo de trabajo y ciclos de verificación.
 
@@ -114,5 +113,5 @@ consulting_background:
 contact_intro:
   note_es: Respondo los mails.
   body_es: |
-    Estoy abierto a roles que construyen sistemas de agentes y productos AI-native, y a [consultoría](/consulting) para equipos que adoptan agentes.
+    Estoy abierto a roles que construyen sistemas de agentes y productos AI-native, y a [consultoría](/consulting) para equipos que adoptan agentes o quieren automatizar el desarrollo de software.
     La forma más rápida de contactarme es por mail, o encontrame en LinkedIn y GitHub acá abajo.

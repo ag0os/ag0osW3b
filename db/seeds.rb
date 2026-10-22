@@ -29,16 +29,16 @@ end
 sections = [
   # Home
   { page: "home", key: "home_what_i_do", position: 1, note: "The tools are new. The judgment is not.", heading: "What I do", body: <<~MD },
-    - I build the systems that let agents build good software: plans and context, orchestration, and the verification that makes the output trustworthy.
+    - I automate the software development lifecycle (SDLC) with agents: plans and context, orchestration, review, and the verification that makes the output trustworthy.
     - I turn vague product intent into ==planned, tested, maintainable systems==.
     - I'm senior across **backend, full-stack and cloud**: Ruby on Rails as my production backbone, TypeScript across my own tooling.
   MD
-  { page: "home", key: "home_featured", position: 2, note: "Built it because I needed it.", heading: "Featured: Shepherd", body: <<~MD },
+  { page: "home", key: "home_featured", position: 2, note: "Built it because I needed it.", heading: "Shepherd", body: <<~MD },
     **Shepherd** is what I run every day: one agent per project that keeps the context, tracks the work across sessions and runs the other agents, on Claude Code or Codex. I run a flock of them. It lives in Troupe, my agent toolkit.
 
     [Troupe on GitHub →](https://github.com/ag0os/troupe)
 
-    Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline. Development is paused; the code is public.
+    Before Shepherd I built **Cosmonauts**, an agent orchestration framework with verification inside the pipeline.
 
     [Cosmonauts on GitHub →](https://github.com/ag0os/cosmonauts)
   MD
@@ -51,7 +51,7 @@ sections = [
 
   # About
   { page: "about", key: "about_bio", position: 1, note: "San Isidro, GMT-3.", heading: nil, body: <<~MD },
-    I'm a software engineer based in San Isidro, Buenos Aires (GMT-3). 16+ years in IT, 6+ in software engineering, across payments, video streaming and enterprise platforms. Ruby on Rails as my production backbone, TypeScript across my own tooling. Claude Certified Architect (Foundations).
+    I'm a software engineer based in Buenos Aires, Argentina (GMT-3). 17 years in IT, 7 in software engineering, across payments, video streaming and enterprise platforms. Ruby on Rails as my production backbone, TypeScript across my own tooling. Claude Certified Architect (Foundations).
 
     Before software, I spent 13 years as a DJ, music producer, and sound engineer, a creative, technical background I still draw on. I moved into IT and later into full-stack software engineering, and today my work combines strong engineering fundamentals with AI-native delivery: building agent harnesses, workflow systems and verification loops.
 
@@ -115,7 +115,7 @@ sections = [
 
   # Contact
   { page: "contact", key: "contact_intro", position: 1, note: "I answer email.", heading: nil, body: <<~MD }
-    I'm open to roles building agent systems and AI-native products, and to [consulting](/consulting) for teams adopting agents.
+    I'm open to roles building agent systems and AI-native products, and to [consulting](/consulting) for teams adopting agents and automating their SDLC.
     The fastest way to reach me is email, or find me on LinkedIn and GitHub below.
   MD
 ]

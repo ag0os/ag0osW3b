@@ -3,9 +3,10 @@ require "test_helper"
 class CopyContractTest < ActionDispatch::IntegrationTest
   cover "SiteSetting*" if respond_to?(:cover)
 
-  # Literal defaults captured from 4d307e9 before moving any copy.
+  # Literal defaults captured from 4d307e9 before moving any copy, except the
+  # tagline pair, reworded with the owner's approval on 2026-10-22.
   COPY = {
-    "tagline" => [ "/", ".hero h1", "Senior Software Engineer. I build the systems that let agents build good software.", "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software." ],
+    "tagline" => [ "/", ".hero h1", "Senior Software Engineer. I build the systems that let agents build good software, across the whole SDLC.", "Ingeniero de software senior. Construyo los sistemas que permiten a los agentes construir buen software, en todo el ciclo de desarrollo." ],
     "hero_note" => [ "/", ".hero .note", "Thirteen years in audio first. Same job.", "Trece años en audio primero. El mismo trabajo." ],
     "work_intro" => [ "/work", ".page__header p", "Most of my product work is private. Here's the public proof.", "Casi todo mi trabajo de producto es privado. Esta es la prueba pública." ],
     "writing_intro" => [ "/writing", ".page__header p", "Notes on AI-native workflows, agent orchestration, and product-minded engineering.", "Notas sobre flujos de trabajo AI-native, orquestación de agentes e ingeniería con mirada de producto." ],
