@@ -1,12 +1,5 @@
 <%= form_with model: [:admin, section], class: "form" do |form| %>
-  <% if section.errors.any? %>
-    <div class="form-errors">
-      <p><%= pluralize(section.errors.count, "error") %> prevented saving:</p>
-      <ul>
-        <% section.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
-      </ul>
-    </div>
-  <% end %>
+  <%= render "admin/shared/errors", record: section %>
 
   <div class="field-row">
     <label class="field">
@@ -39,10 +32,7 @@
     <span>Visible on the live site</span>
   </label>
 
-  <label class="field">
-    <span>Body <small class="muted">(Markdown. Wrap a phrase in ==equals== to mark it.)</small></span>
-    <%= form.text_area :body, rows: 14, class: "mono" %>
-  </label>
+  <%= render "admin/shared/markdown_body", form: form, hint: "Markdown. Wrap a phrase in ==equals== to mark it.", rows: 14 %>
 
   <h2 class="section-group">Spanish</h2>
   <p class="form-hint">Shown to visitors reading in Spanish. A field left blank shows the English above.</p>
@@ -62,8 +52,5 @@
     <%= form.text_area :body_es, rows: 14, class: "mono", lang: "es" %>
   </label>
 
-  <div class="form-actions">
-    <%= form.submit class: "btn btn--primary" %>
-    <%= link_to "Cancel", admin_sections_path, class: "btn btn--ghost" %>
-  </div>
+  <%= render "admin/shared/form_actions", form: form, cancel_path: admin_sections_path %>
 <% end %>

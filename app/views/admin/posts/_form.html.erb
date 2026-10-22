@@ -1,12 +1,5 @@
 <%= form_with model: [:admin, post], class: "form" do |form| %>
-  <% if post.errors.any? %>
-    <div class="form-errors">
-      <p><%= pluralize(post.errors.count, "error") %> prevented saving:</p>
-      <ul>
-        <% post.errors.full_messages.each do |message| %><li><%= message %></li><% end %>
-      </ul>
-    </div>
-  <% end %>
+  <%= render "admin/shared/errors", record: post %>
 
   <label class="field">
     <span>Title</span>
@@ -34,13 +27,7 @@
     <%= form.text_area :excerpt, rows: 2 %>
   </label>
 
-  <label class="field">
-    <span>Body <small class="muted">(Markdown)</small></span>
-    <%= form.text_area :body, rows: 20, class: "mono" %>
-  </label>
+  <%= render "admin/shared/markdown_body", form: form, hint: "Markdown", rows: 20 %>
 
-  <div class="form-actions">
-    <%= form.submit class: "btn btn--primary" %>
-    <%= link_to "Cancel", admin_posts_path, class: "btn btn--ghost" %>
-  </div>
+  <%= render "admin/shared/form_actions", form: form, cancel_path: admin_posts_path %>
 <% end %>
