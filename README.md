@@ -7,7 +7,7 @@ Spanish; `SHELL.md` is the spec, including the agent it is growing into.
 
 ## Stack
 
-- Ruby 4.0.5 · Rails 8.1
+- Ruby 4.0.9 · Rails 8.1
 - Propshaft · import maps · Hotwire (Turbo + Stimulus)
 - Vanilla CSS design system: four theme presets, each in light and dark
 - SQLite + Solid Queue/Cache/Cable
