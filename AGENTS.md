@@ -27,7 +27,7 @@ lives in the database and is edited through `/admin`.
 
 ## Stack
 
-- Ruby 4.0.5 · Rails 8.1 (see `.ruby-version`)
+- Ruby 4.0.9 · Rails 8.1 (see `.ruby-version`)
 - Propshaft · import maps · Hotwire (Turbo + Stimulus)
 - Plain CSS design system in `app/assets/stylesheets/`: `themes.css` (tokens +
   presets), `application.css` (reset, base, layout), `components.css`,
