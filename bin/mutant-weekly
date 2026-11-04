@@ -5,7 +5,7 @@
 # only reports; it never gates. See docs/contracts/ci.md, CI-10 to CI-12.
 #
 #   bin/mutant-weekly                  run every subject, write the report and print it, with the issue calls it would make
-#   bin/mutant-weekly --session FILE   the same, from a session result mutant already wrote
+#   bin/mutant-weekly --session FILE   preview the report from a session result mutant already wrote; saves nothing
 #   bin/mutant-weekly --issue          open, update or close the mutation-weekly issue through `gh`, from the report
 #                                      the run above wrote (the workflow; needs GH_TOKEN)
 require "fileutils"
@@ -32,42 +32,66 @@ def logged(env, *command)
 end
 
 # Runs mutant on every subject. Returns [session, wall-clock seconds].
+# Runs mutant on every subject. Returns [session, wall-clock seconds], or
+# aborts when the run didn't complete.
 def run_mutant
   _, ok = logged({ "RAILS_ENV" => "test" }, "bin/rails", "db:test:prepare")
   abort "mutant-weekly: bin/rails db:test:prepare failed (#{LOG})" unless ok
   started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   before = Dir[".mutant/results/*.json"]
-  output, = logged({}, "bundle", "exec", "mutant", "run")
-  session = (Dir[".mutant/results/*.json"] - before).first
-  abort "#{output}\nmutant-weekly: mutant wrote no session result (#{LOG})" unless session
-  [ JSON.parse(File.read(session)), Process.clock_gettime(Process::CLOCK_MONOTONIC) - started ]
+  output, status = Open3.capture2e("bundle", "exec", "mutant", "run")
+  File.write(LOG, "=== bundle exec mutant run (#{status})\n#{output}\n", mode: "a")
+  path = (Dir[".mutant/results/*.json"] - before).first
+  session = path && JSON.parse(File.read(path))
+  problems = session ? MutantWeekly.incomplete(status, output, session) : [ "mutant wrote no session result" ]
+  abort problems.map { |problem| "mutant-weekly: the run didn't complete: #{problem} (#{LOG})" }.join("\n") unless problems.empty?
+  [ session, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started ]
 end
 
 def gh(*args)
-  output, status = Open3.capture2e("gh", *args)
-  abort "#{output}\nmutant-weekly: gh #{args.join(" ")} failed" unless status.success?
+  output, errors, status = Open3.capture3("gh", *args)
+  abort "#{errors}\nmutant-weekly: gh #{args.first(2).join(" ")} failed" unless status.success?
   output
 end
 
+def commit
+  at, status = Open3.capture2("git", "rev-parse", "--short", "HEAD")
+  abort "mutant-weekly: git rev-parse HEAD failed" unless status.success?
+  at.strip
+end
+
+# A full run saves the report for --issue; a session file only previews it.
 def report(session_path)
+  [ BODY, STATE ].each { |path| FileUtils.rm_f(path) }
   session, wall = session_path ? [ JSON.parse(File.read(session_path)), nil ] : run_mutant
-  trouble = MutantWeekly.trouble(session, expressions: load_yaml("config/mutant.yml").dig("matcher", "subjects") || [])
+  listing, = logged({}, "bundle", "exec", "mutant", "environment", "subject", "list")
+  trouble = MutantWeekly.trouble(session, expressions: load_yaml("config/mutant.yml").dig("matcher", "subjects") || [], listing:)
   abort trouble.map { |problem| "mutant-weekly: the run can't be reported on: #{problem}" }.join("\n") unless trouble.empty?
 
-  at = Open3.capture2("git", "rev-parse", "--short", "HEAD").first.strip
+  at = commit
   found = MutantWeekly.report(session, baseline: load_yaml(MutantFloor::BASELINE), accepted: load_yaml(MutantFloor::ACCEPTED), at:, wall:)
-  File.write(BODY, found.body)
-  File.write(STATE, JSON.dump("at" => at, "delta" => found.delta.size))
   puts found.body, ""
   { "with no issue open" => [], "with issue #1 open" => [ 1 ] }.each do |state, open|
     commands = MutantWeekly.issue_commands(open:, labelled: false, delta_size: found.delta.size, body_file: BODY, at:)
     puts "mutant-weekly: #{state}, --issue would run:", *(commands.empty? ? [ "  nothing" ] : commands.map { |command| "  gh #{command.join(" ")}" })
   end
+  return puts("mutant-weekly: read from #{session_path}, so nothing is saved for --issue") if session_path
+
+  File.write(BODY, found.body)
+  File.write(STATE, JSON.dump("at" => at, "delta" => found.delta.size))
+end
+
+# The oldest open issue with the label, asked of GitHub sorted, so that no
+# page limit can hide it.
+def oldest_open
+  listed = gh("issue", "list", "--label", MutantWeekly::LABEL, "--state", "open", "--search", "sort:created-asc", "--limit", "1", "--json", "number")
+  JSON.parse(listed).map { |issue| issue.fetch("number") }
 end
 
 def issue
+  abort "mutant-weekly: no saved report (#{STATE}); a full run must complete first" unless File.exist?(STATE) && File.exist?(BODY)
   state = JSON.parse(File.read(STATE))
-  open = JSON.parse(gh("issue", "list", "--label", MutantWeekly::LABEL, "--state", "open", "--json", "number")).map { |issue| issue["number"] }
+  open = oldest_open
   labelled = JSON.parse(gh("label", "list", "--search", MutantWeekly::LABEL, "--json", "name")).any? { |label| label["name"] == MutantWeekly::LABEL }
   MutantWeekly.issue_commands(open:, labelled:, delta_size: state.fetch("delta"), body_file: BODY, at: state.fetch("at")).each do |command|
     puts "mutant-weekly: gh #{command.first(3).join(" ")}"
