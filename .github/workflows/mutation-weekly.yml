@@ -1,0 +1,55 @@
+name: Mutation weekly
+
+# A full mutation run on main once a week, reported through one issue labelled
+# mutation-weekly. It only reports: it runs on no pull request or push, so it
+# adds no check. See docs/contracts/ci.md, CI-10 to CI-12.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC, 03:00 in Buenos Aires
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+# Two runs at once could each find no open issue and open one.
+concurrency:
+  group: mutation-weekly
+
+jobs:
+  report:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
+
+      # One commit is enough: the run reads main's tree and names its commit.
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # Fails, and touches no issue, when the run can't be trusted.
+      - name: Run every subject
+        run: bin/mutant-weekly
+
+      # The token reaches this step only, not the app's tests.
+      - name: Report on the mutation-weekly issue
+        run: bin/mutant-weekly --issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Keep mutant's full output
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mutant-weekly-log
+          path: ${{ github.workspace }}/log/mutant-weekly.log
+          if-no-files-found: ignore

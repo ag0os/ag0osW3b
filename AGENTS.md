@@ -267,8 +267,9 @@ Everything else is `refine:`.
 **The checks.** Before you say done, run `bin/ci` (fetch first: locally it
 compares with `origin/main`, or `$CI_BASE`). GitHub runs exactly it on every
 pull request. A check that couldn't run is a gap to name, never a pass. The
-steps are in `config/ci.rb`, and what a green run means is `PRODUCT.md`
-"Contract: continuous integration" (CI-1 to CI-9, decisions D-20 to D-25):
+steps are in `config/ci.rb`, and what a green run means is
+`docs/contracts/ci.md` (CI-1 to CI-9, decisions D-20 to D-25 in
+`docs/decisions/ci.md`):
 
 - **Mutation** is a gate. It runs every subject in `config/mutant.yml` twice:
   on the change, and on its merge base. The base is exported from git and run
@@ -323,6 +324,14 @@ Don't edit a baseline, `test/mutant/accepted.yml`, `test/ci/test_removals.yml`
 or any path in `.github/CODEOWNERS` to get a pass. Those paths need the
 owner's approval, so a PR that must change one says why. A merge to `main`
 deploys to production.
+
+**The weekly run.** `.github/workflows/mutation-weekly.yml` runs every
+subject on main each Monday (and by hand), and `bin/mutant-weekly` reports the
+survivors that neither the baseline's newest anchor nor an `equivalents` entry
+accounts for, in one open issue labelled `mutation-weekly` (CI-10 to CI-12,
+D-37). It never gates. Run `bin/mutant-weekly` locally to see the report; it
+calls GitHub only with `--issue`. Triage stays manual: kill each survivor with
+a Contract sentence and its test, or accept it with a reason.
 
 ## Testing
 
