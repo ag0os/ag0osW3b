@@ -31,7 +31,6 @@ def logged(env, *command)
   [ output, status.success? ]
 end
 
-# Runs mutant on every subject. Returns [session, wall-clock seconds].
 # Runs mutant on every subject. Returns [session, wall-clock seconds], or
 # aborts when the run didn't complete.
 def run_mutant
@@ -39,8 +38,8 @@ def run_mutant
   abort "mutant-weekly: bin/rails db:test:prepare failed (#{LOG})" unless ok
   started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   before = Dir[".mutant/results/*.json"]
-  output, status = Open3.capture2e("bundle", "exec", "mutant", "run")
-  File.write(LOG, "=== bundle exec mutant run (#{status})\n#{output}\n", mode: "a")
+  output, status = Open3.capture2e("bundle", "exec", "ruby", "-e", MutantWeekly::RUN_MUTANT)
+  File.write(LOG, "=== mutant run, through MutantWeekly::RUN_MUTANT (#{status})\n#{output}\n", mode: "a")
   path = (Dir[".mutant/results/*.json"] - before).first
   session = path && JSON.parse(File.read(path))
   problems = session ? MutantWeekly.incomplete(status, output, session) : [ "mutant wrote no session result" ]
@@ -64,7 +63,8 @@ end
 def report(session_path)
   [ BODY, STATE ].each { |path| FileUtils.rm_f(path) }
   session, wall = session_path ? [ JSON.parse(File.read(session_path)), nil ] : run_mutant
-  listing, = logged({}, "bundle", "exec", "mutant", "environment", "subject", "list")
+  listing, listed = logged({}, "bundle", "exec", "mutant", "environment", "subject", "list")
+  abort "mutant-weekly: mutant environment subject list failed, so what the config selects is unknown (#{LOG})" unless listed
   trouble = MutantWeekly.trouble(session, expressions: load_yaml("config/mutant.yml").dig("matcher", "subjects") || [], listing:)
   abort trouble.map { |problem| "mutant-weekly: the run can't be reported on: #{problem}" }.join("\n") unless trouble.empty?
 
@@ -81,11 +81,13 @@ def report(session_path)
   File.write(STATE, JSON.dump("at" => at, "delta" => found.delta.size))
 end
 
-# The oldest open issue with the label, asked of GitHub sorted, so that no
-# page limit can hide it.
+# The oldest open issue with the label, as [number], or [] when none is open:
+# read from the repository's own issue list, oldest first, page by page.
 def oldest_open
-  listed = gh("issue", "list", "--label", MutantWeekly::LABEL, "--state", "open", "--search", "sort:created-asc", "--limit", "1", "--json", "number")
-  JSON.parse(listed).map { |issue| issue.fetch("number") }
+  (1..).each do |page|
+    found = MutantWeekly.oldest_on(JSON.parse(gh(*MutantWeekly.open_issues_page(page))))
+    return found if found
+  end
 end
 
 def issue
