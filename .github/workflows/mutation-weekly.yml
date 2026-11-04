@@ -27,8 +27,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips
 
       # One commit is enough: the run reads main's tree and names its commit.
+      # Checkout authenticates with the job's token, but keeps no credential
+      # afterwards, so the app's tests in the next steps can't reach it.
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -39,7 +43,7 @@ jobs:
       - name: Run every subject
         run: bin/mutant-weekly
 
-      # The token reaches this step only, not the app's tests.
+      # The only step given the token: it runs gh, never the app's tests.
       - name: Report on the mutation-weekly issue
         run: bin/mutant-weekly --issue
         env:

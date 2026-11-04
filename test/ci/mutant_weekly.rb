@@ -41,10 +41,37 @@ module MutantWeekly
     recorded(baseline).flat_map { |key, count| [ key ] * (count - now.fetch(key, []).size).clamp(0..) }
   end
 
-  # Why the run can't be reported on: a subject cut short, a neutral that
-  # fails, or an expression in config/mutant.yml that matched nothing.
-  def trouble(session, expressions:)
-    MutantFloor.base_gap(session) + MutantFloor.unmatched(session, expressions).map { |expression| "#{expression}: matched no subject" }
+  # Why the session can't be reported on: a subject cut short, a neutral that
+  # fails, an expression in config/mutant.yml that matched nothing, or
+  # subjects other than those mutant lists for that config (`listing`, the
+  # output of `mutant environment subject list`).
+  def trouble(session, expressions:, listing:)
+    MutantFloor.base_gap(session) + MutantFloor.unmatched(session, expressions).map { |expression| "#{expression}: matched no subject" } +
+      inventory(session, listing)
+  end
+
+  def inventory(session, listing)
+    expected = MutantFloor.selection(listing) or return [ "mutant could not list the subjects config/mutant.yml selects" ]
+    ran = MutantFloor.subjects(session)
+    (expected - ran).map { |subject| "#{subject}: selected, but the session has no result for it" } +
+      (ran - expected).map { |subject| "#{subject}: in the session, but not selected" }
+  end
+
+  # mutant exits 0 when every mutation is killed and 1 when some survive.
+  NORMAL_EXITS = [ 0, 1 ].freeze
+
+  # Why a mutant run didn't complete, from its exit and what it printed: a
+  # session file alone proves nothing, since mutant writes it as it goes.
+  def incomplete(status, output, session)
+    return [ "mutant was killed by signal #{status.termsig}" ] if status.signaled?
+    return [ "mutant exited #{status.exitstatus.inspect}" ] unless NORMAL_EXITS.include?(status.exitstatus)
+
+    mutations, results = %w[Mutations Results].map { |label| output.to_s.scan(/^#{label}:\s+(\d+)$/).last&.first&.to_i }
+    return [ "mutant printed no final report, so the run didn't finish" ] unless results
+
+    recorded = MutantFloor.results(session).size
+    [ *("mutant reported #{results} results of #{mutations} mutations" unless results == mutations),
+      *("the session holds #{recorded} results, but mutant reported #{results}" unless recorded == results) ]
   end
 
   def timeouts(session) = MutantFloor.results(session).count { |*, coverage| MutantFloor.evil?(coverage) && MutantFloor.timed_out?(coverage) }
