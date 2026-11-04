@@ -420,7 +420,9 @@ class LocaleContractTest < ActionDispatch::IntegrationTest
 end
 
 class CopyLocaleContractTest < ActionDispatch::IntegrationTest
-  cover "SiteSetting*" if respond_to?(:cover)
+  cover "SiteSetting.localized" if respond_to?(:cover)
+  cover "SiteSetting.copy_translation" if respond_to?(:cover)
+  cover "SiteSetting.untranslated?" if respond_to?(:cover)
 
   test "LC-17 every saved blank Spanish copy field declares English fallback" do
     Section.delete_all
