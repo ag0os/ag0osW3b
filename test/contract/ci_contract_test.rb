@@ -3,11 +3,13 @@ require "open3"
 require_relative "../mutant/floor"
 require_relative "../ci/change_guards"
 require_relative "../ci/test_count"
+require_relative "../ci/mutant_weekly"
 
 # Continuous integration's Contract, as tests. Each test is named after an
-# obligation in PRODUCT.md ("Contract: continuous integration"). CI-1 to CI-3,
-# CI-6 and CI-8 read the config files; CI-4, CI-5, CI-7 and CI-9 run the
-# mutation gate's, the guards' and the test count's logic on hand-built inputs.
+# obligation in docs/contracts/ci.md. CI-1 to CI-3, CI-6, CI-8 and CI-10 read
+# the config files; CI-4, CI-5, CI-7, CI-9, CI-11 and CI-12 run the mutation
+# gate's, the guards', the test count's and the weekly run's logic on
+# hand-built inputs.
 class CiContractTest < ActiveSupport::TestCase
   # Records config/ci.rb's steps instead of running them.
   class Recorder
@@ -963,5 +965,172 @@ class CiContractTest < ActiveSupport::TestCase
 
   test "CI-9 a base with no tests fails, since an export or count went wrong" do
     assert_match(/the base has no rails tests/, count(SUMMARY, base: 0).join)
+  end
+
+  # --- The weekly run on main ---------------------------------------------------------
+
+  def weekly = YAML.load_file(Rails.root.join(".github/workflows/mutation-weekly.yml"))
+
+  test "CI-10 the weekly run is scheduled once a week and by hand, runs only for main, and adds no check" do
+    triggers = weekly.fetch(true) # YAML reads `on:` as true
+    assert_equal %w[schedule workflow_dispatch], triggers.keys.sort, "a pull_request or push trigger would add a check"
+    assert_equal [ { "cron" => "0 6 * * 1" } ], triggers.fetch("schedule")
+
+    assert_equal [ "report" ], weekly.fetch("jobs").keys
+    assert_equal "github.ref == 'refs/heads/main'", weekly.dig("jobs", "report", "if")
+    assert_equal({ "group" => "mutation-weekly" }, weekly.fetch("concurrency"), "two runs at once could open two issues")
+  end
+
+  test "CI-10 the weekly run has the least permissions, and only the issue step holds the token" do
+    assert_equal({ "contents" => "read", "issues" => "write" }, weekly.fetch("permissions"))
+    job = weekly.dig("jobs", "report")
+    assert_equal %w[if runs-on steps timeout-minutes], job.keys.sort
+
+    with_env = job.fetch("steps").select { |step| step.key?("env") }
+    assert_equal [ "bin/mutant-weekly --issue" ], with_env.map { |step| step["run"] }
+    assert_equal({ "GH_TOKEN" => "${{ secrets.GITHUB_TOKEN }}", "GH_REPO" => "${{ github.repository }}" }, with_env.first.fetch("env"))
+  end
+
+  test "CI-10 the weekly run sets up as ci.yml does and runs only bin/mutant-weekly" do
+    steps, ci_steps = weekly.dig("jobs", "report", "steps"), workflow.dig("jobs", "ci", "steps")
+    runs = steps.filter_map { |step| step["run"] }
+    assert_equal ci_steps.first["run"], runs.first, "libvips is installed as ci.yml installs it"
+    assert_equal [ "bin/mutant-weekly", "bin/mutant-weekly --issue" ], runs.drop(1)
+
+    setup = ->(list) { list.find { |step| step["uses"].to_s.start_with?("ruby/setup-ruby") }.slice("uses", "with") }
+    assert_equal setup.(ci_steps), setup.(steps)
+    assert_empty steps.filter_map { |step| step["uses"] } - %w[actions/checkout@v6 ruby/setup-ruby@v1 actions/upload-artifact@v4]
+    steps.each do |step|
+      assert_not step.key?("continue-on-error"), "#{step["name"]} continues on error"
+      next unless step.key?("if")
+
+      assert_equal "failure()", step["if"], "#{step["name"]} has a condition"
+      assert_match %r{\Aactions/upload-artifact@}, step["uses"].to_s, "#{step["name"]} is conditional but uploads nothing"
+    end
+  end
+
+  def weekly_report(tip, baseline: { "anchors" => [ { "at" => "abc1234" } ], "survivors" => {} }, accepted: {}, wall: 80.4)
+    MutantWeekly.report(tip.merge("runtime" => 72.2), baseline:, accepted:, at: "def5678", wall:)
+  end
+
+  DROP_ORDER_LINES = "-  @sections = all.ordered\n+  @sections = all"
+
+  test "CI-11 a survivor the anchor records or an equivalent accepts is not reported; each copy beyond them is" do
+    tip = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_ORDER), coverage(DROP_ORDER, id: "evil:third"), coverage(DROP_LIMIT, killed: true) ])
+    anchored = { "anchors" => [ { "at" => "abc1234" } ], "survivors" => { "Home#show" => [ "#{DROP_ORDER_LINES} \n" ] } }
+    equivalent = { "equivalents" => [ { "subject" => "Home#show", "change" => "#{DROP_ORDER_LINES}\n", "reason" => "same rows" } ] }
+
+    assert_equal 3, weekly_report(tip).delta.size
+    assert_equal 2, weekly_report(tip, baseline: anchored).delta.size
+    assert_equal [ "evil:third" ], weekly_report(tip, baseline: anchored, accepted: equivalent).delta.map(&:identification)
+    assert_equal 2, weekly_report(tip, accepted: equivalent.merge("config" => [ config_entry(subjects: [ "Home#show" ]) ])).delta.size,
+                 "config entries accept no survivor"
+    assert_equal 3, weekly_report(tip, baseline: { "survivors" => { "Pages#show" => [ DROP_ORDER_LINES ] } }).delta.size,
+                 "the same lines in another subject are another survivor"
+  end
+
+  test "CI-11 the report lists the delta by subject with each survivor's lines, the commit, the anchor and the timing" do
+    tip = session("Pages#show" => [ coverage(DROP_LIMIT, id: "evil:Pages#show:2:b") ],
+                  "Home#show" => [ coverage(DROP_ORDER, id: "evil:Home#show:1:a"), coverage(DROP_LIMIT, timeout: true) ])
+    body = weekly_report(tip).body
+
+    assert_includes body, "at `def5678`"
+    assert_includes body, "(at `abc1234`)"
+    assert_includes body, "**2**"
+    assert_includes body, "2 subjects, 3 mutations, 2 alive, 1 killed only by a timeout. mutant ran 72 s; the step took 80 s."
+    assert_includes body, "### Home#show\n\n`evil:Home#show:1:a`\n```diff\n#{DROP_ORDER_LINES}\n```"
+    assert_operator body.index("### Home#show"), :<, body.index("### Pages#show"), "subjects are listed in order"
+    assert_includes weekly_report(tip, wall: nil).body, "mutant ran 72 s."
+  end
+
+  test "CI-11 the anchor's survivors no longer alive are listed as killed since the anchor" do
+    anchored = { "anchors" => [ { "at" => "abc1234" } ], "survivors" => { "Home#show" => [ DROP_ORDER_LINES, DROP_ORDER_LINES, "-  a\n+  b" ] } }
+    found = weekly_report(session("Home#show" => [ coverage(DROP_ORDER) ]), baseline: anchored)
+
+    assert_equal [ [ "Home#show", DROP_ORDER_LINES ], [ "Home#show", "-  a\n+  b" ] ], found.killed
+    assert_includes found.body, "### Killed since the anchor"
+    assert_not_includes weekly_report(session("Home#show" => [ coverage(DROP_ORDER) ])).body, "Killed since the anchor"
+  end
+
+  test "CI-11 a run with a subject cut short, a failing neutral or an expression that matched nothing can't be reported on" do
+    fine = session("Home#show" => [ coverage(nil, killed: true, type: "neutral"), coverage(DROP_ORDER) ])
+    assert_empty MutantWeekly.trouble(fine, expressions: [ "Home*" ])
+
+    assert_match(/Home#show: fewer results than mutations/, MutantWeekly.trouble(session({ "Home#show" => [] }, "Home#show" => 3), expressions: []).join)
+    assert_match(/Home#show: the tests fail/, MutantWeekly.trouble(session("Home#show" => [ coverage(nil, type: "neutral") ]), expressions: []).join)
+    assert_match(/Pages\*: matched no subject/, MutantWeekly.trouble(fine, expressions: [ "Home*", "Pages*" ]).join)
+  end
+
+  def issue_calls(open: [], labelled: true, delta_size: 2)
+    MutantWeekly.issue_commands(open:, labelled:, delta_size:, body_file: "log/mutant-weekly.md", at: "def5678")
+  end
+
+  test "CI-12 a delta with no issue open opens one with the label, creating the label only when it is missing" do
+    create = [ "issue", "create", "--title", "Mutation survivors on main", "--label", "mutation-weekly", "--body-file", "log/mutant-weekly.md" ]
+
+    assert_equal [ create ], issue_calls
+    assert_equal [ [ "label", "create", "mutation-weekly", "--description", "The weekly mutation run on main" ], create ], issue_calls(labelled: false)
+  end
+
+  test "CI-12 a delta with an issue open replaces its body and comments on it, and never opens a second" do
+    update = [ [ "issue", "edit", "7", "--body-file", "log/mutant-weekly.md" ],
+               [ "issue", "comment", "7", "--body", "Run at def5678: 2 survivor(s) outside the anchor and accepted.yml." ] ]
+
+    assert_equal update, issue_calls(open: [ 7 ])
+    assert_equal update, issue_calls(open: [ 9, 7 ], labelled: false), "the oldest open issue is the one"
+  end
+
+  test "CI-12 a clean run comments on the open issue and closes it, and with none open makes no call" do
+    assert_equal [ [ "issue", "comment", "7", "--body", "Main is clean at def5678: no survivor outside the anchor and accepted.yml." ],
+                   [ "issue", "close", "7" ] ], issue_calls(open: [ 7 ], delta_size: 0)
+    assert_empty issue_calls(delta_size: 0)
+  end
+
+  test "CI-12 bin/mutant-weekly reports end to end, on a stand-in session and a stand-in gh" do
+    Dir.mktmpdir do |dir|
+      %w[bin/mutant-weekly test/ci/mutant_weekly.rb test/mutant/floor.rb].each do |path|
+        FileUtils.mkdir_p(File.join(dir, File.dirname(path)))
+        FileUtils.cp(Rails.root.join(path), File.join(dir, path))
+      end
+      FileUtils.mkdir_p([ "#{dir}/config", "#{dir}/stand-in" ])
+      File.write("#{dir}/config/mutant.yml", YAML.dump("matcher" => { "subjects" => [ "Home*" ] }))
+      File.write("#{dir}/test/mutant/baseline.yml", YAML.dump("anchors" => [ { "at" => "abc1234" } ], "survivors" => { "Home#show" => [ DROP_ORDER_LINES ] }))
+      File.write("#{dir}/stand-in/session.json", JSON.dump(session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT, id: "evil:new") ]).merge("runtime" => 3)))
+      File.write("#{dir}/stand-in/gh", <<~SH) # records each call; answers the two lists from fixtures
+        #!/bin/sh
+        echo "$*" >> #{dir}/stand-in/calls
+        case "$1 $2" in "issue list") cat #{dir}/stand-in/open.json ;; "label list") echo '[{"name":"mutation-weekly"}]' ;; esac
+      SH
+      FileUtils.chmod(0o755, "#{dir}/stand-in/gh")
+      assert system("git", "-c", "user.name=ci", "-c", "user.email=ci@example.invalid", "init", "-q", chdir: dir) &&
+             system("git", "-c", "user.name=ci", "-c", "user.email=ci@example.invalid", "commit", "-q", "--allow-empty", "-m", "main", chdir: dir)
+      env = { "PATH" => "#{dir}/stand-in:#{ENV["PATH"]}" }
+      run = ->(*args) { Open3.capture2e(env, "ruby", "bin/mutant-weekly", *args, chdir: dir) }
+
+      out, status = run.("--session", "stand-in/session.json")
+      assert status.success?, out
+      assert_includes out, "`evil:new`", "the survivor the anchor doesn't record is reported"
+      assert_not_includes out, "`evil:X`", "the anchor's survivor is not"
+      assert_not File.exist?("#{dir}/stand-in/calls"), "without --issue, gh is never called"
+
+      File.write("#{dir}/stand-in/open.json", '[{"number":4}]')
+      out, status = run.("--issue")
+      assert status.success?, out
+      assert_equal [ "issue list --label mutation-weekly --state open --json number", "label list --search mutation-weekly --json name",
+                     "issue edit 4 --body-file log/mutant-weekly.md" ], File.readlines("#{dir}/stand-in/calls", chomp: true).first(3)
+      assert_includes File.read("#{dir}/log/mutant-weekly.md"), "`evil:new`"
+
+      File.write("#{dir}/stand-in/session.json", JSON.dump(session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT, killed: true) ])))
+      File.delete("#{dir}/stand-in/calls")
+      assert run.("--session", "stand-in/session.json").last.success?
+      out, status = run.("--issue")
+      assert status.success?, out
+      assert_equal "issue close 4", File.readlines("#{dir}/stand-in/calls", chomp: true).last, "a clean run closes the open issue"
+
+      File.write("#{dir}/stand-in/session.json", JSON.dump(session({ "Home#show" => [] }, "Home#show" => 2)))
+      out, status = run.("--session", "stand-in/session.json")
+      assert_not status.success?
+      assert_match(/can't be reported on: Home#show: fewer results than mutations/, out)
+    end
   end
 end
