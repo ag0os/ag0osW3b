@@ -57,15 +57,47 @@ module MutantWeekly
       (ran - expected).map { |subject| "#{subject}: in the session, but not selected" }
   end
 
-  # mutant exits 0 when every mutation is killed and 1 when some survive.
-  NORMAL_EXITS = [ 0, 1 ].freeze
+  # Runs mutant's CLI in this process, as mutant's own executable does, but
+  # prints RETURNED only once the CLI has returned. Any exception, however
+  # late (mutant prints its final report before it writes the session for the
+  # last time), exits 3 without it. Run with `bundle exec ruby -e`.
+  RUN_MUTANT = <<~'RUBY'
+    require "mutant"
+    passed = begin
+      Mutant::CLI.parse(arguments: %w[run], world: Mutant::WORLD).either(->(message) { warn message; exit!(3) }, ->(command) { command.call })
+    rescue Exception => error
+      warn "mutant-weekly: mutant raised #{error.class}: #{error.message}", *error.backtrace
+      $stderr.flush
+      exit!(3)
+    end
+    puts "mutant-weekly: mutant returned, #{passed ? "every mutation killed" : "mutations alive"}"
+    $stdout.flush
+    exit!(passed ? 0 : 1)
+  RUBY
+
+  # The wrapper's line once the CLI returned, by the exit it then makes.
+  RETURNED = { 0 => "mutant-weekly: mutant returned, every mutation killed", 1 => "mutant-weekly: mutant returned, mutations alive" }.freeze
 
   # Why a mutant run didn't complete, from its exit and what it printed: a
   # session file alone proves nothing, since mutant writes it as it goes.
   def incomplete(status, output, session)
-    return [ "mutant was killed by signal #{status.termsig}" ] if status.signaled?
-    return [ "mutant exited #{status.exitstatus.inspect}" ] unless NORMAL_EXITS.include?(status.exitstatus)
+    returned = returned(status, output)
+    return [ returned ] if returned
 
+    final_report(output, session)
+  end
+
+  # Why the run didn't return normally: a signal, an exit other than the
+  # wrapper's 0 or 1, or no RETURNED line for that exit as the last thing printed.
+  def returned(status, output)
+    return "mutant was killed by signal #{status.termsig}" if status.signaled?
+    return "mutant exited #{status.exitstatus.inspect}" unless RETURNED.key?(status.exitstatus)
+
+    "mutant's CLI didn't return normally: its last line isn't #{RETURNED.fetch(status.exitstatus).inspect}" unless
+      output.to_s.lines.map(&:strip).reject(&:empty?).last == RETURNED.fetch(status.exitstatus)
+  end
+
+  def final_report(output, session)
     mutations, results = %w[Mutations Results].map { |label| output.to_s.scan(/^#{label}:\s+(\d+)$/).last&.first&.to_i }
     return [ "mutant printed no final report, so the run didn't finish" ] unless results
 
@@ -110,6 +142,26 @@ module MutantWeekly
 
     [ "### Killed since the anchor\n\nThe anchor records these, and this run didn't find them alive:\n\n" +
       killed.map { |subject, change| "#{subject}\n```diff\n#{change}\n```" }.join("\n\n") ]
+  end
+
+  # The repository's own list of open issues with the label, oldest first, a
+  # page at a time (REST GET /repos/{owner}/{repo}/issues). Not search: an
+  # issue not yet in the search index must still count as open.
+  PER_PAGE = 100
+
+  def open_issues_page(page)
+    [ "api", "repos/{owner}/{repo}/issues", "--method", "GET", "-f", "labels=#{LABEL}", "-f", "state=open", "-f", "sort=created",
+      "-f", "direction=asc", "-f", "per_page=#{PER_PAGE}", "-f", "page=#{page}" ]
+  end
+
+  # The oldest issue on one page of that list, as [number]; the list holds pull
+  # requests too, which aren't issues. nil when the page has none and isn't
+  # the last, so the next page must be read; [] when no issue is open.
+  def oldest_on(items)
+    issue = items.find { |item| !item.key?("pull_request") }
+    return [ issue.fetch("number") ] if issue
+
+    [] if items.size < PER_PAGE
   end
 
   # The `gh` calls for one run, given the open issues with the label (their

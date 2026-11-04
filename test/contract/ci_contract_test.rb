@@ -991,11 +991,11 @@ class CiContractTest < ActiveSupport::TestCase
     assert_equal({ "GH_TOKEN" => "${{ secrets.GITHUB_TOKEN }}", "GH_REPO" => "${{ github.repository }}" }, with_env.first.fetch("env"))
   end
 
-test "CI-10 checkout keeps no credential behind for the steps that run the app's tests" do
-  checkout = weekly.dig("jobs", "report", "steps").find { |step| step["uses"].to_s.start_with?("actions/checkout") }
+  test "CI-10 checkout keeps no credential behind for the steps that run the app's tests" do
+    checkout = weekly.dig("jobs", "report", "steps").find { |step| step["uses"].to_s.start_with?("actions/checkout") }
 
-  assert_equal({ "persist-credentials" => false }, checkout["with"], "checkout persists the job's token for later steps by default")
-end
+    assert_equal({ "persist-credentials" => false }, checkout["with"], "checkout persists the job's token for later steps by default")
+  end
 
   test "CI-10 the weekly run sets up as ci.yml does and runs only bin/mutant-weekly" do
     steps, ci_steps = weekly.dig("jobs", "report", "steps"), workflow.dig("jobs", "ci", "steps")
@@ -1058,45 +1058,111 @@ end
     assert_not_includes weekly_report(session("Home#show" => [ coverage(DROP_ORDER) ])).body, "Killed since the anchor"
   end
 
-def listing(*subjects) = "Mutant environment:\nSubjects in environment: #{subjects.size}\n#{subjects.join("\n")}\n"
+  def listing(*subjects) = "Mutant environment:\nSubjects in environment: #{subjects.size}\n#{subjects.join("\n")}\n"
 
-test "CI-11 a run with a subject cut short, a failing neutral or an expression that matched nothing can't be reported on" do
-  fine = session("Home#show" => [ coverage(nil, killed: true, type: "neutral"), coverage(DROP_ORDER) ])
-  assert_empty MutantWeekly.trouble(fine, expressions: [ "Home*" ], listing: listing("Home#show"))
+  test "CI-11 a run with a subject cut short, a failing neutral or an expression that matched nothing can't be reported on" do
+    fine = session("Home#show" => [ coverage(nil, killed: true, type: "neutral"), coverage(DROP_ORDER) ])
+    assert_empty MutantWeekly.trouble(fine, expressions: [ "Home*" ], listing: listing("Home#show"))
 
-  assert_match(/Home#show: fewer results than mutations/,
-               MutantWeekly.trouble(session({ "Home#show" => [] }, "Home#show" => 3), expressions: [], listing: listing("Home#show")).join)
-  assert_match(/Home#show: the tests fail/, MutantWeekly.trouble(session("Home#show" => [ coverage(nil, type: "neutral") ]), expressions: [], listing: listing("Home#show")).join)
-  assert_match(/Pages\*: matched no subject/, MutantWeekly.trouble(fine, expressions: [ "Home*", "Pages*" ], listing: listing("Home#show")).join)
-end
+    assert_match(/Home#show: fewer results than mutations/,
+                 MutantWeekly.trouble(session({ "Home#show" => [] }, "Home#show" => 3), expressions: [], listing: listing("Home#show")).join)
+    assert_match(/Home#show: the tests fail/, MutantWeekly.trouble(session("Home#show" => [ coverage(nil, type: "neutral") ]), expressions: [], listing: listing("Home#show")).join)
+    assert_match(/Pages\*: matched no subject/, MutantWeekly.trouble(fine, expressions: [ "Home*", "Pages*" ], listing: listing("Home#show")).join)
+  end
 
-test "CI-11 the session's subjects must be exactly those mutant lists for the config, so a wildcard can't hide a missing one" do
-  partial = session("Home#index" => [ coverage(DROP_ORDER, killed: true) ])
-  selected = listing("Home#index", "Home#show")
+  test "CI-11 the session's subjects must be exactly those mutant lists for the config, so a wildcard can't hide a missing one" do
+    partial = session("Home#index" => [ coverage(DROP_ORDER, killed: true) ])
+    selected = listing("Home#index", "Home#show")
 
-  assert_empty MutantWeekly.trouble(partial, expressions: [ "Home*" ], listing: listing("Home#index")), "the control: the same session, all listed"
-  assert_equal [ "Home#show: selected, but the session has no result for it" ], MutantWeekly.trouble(partial, expressions: [ "Home*" ], listing: selected)
-  assert_equal [ "Pages#show: in the session, but not selected" ],
-               MutantWeekly.inventory(session("Home#index" => [], "Pages#show" => []), listing("Home#index"))
-  assert_equal [ "mutant could not list the subjects config/mutant.yml selects" ], MutantWeekly.inventory(partial, "Subjects in environment: 3\nHome#index\n")
-end
+    assert_empty MutantWeekly.trouble(partial, expressions: [ "Home*" ], listing: listing("Home#index")), "the control: the same session, all listed"
+    assert_equal [ "Home#show: selected, but the session has no result for it" ], MutantWeekly.trouble(partial, expressions: [ "Home*" ], listing: selected)
+    assert_equal [ "Pages#show: in the session, but not selected" ],
+                 MutantWeekly.inventory(session("Home#index" => [], "Pages#show" => []), listing("Home#index"))
+    assert_equal [ "mutant could not list the subjects config/mutant.yml selects" ], MutantWeekly.inventory(partial, "Subjects in environment: 3\nHome#index\n")
+  end
 
-def exited(code) = Open3.capture2e("ruby", "-e", "exit #{code}").last
-def mutant_summary(count) = "Mutant environment:\nMutations:       #{count}\nprogress: 1/#{count}\nMutations:       #{count}\nResults:         #{count}\nKills:           #{count}\n"
+  def exited(code) = Open3.capture2e("ruby", "-e", "exit #{code}").last
 
-test "CI-11 a mutant run that ends by a signal, exits otherwise than 0 or 1, or prints no final report didn't complete" do
-  run = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT, killed: true) ])
+  # mutant's final report, then the wrapper's line for the exit it makes (none: it raised).
+  def mutant_summary(count, returned: 1)
+    "Mutant environment:\nMutations:       #{count}\nprogress: 1/#{count}\nMutations:       #{count}\nResults:         #{count}\nKills:           #{count}\n" +
+      (returned ? "#{MutantWeekly::RETURNED.fetch(returned)}\n" : "")
+  end
 
-  assert_empty MutantWeekly.incomplete(exited(1), mutant_summary(2), run), "mutant exits 1 when mutations survive"
-  assert_empty MutantWeekly.incomplete(exited(0), mutant_summary(2), run)
-  killed = Open3.capture2e("ruby", "-e", "Process.kill(:KILL, Process.pid)").last
-  assert_equal [ "mutant was killed by signal 9" ], MutantWeekly.incomplete(killed, mutant_summary(2), run)
-  assert_equal [ "mutant exited 2" ], MutantWeekly.incomplete(exited(2), mutant_summary(2), run)
-  assert_equal [ "mutant printed no final report, so the run didn't finish" ],
-               MutantWeekly.incomplete(exited(1), "Mutant environment:\nMutations:       2\nprogress: 1/2\n", run), "a checkpoint with no report"
-  assert_equal [ "mutant reported 1 results of 2 mutations", "the session holds 2 results, but mutant reported 1" ],
-               MutantWeekly.incomplete(exited(1), mutant_summary(2).sub("Results:         2", "Results:         1"), run)
-end
+  test "CI-11 a mutant run that ends by a signal, exits otherwise than 0 or 1, or prints no final report didn't complete" do
+    run = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT, killed: true) ])
+
+    assert_empty MutantWeekly.incomplete(exited(1), mutant_summary(2), run), "mutant exits 1 when mutations survive"
+    assert_empty MutantWeekly.incomplete(exited(0), mutant_summary(2, returned: 0), run)
+    killed = Open3.capture2e("ruby", "-e", "Process.kill(:KILL, Process.pid)").last
+    assert_equal [ "mutant was killed by signal 9" ], MutantWeekly.incomplete(killed, mutant_summary(2), run)
+    assert_equal [ "mutant exited 2" ], MutantWeekly.incomplete(exited(2), mutant_summary(2), run)
+    assert_equal [ "mutant exited 3" ], MutantWeekly.incomplete(exited(3), mutant_summary(2, returned: nil), run), "the wrapper's exit when mutant raised"
+    assert_equal [ "mutant printed no final report, so the run didn't finish" ],
+                 MutantWeekly.incomplete(exited(1), "Mutant environment:\nMutations:       2\nprogress: 1/2\n#{MutantWeekly::RETURNED.fetch(1)}\n", run), "a checkpoint with no report"
+    assert_equal [ "mutant reported 1 results of 2 mutations", "the session holds 2 results, but mutant reported 1" ],
+                 MutantWeekly.incomplete(exited(1), mutant_summary(2).sub("Results:         2", "Results:         1"), run)
+  end
+
+  test "CI-11 an exception after mutant's final report, exiting 1, didn't complete" do
+    run = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT, killed: true) ])
+    late = mutant_summary(2, returned: nil) + "mutant/result.rb:12:in 'call': late failure (RuntimeError)\n\tfrom bin/mutant-ruby:58\n"
+    not_returned = "mutant's CLI didn't return normally: its last line isn't #{MutantWeekly::RETURNED.fetch(1).inspect}"
+
+    assert_equal [ not_returned ], MutantWeekly.incomplete(exited(1), late, run)
+    assert_equal [ not_returned ], MutantWeekly.incomplete(exited(1), mutant_summary(2) + "late output\n", run), "the line must be the last"
+    assert_match(/its last line isn't "mutant-weekly: mutant returned, every mutation killed"/,
+                 MutantWeekly.incomplete(exited(0), mutant_summary(2), run).join, "the line must agree with the exit")
+  end
+
+  # Stands in for the mutant gem, to run MutantWeekly::RUN_MUTANT itself:
+  # the command prints a final report, then does what FAKE_MUTANT says.
+  FAKE_MUTANT = <<~'FAKE'
+    module Mutant
+      WORLD = Object.new
+      Command = Struct.new(:behaviour) do
+        def call
+          puts "Mutations:       2", "Results:         2"
+          case behaviour
+          when "killed" then true
+          when "alive" then false
+          when "raise" then raise "late failure"
+          when "exit" then exit(1)
+          end
+        end
+      end
+      Parsed = Struct.new(:command) { def either(left, right) = command ? right.(command) : left.("usage: mutant run") }
+      module CLI
+        def self.parse(arguments:, world:)
+          raise ArgumentError, arguments.inspect unless arguments == %w[run] && world.equal?(WORLD)
+
+          Parsed.new(ENV.fetch("FAKE_MUTANT") == "unparsed" ? nil : Command.new(ENV.fetch("FAKE_MUTANT")))
+        end
+      end
+    end
+  FAKE
+
+  test "CI-11 the wrapper prints its line only once mutant's CLI has returned, and exits 3 on any exception" do
+    run = session("Home#show" => [ coverage(DROP_ORDER), coverage(DROP_LIMIT, killed: true) ])
+    Dir.mktmpdir do |lib|
+      File.write("#{lib}/mutant.rb", FAKE_MUTANT)
+      wrapped = ->(behaviour) { Bundler.with_unbundled_env { Open3.capture2e({ "FAKE_MUTANT" => behaviour }, "ruby", "-I", lib, "-e", MutantWeekly::RUN_MUTANT) } }
+
+      { "killed" => 0, "alive" => 1 }.each do |behaviour, code|
+        out, status = wrapped.(behaviour)
+        assert_equal code, status.exitstatus, out
+        assert_equal MutantWeekly::RETURNED.fetch(code), out.lines.last.chomp
+        assert_empty MutantWeekly.incomplete(status, out, run)
+      end
+      { "raise" => "RuntimeError: late failure", "exit" => "SystemExit: exit", "unparsed" => "usage: mutant run" }.each do |behaviour, said|
+        out, status = wrapped.(behaviour)
+        assert_equal 3, status.exitstatus, "#{behaviour}: #{out}"
+        assert_includes out, said
+        assert_not_includes out, "mutant-weekly: mutant returned"
+        assert_equal [ "mutant exited 3" ], MutantWeekly.incomplete(status, out, run)
+      end
+    end
+  end
 
   def issue_calls(open: [], labelled: true, delta_size: 2)
     MutantWeekly.issue_commands(open:, labelled:, delta_size:, body_file: "log/mutant-weekly.md", at: "def5678")
@@ -1123,17 +1189,32 @@ end
     assert_empty issue_calls(delta_size: 0)
   end
 
+  test "CI-12 the oldest issue is the first on a page of the repository's list that isn't a pull request" do
+    full = Array.new(MutantWeekly::PER_PAGE) { |index| { "number" => index + 1, "pull_request" => {} } }
+
+    assert_equal [ 7 ], MutantWeekly.oldest_on([ { "number" => 3, "pull_request" => {} }, { "number" => 7 }, { "number" => 9 } ])
+    assert_equal [], MutantWeekly.oldest_on([ { "number" => 3, "pull_request" => {} } ]), "a short page is the last: none is open"
+    assert_equal [], MutantWeekly.oldest_on([])
+    assert_nil MutantWeekly.oldest_on(full), "a full page of pull requests: read the next"
+  end
 
   # A copy of bin/mutant-weekly in a git repository, with stand-ins on PATH
-  # for `bundle` (mutant's run and its subject list), bin/rails, and `gh`.
-  # Each stand-in reads its fixture from stand-in/, and gh records its argv.
+  # for `bundle` (the wrapped mutant run and mutant's subject list),
+  # bin/rails, and `gh`. Each reads its fixture from stand-in/; each checks
+  # its whole argv, and gh records it.
   BUNDLE_STAND_IN = <<~'STAND_IN'
     #!/usr/bin/env ruby
     require "fileutils"
     require "json"
-    if ARGV[0, 4] == %w[exec mutant environment subject] then print File.read("#{__dir__}/listing.txt"); exit end
-    abort "unexpected: bundle #{ARGV.join(" ")}" unless ARGV == %w[exec mutant run]
-    mode, session = File.read("#{__dir__}/mutant-mode").strip, File.read("#{__dir__}/session.json")
+    mode = File.read("#{__dir__}/mutant-mode").strip
+    if ARGV == %w[exec mutant environment subject list]
+      print File.read("#{__dir__}/listing.txt")
+      $stdout.flush
+      Process.kill(:KILL, Process.pid) if mode == "list-signal"
+      exit(mode == "list-exit2" ? 2 : 0)
+    end
+    abort "unexpected: bundle #{ARGV.first(3).join(" ")} ..." unless ARGV == [ "exec", "ruby", "-e", File.read("#{__dir__}/run-mutant.rb") ]
+    session = File.read("#{__dir__}/session.json")
     count = JSON.parse(session)["subject_results"].sum { |subject| subject["coverage_results"].size }
     # mutant writes its session as it goes, so even a run that dies leaves one
     (FileUtils.mkdir_p(".mutant/results") && File.write(".mutant/results/#{Process.pid}.json", session)) unless mode == "nosession"
@@ -1141,7 +1222,10 @@ end
     puts "Mutations:       #{count}", "Results:         #{count}" unless mode == "checkpoint"
     $stdout.flush
     Process.kill(:KILL, Process.pid) if mode == "signal"
-    exit(mode == "exit2" ? 2 : 1)
+    raise "late failure, after the final report" if mode == "late-exception" # Ruby exits 1
+    exit 2 if mode == "exit2"
+    puts "mutant-weekly: mutant returned, mutations alive"
+    exit 1
   STAND_IN
 
   GH_STAND_IN = <<~'STAND_IN'
@@ -1152,8 +1236,16 @@ end
     abort "gh: #{ARGV.first(2).join(" ")} failed" if state["fail"] == ARGV.first(2)
     option = ->(name) { (index = ARGV.index(name)) && ARGV[index + 1] }
     case ARGV.first(2)
-    when %w[issue list] # newest first and 30 at most, as gh lists, unless asked otherwise
-      numbers = state["open"].sort.reverse
+    when [ "api", "repos/{owner}/{repo}/issues" ] # the repository's list: open issues and pull requests with the label
+      fields = ARGV.drop(2).each_slice(2).select { |flag, _| flag == "-f" }.to_h { |_, pair| pair.split("=", 2) }
+      abort "unexpected: gh #{ARGV.join(" ")}" unless ARGV[2, 2] == %w[--method GET] && fields.values_at("labels", "state", "sort") == %w[mutation-weekly open created]
+      items = (state["open"].map { |number| { "number" => number } } + state.fetch("prs", []).map { |number| { "number" => number, "pull_request" => {} } })
+      items = items.sort_by { |item| item["number"] }
+      items = items.reverse unless fields["direction"] == "asc"
+      per_page = Integer(fields.fetch("per_page", "30"))
+      puts JSON.dump(items.drop((Integer(fields.fetch("page", "1")) - 1) * per_page).first(per_page))
+    when %w[issue list] # search: only what its index holds, newest first and 30 at most unless asked otherwise
+      numbers = state.fetch("searchable", state["open"]).sort.reverse
       numbers = numbers.reverse if option.("--search").to_s.split.include?("sort:created-asc")
       puts JSON.dump(numbers.first(Integer(option.("--limit") || 30)).map { |number| { "number" => number } })
     when %w[label list] then puts JSON.dump(state["labels"].map { |name| { "name" => name } })
@@ -1182,6 +1274,7 @@ end
       FileUtils.mkdir_p([ "#{dir}/config", "#{dir}/stand-in" ])
       File.write("#{dir}/config/mutant.yml", YAML.dump("matcher" => { "subjects" => [ "Home*" ] }))
       File.write("#{dir}/test/mutant/baseline.yml", YAML.dump("anchors" => [ { "at" => "abc1234" } ], "survivors" => { "Home#show" => [ DROP_ORDER_LINES ] }))
+      File.write("#{dir}/stand-in/run-mutant.rb", MutantWeekly::RUN_MUTANT)
       { "bin/rails" => "#!/bin/sh\nexit 0\n", "stand-in/bundle" => BUNDLE_STAND_IN, "stand-in/gh" => GH_STAND_IN }.each do |path, script|
         File.write("#{dir}/#{path}", script)
         FileUtils.chmod(0o755, "#{dir}/#{path}")
@@ -1197,7 +1290,10 @@ end
   def gh_calls(dir) = File.exist?("#{dir}/stand-in/gh-calls") ? File.readlines("#{dir}/stand-in/gh-calls").map { |line| JSON.parse(line) } : []
   def saved?(dir) = File.exist?("#{dir}/log/mutant-weekly.json") || File.exist?("#{dir}/log/mutant-weekly.md")
 
-  LIST_OLDEST = [ "issue", "list", "--label", "mutation-weekly", "--state", "open", "--search", "sort:created-asc", "--limit", "1", "--json", "number" ]
+  def list_page(page)
+    [ "api", "repos/{owner}/{repo}/issues", "--method", "GET", "-f", "labels=mutation-weekly", "-f", "state=open", "-f", "sort=created",
+      "-f", "direction=asc", "-f", "per_page=100", "-f", "page=#{page}" ]
+  end
   LIST_LABELS = [ "label", "list", "--search", "mutation-weekly", "--json", "name" ]
 
   test "CI-11 bin/mutant-weekly saves a report for --issue only from a complete run of every listed subject" do
@@ -1210,8 +1306,11 @@ end
       {
         "mutant was killed by signal 9" => { mode: "signal" },
         "mutant exited 2" => { mode: "exit2" },
+        "mutant's CLI didn't return normally" => { mode: "late-exception" },
         "mutant printed no final report" => { mode: "checkpoint" },
         "mutant wrote no session result" => { mode: "nosession" },
+        "mutant environment subject list failed" => { mode: "list-exit2" },
+        "mutant environment subject list failed, so" => { mode: "list-signal" },
         "Home#edit: selected, but the session has no result for it" => { mode: "complete", listing: listing("Home#edit", "Home#index", "Home#show") }
       }.each do |problem, fixtures|
         stand_in(dir, mode: "complete", listing: listing("Home#index", "Home#show"))
@@ -1219,12 +1318,12 @@ end
         stand_in(dir, gh: {}, **fixtures)
 
         out, status = run_weekly(dir)
-        assert_not status.success?, "#{problem}: #{out}"
+        assert_not status.success?, "#{fixtures[:mode]}: #{out}"
         assert_includes out, problem
-        assert_not saved?(dir), "#{problem}: a report from the run before stays saved"
+        assert_not saved?(dir), "#{fixtures[:mode]}: a report from the run before stays saved"
         out, status = run_weekly(dir, "--issue")
         assert_not status.success?, out
-        assert_empty gh_calls(dir), "#{problem}: --issue called gh"
+        assert_empty gh_calls(dir), "#{fixtures[:mode]}: --issue called gh"
       end
 
       stand_in(dir, mode: "complete", listing: listing("Home#index", "Home#show"))
@@ -1240,16 +1339,16 @@ end
     weekly_sandbox do |dir, at|
       edit = [ "issue", "edit", "4", "--body-file", "log/mutant-weekly.md" ]
       {
-        [ true, [], [] ] => [ LIST_OLDEST, LIST_LABELS, [ "label", "create", "mutation-weekly", "--description", "The weekly mutation run on main" ],
+        [ true, [], [] ] => [ list_page(1), LIST_LABELS, [ "label", "create", "mutation-weekly", "--description", "The weekly mutation run on main" ],
                              [ "issue", "create", "--title", "Mutation survivors on main", "--label", "mutation-weekly", "--body-file", "log/mutant-weekly.md" ] ],
-        [ true, [], [ "mutation-weekly" ] ] => [ LIST_OLDEST, LIST_LABELS,
+        [ true, [], [ "mutation-weekly" ] ] => [ list_page(1), LIST_LABELS,
                                                 [ "issue", "create", "--title", "Mutation survivors on main", "--label", "mutation-weekly", "--body-file", "log/mutant-weekly.md" ] ],
-        [ true, [ 4 ], [ "mutation-weekly" ] ] => [ LIST_OLDEST, LIST_LABELS, edit,
+        [ true, [ 4 ], [ "mutation-weekly" ] ] => [ list_page(1), LIST_LABELS, edit,
                                                    [ "issue", "comment", "4", "--body", "Run at #{at}: 1 survivor(s) outside the anchor and accepted.yml." ] ],
-        [ false, [ 4 ], [ "mutation-weekly" ] ] => [ LIST_OLDEST, LIST_LABELS,
+        [ false, [ 4 ], [ "mutation-weekly" ] ] => [ list_page(1), LIST_LABELS,
                                                     [ "issue", "comment", "4", "--body", "Main is clean at #{at}: no survivor outside the anchor and accepted.yml." ],
                                                     [ "issue", "close", "4" ] ],
-        [ false, [], [ "mutation-weekly" ] ] => [ LIST_OLDEST, LIST_LABELS ]
+        [ false, [], [ "mutation-weekly" ] ] => [ list_page(1), LIST_LABELS ]
       }.each do |(delta, open, labels), calls|
         stand_in(dir, session: weekly_session(new: delta), gh: { "open" => open, "labels" => labels })
         assert run_weekly(dir).last.success?
@@ -1261,21 +1360,32 @@ end
     end
   end
 
-  test "CI-12 the oldest open issue is asked of GitHub sorted, so one past the first page is still the one" do
+  test "CI-12 the oldest open issue is read from the repository's list, oldest first, past pull requests and pages" do
     weekly_sandbox do |dir, _|
-      stand_in(dir, gh: { "open" => (101..140).to_a })
+      stand_in(dir, gh: { "open" => (201..240).to_a, "prs" => (1..120).to_a })
       assert run_weekly(dir).last.success?
       out, status = run_weekly(dir, "--issue")
       assert status.success?, out
-      assert_equal [ "issue", "edit", "101", "--body-file", "log/mutant-weekly.md" ], gh_calls(dir)[2]
+      assert_equal [ list_page(1), list_page(2), LIST_LABELS, [ "issue", "edit", "201", "--body-file", "log/mutant-weekly.md" ] ], gh_calls(dir).first(4)
       assert_empty gh_calls(dir).select { |call| call.first(2) == %w[issue create] }
+    end
+  end
+
+  test "CI-12 an issue search can't see yet is still found, and updated, not opened again" do
+    weekly_sandbox do |dir, _|
+      stand_in(dir, gh: { "open" => [ 4 ], "searchable" => [] })
+      assert run_weekly(dir).last.success?
+      out, status = run_weekly(dir, "--issue")
+      assert status.success?, out
+      assert_includes gh_calls(dir), [ "issue", "edit", "4", "--body-file", "log/mutant-weekly.md" ]
+      assert_empty gh_calls(dir).select { |call| call.first(2) == %w[issue create] }, "a second issue was opened"
     end
   end
 
   test "CI-12 a gh call that fails stops the run there, with no call after it" do
     weekly_sandbox do |dir, _|
       {
-        [ true, [], [], %w[issue list] ] => 1, [ true, [], [], %w[label list] ] => 2, [ true, [], [], %w[label create] ] => 3,
+        [ true, [], [], [ "api", "repos/{owner}/{repo}/issues" ] ] => 1, [ true, [], [], %w[label list] ] => 2, [ true, [], [], %w[label create] ] => 3,
         [ true, [], [ "mutation-weekly" ], %w[issue create] ] => 3, [ true, [ 4 ], [ "mutation-weekly" ], %w[issue edit] ] => 3,
         [ true, [ 4 ], [ "mutation-weekly" ], %w[issue comment] ] => 4, [ false, [ 4 ], [ "mutation-weekly" ], %w[issue comment] ] => 3,
         [ false, [ 4 ], [ "mutation-weekly" ], %w[issue close] ] => 4
