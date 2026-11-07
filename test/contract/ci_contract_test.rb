@@ -1456,16 +1456,16 @@ class CiContractTest < ActiveSupport::TestCase
 
   test "CI-14 controller exemption counts file bodies once with a cap of 100" do
     path = "app/controllers/admin/widgets_controller.rb"
-    controller = ->(size) { "module Admin\n class WidgetsController\n def action\n" + ("  puts 1\n" * (size - 2)) + " end\n end\nend\n" }
+    controller = ->(size) { "module Admin\n class WidgetsController < ApplicationController\n def action\n" + ("  puts 1\n" * (size - 2)) + " end\n end\nend\n" }
     failures, reports = completeness(path, controller.call(100))
     assert_empty failures
     assert_includes reports.join, "100/100"
     assert_not_empty completeness(path, controller.call(101)).first
     assert_not_empty completeness(path, "require \"json\"\n" + controller.call(100)).first
     assert_empty completeness(path, controller.call(100).sub("class WidgetsController", "# comment\n\n class WidgetsController")).first
-    text = "class WidgetsController\n def action\n" + ("puts 1\n" * 12) + "end\nend"
+    text = "class WidgetsController < ApplicationController\n def action\n" + ("puts 1\n" * 12) + "end\nend"
     assert_empty completeness(path, text).first, "there is no method cap"
-    nested = controller.call(60).sub(" end\nend", " class HiddenController\n" + ("attr_reader :x\n" * 41) + "end\n end\nend")
+    nested = controller.call(60).sub(" end\nend", " class HiddenController < ApplicationController\n" + ("attr_reader :x\n" * 41) + "end\n end\nend")
     assert_not_empty completeness(path, nested).first
     assert_empty completeness(path, nested.sub("attr_reader :x\n", "")).first
     assert_not_empty completeness("app/controllers/concerns/widgets_controller.rb", text).first
@@ -1492,14 +1492,14 @@ class CiContractTest < ActiveSupport::TestCase
   end
 
   test "CI-15 exact dated path acceptances persist and print the reason on every touch" do
-    entry = { "path" => "app/models/widget.rb", "on" => "2026-11-07", "reason" => "Specific accepted gap" }
+    entry = { "path" => "app/models/widget.rb", "date" => "2026-11-07", "reason" => "Specific accepted gap" }
     document = selection_acceptances([ entry ])
     accepted, failures = MutantCompleteness.acceptances(document, document)
     assert_empty failures
     assert_equal [ entry ], accepted
     failures, reports = completeness(entry["path"], "class Widget\n def value = 1\nend", accepted:)
     assert_empty failures
-    [ entry["path"], entry["on"], entry["reason"] ].each { |word| assert_includes reports.join, word }
+    [ entry["path"], entry["date"], entry["reason"] ].each { |word| assert_includes reports.join, word }
     frontend = entry.merge("path" => "app/javascript/widget.js")
     _, reports = completeness(frontend["path"], "anything", accepted: [ frontend ])
     assert_includes reports.join, entry["reason"], "a tool limit must still print an applicable acceptance"
@@ -1507,12 +1507,12 @@ class CiContractTest < ActiveSupport::TestCase
   end
 
   test "CI-15 the whole acceptance file is validated and append only" do
-    entry = { "path" => "app/models/widget.rb", "on" => "2026-11-07", "reason" => "Specific gap" }
+    entry = { "path" => "app/models/widget.rb", "date" => "2026-11-07", "reason" => "Specific gap" }
     good = selection_acceptances([ entry ])
     [ "[", "- nope", "paths: wrong", "other: []", selection_acceptances([ entry, entry ]) ].each do |bad|
       assert_not_empty MutantCompleteness.acceptances(bad, nil).last, bad
     end
-    [ { "on" => "2026-02-30" }, { "on" => "yesterday" }, { "on" => nil }, { "reason" => " " }, { "path" => "app/models/*.rb" }, { "path" => "../app/models/a.rb" }, { "path" => "/app/models/a.rb" }, { "path" => "app//models/a.rb" }, { "unexpected" => true } ].each do |change|
+    [ { "date" => "2026-02-30" }, { "date" => "yesterday" }, { "date" => nil }, { "reason" => " " }, { "path" => "app/models/*.rb" }, { "path" => "../app/models/a.rb" }, { "path" => "/app/models/a.rb" }, { "path" => "app//models/a.rb" }, { "unexpected" => true } ].each do |change|
       bad = selection_acceptances([ entry.merge(change) ])
       assert_not_empty MutantCompleteness.acceptances(bad, bad).last, change.inspect
     end
@@ -1556,7 +1556,8 @@ class CiContractTest < ActiveSupport::TestCase
           exit 4 if config["git_fail"] == ARGV.first
           case ARGV.first
           when "merge-base" then puts "abc1234"
-          when "ls-tree", "ls-files" then print ""
+          when "ls-tree" then print ""
+          when "ls-files" then print config.fetch("untracked", []).join("\0")
           when "diff" then print config.fetch("paths", []).join("\0") + "\0"
           else exit 5
           end
@@ -1605,6 +1606,129 @@ class CiContractTest < ActiveSupport::TestCase
       out, status = run_completeness(dir, {}, base: "env-base")
       assert status.success?, out
       assert_includes File.read(File.join(dir, "calls.jsonl")), '"merge-base","env-base","HEAD"'
+    end
+  end
+
+  {
+    "foreign defs" => "def Pricing.compute(x) = x * 42",
+    "foreign define_method" => "Pricing.define_method(:compute) { 42 }",
+    "foreign class_eval" => "Pricing.class_eval do\n def compute = 42\nend"
+  }.each do |shape, body|
+    test "CI-13 round 2 #{shape} cannot borrow enclosing reach or a controller exemption" do
+      path = "app/services/markdown_renderer.rb"
+      source = "class MarkdownRenderer\n def render(text) = Pricing.compute(text)\n #{body}\nend"
+      failures, = completeness(path, source, reached: { "MarkdownRenderer" => [ path ] })
+      assert_includes failures.join, "unattributed Ruby code"
+      path = "app/controllers/pricing_controller.rb"
+      source = "class PricingController < ApplicationController\n #{body}\nend"
+      assert_includes completeness(path, source).first.join, "unattributed Ruby code"
+    end
+  end
+
+  test "CI-13 round 2 all foreign definition and evaluation receivers are unattributed" do
+    bodies = [ "def Pricing.compute = 42", "Pricing.define_singleton_method(:compute) { 42 }", "Pricing&.define_method(:compute) { 42 }", "Pricing&.class_eval { 42 }" ]
+    %w[class_eval module_eval class_exec module_exec instance_eval instance_exec].each { |name| bodies << "Pricing.#{name} { 42 }" }
+    path = "app/services/markdown_renderer.rb"
+    bodies.each do |body|
+      assert_includes completeness(path, "class MarkdownRenderer\n #{body}\nend", reached: { "MarkdownRenderer" => [ path ] }).first.join, "unattributed Ruby code", body
+    end
+    assert_empty completeness(path, "class MarkdownRenderer\n def self.compute = 42\n self.define_method(:value) { 42 }\nend", reached: { "MarkdownRenderer" => [ path ] }).first
+  end
+
+  {
+    "lambda constants" => "RULES = { a: ->(x) { x * 2 }, b: ->(x) { x + 1 } }; RUN = ->(k, x) { RULES.fetch(k).call(x) }",
+    "reflective define_method" => "send(:define_method, :compute) { |x| x * 42 }",
+    "proc constant" => "extend self; GO = proc { |x| x * 3 }"
+  }.each do |shape, body|
+    test "CI-15 round 2 #{shape} is executable even without def" do
+      failures, = completeness("app/services/pricing.rb", "class Pricing\n #{body}\nend")
+      assert_includes failures.join, "Pricing is unreached"
+    end
+  end
+
+  test "CI-15 round 2 only closed Rails macro blocks receive the tool limit" do
+    allowed = [
+      "scope :recent, -> { where(active: true) }", "self.scope :recent, -> { where(active: true) }",
+      'validate { errors.add(:base, "bad") }', "validates :title, presence: -> { true }",
+      "validates_each(:title) { |record, attr, value| record.errors.add(attr, value) }",
+      "before_save { normalize }", "around_perform { |job, block| block.call }", "before_action { authenticate }",
+      "included { before_save :normalize }", "class_methods { attr_reader :value }", "prepended { before_action :authenticate }",
+      "has_many(:posts) { def extra = 1 }", "normalizes :email, with: ->(value) { value.strip }",
+      "belongs_to :user, -> { where(active: true) }", "enum :status, { draft: 0 }; delegate :user, to: :session"
+    ]
+    path = "app/models/pricing.rb"
+    allowed.reject { |body| body.include?("def extra") }.each do |body|
+      failures, reports = completeness(path, "class Pricing\n #{body}\nend")
+      assert_empty failures, body
+      assert_includes reports.join, "tool limit", body
+    end
+    denied = [
+      "custom_macro { 42 }", "scope_fake(:x) { 42 }", "validates_made_up { 42 }", "before_made_up { 42 }",
+      "Other.scope(:x) { 42 }", "Other.normalizes(:x, with: -> { 42 })", "RUN = lambda { 42 }",
+      "RUN = -> { 42 }", "RUN = Proc.new { 42 }", "[1].map { _1 * 2 }", "[1].map { it * 2 }",
+      "public_send(:define_method, :value) { 42 }", "send(:define_method, :value)", "public_send(:define_singleton_method, :value)",
+      'eval("42")', 'class_eval("42")', 'instance_eval("42")', "scope(:x, -> { [1].map { _1 * 2 } })",
+      "has_many(:posts) { def extra = 1 }"
+    ]
+    denied.each do |body|
+      assert_not_empty completeness(path, "class Pricing\n #{body}\nend").first, body
+    end
+  end
+
+  test "CI-15 round 2 handwritten date YAML works and non String keys are named" do
+    document = <<~YAML
+      paths:
+        - path: app/models/widget.rb
+          date: "2026-11-07"
+          reason: Specific accepted gap
+    YAML
+    accepted, failures = MutantCompleteness.acceptances(document, nil)
+    assert_empty failures
+    assert_equal "2026-11-07", accepted.first.fetch("date")
+    bad = document.sub("date:", "on:")
+    _, failures = MutantCompleteness.acceptances(bad, nil)
+    assert_includes failures.join, "non-String key true"
+  end
+
+  test "CI-14 round 2 controller suffix needs a static controller superclass" do
+    path = "app/controllers/pricing_controller.rb"
+    [ "", " < SomethingElse", " < factory(Controller)" ].each do |parent|
+      failures, = completeness(path, "class PricingController#{parent}\n def compute = 42\nend")
+      assert_not_empty failures, parent
+    end
+    assert_empty completeness(path, "class PricingController < Admin::BaseController\n def show = 42\nend").first
+  end
+
+  test "CI-13 round 2 unknown code types fail and jbuilder has a named limit" do
+    %w[app/assets/a.scss app/javascript/a.ts app/views/a.haml app/views/a.slim app/data/a.yml lib/data app/.hidden].each do |path|
+      failures, = completeness(path, "anything")
+      assert_includes failures.join, "unknown code type", path
+    end
+    failures, reports = completeness("app/views/a.json.jbuilder", "anything")
+    assert_empty failures
+    assert_includes reports.join, "Jbuilder templates"
+    %w[.woff .woff2 .ttf .otf .png .jpg .jpeg .gif .webp .avif .svg .ico .md].each do |suffix|
+      assert_equal [ [], [] ], completeness("app/assets/a#{suffix}", "anything")
+    end
+    assert_equal [ [], [] ], completeness("lib/tasks/.keep", "")
+  end
+
+  test "CI-16 round 2 a symlink under app models fails the CLI" do
+    completeness_sandbox do |dir|
+      link = File.join(dir, "app/models/linked.rb")
+      File.symlink("widget.rb", link)
+      out, status = run_completeness(dir, { "paths" => [ "app/models/linked.rb" ], "lookup" => 'mutant-completeness-locations:{"Widget":["app/models/linked.rb"]}' })
+      assert_not status.success?, out
+      assert_includes out, "symlink cannot establish source reach"
+    end
+  end
+
+  test "CI-16 round 2 an untracked unreached file fails the CLI" do
+    completeness_sandbox do |dir|
+      File.write(File.join(dir, "app/models/pricing.rb"), "class Pricing\n def value = 42\nend")
+      out, status = run_completeness(dir, { "paths" => [], "untracked" => [ "app/models/pricing.rb" ] })
+      assert_not status.success?, out
+      assert_includes out, "Pricing is unreached"
     end
   end
 end
