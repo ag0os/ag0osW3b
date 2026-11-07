@@ -26,7 +26,148 @@
 #
 #   - subjects: [ HomeController#show ]
 #     reason: What changes, and why mutation can do less.
-equivalents: []
+equivalents:
+  - subject: SiteSetting#copy_link_placeholder
+    change: |-
+      -  token = COPY_LINKS[key.to_s.delete_suffix("_es")]
+      +  token = COPY_LINKS[key.delete_suffix("_es")]
+    reason: >-
+      Equivalent for the records the app validates, not for every possible
+      record. The validator differs only when key is not a String: for a nil
+      key (SiteSetting.new(key: nil).valid?) nil.to_s gives "" while the
+      mutation raises. The app validates only records whose key is a String:
+      Admin -> Copy builds them from its permitted copy keys, and
+      SiteSetting.[]= stores key.to_s. No Contract states how a record without
+      a key, or with a non-String key, is validated.
+  - subject: SiteSetting#copy_link_placeholder
+    change: |-
+      -  token = COPY_LINKS[key.to_s.delete_suffix("_es")]
+      +  token = COPY_LINKS[key.to_str.delete_suffix("_es")]
+    reason: >-
+      Equivalent for the records the app validates, not for every possible
+      record. String#to_str and String#to_s both return the string itself;
+      they differ for a key that is not a String, such as nil, where the
+      mutation raises. The app validates only records with a String key
+      (Admin -> Copy builds them from its permitted copy keys, and
+      SiteSetting.[]= stores key.to_s), and no Contract states how any other
+      key is validated.
+  - subject: SiteSetting#copy_link_placeholder
+    change: |-
+      -  errors.add(:value, "for #{key} must contain #{token} exactly once.")
+      +  errors.add(:value__mutant__, "for #{key} must contain #{token} exactly once.")
+    reason: >-
+      Equivalent under the current Contract, not in every observable output.
+      The record is refused either way, and the message still names the field
+      and its placeholder, which is what CO-5 promises and its tests check.
+      What changes is the Rails error bucket the message is filed under
+      (errors[:value] is empty with the mutation) and the humanized prefix in
+      front of the message. The Contract promises neither.
+  - subject: SiteSetting.[]
+    change: |-
+      -    record = find_by(key: key.to_s)
+      +    record = find_by(key:)
+    reason: >-
+      Equivalent for the keys the app's callers pass. Active Record casts the
+      value bound to the string key column, so a String key, and a Symbol
+      key, run the same query either way. Every caller under app/ passes a
+      String: a literal such as "site_title", or a copy key. No Contract
+      states the reader's behaviour for other kinds of key.
+  - subject: SiteSetting.[]
+    change: |-
+      -    record = find_by(key: key.to_s)
+      +    record = find_by(key: key.to_str)
+    reason: >-
+      Equivalent for the keys the app's callers pass. String#to_str and
+      String#to_s both return the string itself; they differ for a key that
+      is not a String (a Symbol, nil or an integer), where the mutation
+      raises. Every caller under app/ passes a String, and no Contract states
+      the reader's behaviour for other kinds of key.
+  - subject: SiteSetting.[]
+    change: |-
+      -    record&.value.presence || DEFAULTS[key.to_s]
+      +    record&.value.presence || DEFAULTS[key.to_str]
+    reason: >-
+      Equivalent for the keys the app's callers pass. String#to_str and
+      String#to_s both return the string itself; they differ for a key that
+      is not a String (a Symbol, nil or an integer) with no nonblank row,
+      where the mutation raises. Every caller under app/ passes a String, and
+      no Contract states the reader's behaviour for other kinds of key.
+  - subject: SiteSetting.[]
+    change: |-
+      -    record&.value.presence || DEFAULTS[key.to_s]
+      +    record&.value.presence || DEFAULTS[key]
+    reason: >-
+      Equivalent for the keys the app's callers pass. DEFAULTS has String
+      keys, so the two differ for a key that is not a String with no nonblank
+      row: an unsaved :email, for example, would read nil instead of its
+      default. Every caller under app/ passes a String, and no Contract states
+      the reader's behaviour for other kinds of key.
+  - subject: SiteSetting.[]=
+    change: |-
+      -    find_or_initialize_by(key: key.to_s).update(value:)
+      +    find_or_initialize_by(key:).update(value:)
+    reason: >-
+      Equivalent for the keys the app's callers pass. Active Record casts the
+      key to the string column's type, in the lookup and on a new record, so
+      a String, Symbol or integer key finds or creates the same row. A nil key
+      looks for a NULL key instead of "", though neither saves, since a blank
+      key fails validation. The one caller under app/, Admin -> Settings,
+      passes the String keys of its permitted parameters, and no Contract
+      states the writer's behaviour for other kinds of key.
+  - subject: SiteSetting.[]=
+    change: |-
+      -    find_or_initialize_by(key: key.to_s).update(value:)
+      +    find_or_initialize_by(key: key.to_str).update(value:)
+    reason: >-
+      Equivalent for the keys the app's callers pass. String#to_str and
+      String#to_s both return the string itself; they differ for a key that
+      is not a String (a Symbol, nil or an integer), where the mutation
+      raises. Without it, a Symbol or integer key saves and a nil key
+      returns false without saving, since a blank key fails validation.
+      The one caller under app/, Admin -> Settings,
+      passes the String keys of its permitted parameters, and no Contract
+      states the writer's behaviour for other kinds of key.
+  - subject: SiteSetting.copy_translation
+    change: |-
+      -      DEFAULTS[spanish_key]
+      +      self[spanish_key]
+    reason: >-
+      Equivalent while the row stays absent between two reads. This branch
+      runs only when the lookup just found no row with the Spanish key.
+      SiteSetting[] then looks again, finds none, and returns DEFAULTS for the
+      same key, so the value is the same and the mutation adds a query. The
+      two differ only if a row with that key is written between the two
+      lookups, which no Contract addresses.
+  - subject: SiteSetting.copy_translation
+    change: |-
+      -      DEFAULTS[spanish_key]
+      +      DEFAULTS.fetch(spanish_key)
+    reason: >-
+      Equivalent for the keys the app's callers pass, not for every key.
+      fetch raises for a key with no Spanish default, so
+      I18n.with_locale(:es) { SiteSetting.localized("site_title") } with no
+      site_title_es row raises with the mutation and reads the English title
+      without it. The app calls SiteSetting.localized and untranslated? only
+      with the ten copy keys, each of which has a Spanish default that CO-3's
+      test reads back. The copy Contract covers those ten keys, and no
+      Contract states how a Settings value or an unknown key reads in Spanish.
+  - subject: SiteSetting.theme_preset
+    change: |-
+      -    preset = self["theme_preset"].to_s
+      +    preset = self["theme_preset"]
+    reason: >-
+      Equivalent for every input. SiteSetting["theme_preset"] returns a
+      nonblank stored value of the string column or the default, "workshop",
+      so it is always a String and to_s returns it unchanged.
+  - subject: SiteSetting.theme_preset
+    change: |-
+      -    preset = self["theme_preset"].to_s
+      +    preset = self["theme_preset"].to_str
+    reason: >-
+      Equivalent for every input. SiteSetting["theme_preset"] returns a
+      nonblank stored value of the string column or the default, "workshop",
+      so it is always a String, and to_str returns it unchanged just as to_s
+      does.
 config:
   - change: harness
     reason: >-

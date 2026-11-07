@@ -20,5 +20,6 @@ matcher:
     - LocalizedLinksHelper*
     - HomeController*
     - PagesController#consulting
+    - SiteSetting*
 hooks:
   - test/mutant/hooks.rb
