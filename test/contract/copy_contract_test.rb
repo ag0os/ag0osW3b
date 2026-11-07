@@ -1,7 +1,9 @@
 require "test_helper"
 
-class CopyContractTest < ActionDispatch::IntegrationTest
-  cover "SiteSetting*" if respond_to?(:cover)
+# Shared by this file's classes. The copy Contract's tests are grouped by the
+# SiteSetting methods they reach, so mutation runs only a method's own group.
+module CopyContractFixture
+  extend ActiveSupport::Concern
 
   # Literal defaults captured from 4d307e9 before moving any copy, except the
   # tagline pair, reworded with the owner's approval on 2026-10-22.
@@ -20,10 +22,30 @@ class CopyContractTest < ActionDispatch::IntegrationTest
 
   TOKENS = { "footer_pitch" => "%{consulting_link}", "consulting_contact" => "%{linkedin_link}" }.freeze
 
-  setup do
-    Section.delete_all
-    Post.delete_all
+  included do
+    setup do
+      Section.delete_all
+      Post.delete_all
+    end
   end
+
+  private
+
+  def edited_copy
+    COPY.keys.each_with_object({}) do |key, values|
+      values[key] = "English #{key} #{TOKENS[key]}".strip
+      values["#{key}_es"] = "Español #{key} #{TOKENS[key]}".strip
+    end
+  end
+end
+
+# The Copy and Settings editors: what they show, save and refuse.
+class CopyContractTest < ActionDispatch::IntegrationTest
+  include CopyContractFixture
+  cover "SiteSetting#copy_link_placeholder" if respond_to?(:cover)
+  cover "SiteSetting.[]=" if respond_to?(:cover)
+  cover "SiteSetting.all_settings" if respond_to?(:cover)
+  cover "SiteSetting.[]" if respond_to?(:cover)
 
   test "CO-1 Copy is linked in the English admin and saves every language pair" do
     sign_in_as users(:one)
@@ -73,6 +95,85 @@ class CopyContractTest < ActionDispatch::IntegrationTest
     assert_equal "Updated title", SiteSetting["site_title"]
     assert_nil SiteSetting.find_by(key: "unknown")
   end
+
+  test "CO-5 malformed linked sentences save nothing and retain fields for correction" do
+    sign_in_as users(:one)
+    TOKENS.each do |key, token|
+      [ "Missing link", "#{token} twice #{token}", "%{wrong_link}" ].each do |bad|
+        before = SiteSetting.pluck(:key, :value).sort
+        patch "/admin/copy", params: { copy: { tagline: "Must not save", key => bad, "#{key}_es" => "Spanish #{token}" } }
+        assert_response :unprocessable_entity
+        assert_select ".form-errors", text: /#{Regexp.escape(token)}/
+        assert_select "textarea[name=?]", "copy[#{key}]", text: bad
+        assert_select 'textarea[name="copy[tagline]"]', text: "Must not save"
+        assert_equal before, SiteSetting.pluck(:key, :value).sort
+      end
+    end
+  end
+
+  test "CO-5 malformed Spanish linked sentences save nothing and the error names the field and its placeholder" do
+    sign_in_as users(:one)
+    TOKENS.each do |key, token|
+      [ "Falta el enlace", "#{token} dos veces #{token}", "%{wrong_link}" ].each do |bad|
+        before = SiteSetting.pluck(:key, :value).sort
+        patch "/admin/copy", params: { copy: { key => "English #{token}", "#{key}_es" => bad } }
+        assert_response :unprocessable_entity
+        assert_select ".form-errors li", text: /\b#{key}_es\b.*#{Regexp.escape(token)}/
+        assert_select "textarea[name=?]", "copy[#{key}_es]", text: bad
+        assert_equal before, SiteSetting.pluck(:key, :value).sort
+      end
+    end
+  end
+
+  { "/admin/copy" => [ :copy, "tagline", "hero_note" ], "/admin/settings" => [ :settings, "site_title", "email" ] }.each do |path, (group, valid, owned)|
+    test "CO-8 nested foreign values are still ignored and blank owned values still save in #{group}" do
+      sign_in_as users(:one)
+      SiteSetting[valid] = "Existing"
+      patch path, params: { group => { valid => "", unknown: { nested: "Wrong key" }, other: [ "Wrong key" ] } }
+      assert_response :redirect
+      assert_equal "", SiteSetting.find_by!(key: valid).value
+      assert_nil SiteSetting.find_by(key: "unknown")
+      assert_nil SiteSetting.find_by(key: "other")
+    end
+  end
+
+  test "CO-5 a blank linked sentence needs no placeholder and saves" do
+    sign_in_as users(:one)
+    blanks = { "footer_pitch_es" => "", "consulting_contact_es" => " \n " }
+    patch "/admin/copy", params: { copy: blanks }
+    assert_redirected_to "/admin/copy"
+    blanks.each { |key, blank| assert_equal blank, SiteSetting.find_by!(key: key).value }
+  end
+
+  test "CO-10 a setting saved blank makes the site use its default" do
+    sign_in_as users(:one)
+    patch admin_site_settings_path, params: { settings: { site_title: "", email: " " } }
+    assert_redirected_to admin_site_settings_path
+    get "/contact"
+    assert_select ".brand", text: SiteSetting::DEFAULTS.fetch("site_title")
+    assert_select "main a[href=?]", "mailto:#{SiteSetting::DEFAULTS.fetch("email")}"
+  end
+
+  test "CO-10 a setting stored as no value shows its default in Settings, as the site uses it" do
+    sign_in_as users(:one)
+    SiteSetting.find_by!(key: "site_title").update_columns(value: nil)
+    SiteSetting.create!(key: "email", value: nil)
+    get admin_site_settings_path
+    assert_select 'input[name="settings[site_title]"][value=?]', SiteSetting::DEFAULTS.fetch("site_title")
+    assert_select 'input[name="settings[email]"][value=?]', SiteSetting::DEFAULTS.fetch("email")
+    get "/contact"
+    assert_select ".brand", text: SiteSetting::DEFAULTS.fetch("site_title")
+    assert_select "main a[href=?]", "mailto:#{SiteSetting::DEFAULTS.fetch("email")}"
+  end
+end
+
+# Public copy as each language reads it.
+class CopyRenderingContractTest < ActionDispatch::IntegrationTest
+  include CopyContractFixture
+  cover "SiteSetting.localized" if respond_to?(:cover)
+  cover "SiteSetting.copy_translation" if respond_to?(:cover)
+  cover "SiteSetting.untranslated?" if respond_to?(:cover)
+  cover "SiteSetting.[]" if respond_to?(:cover)
 
   test "CO-3 missing rows preserve the literal defaults in both languages without writes" do
     keys = COPY.keys.flat_map { |key| [ key, "#{key}_es" ] }
@@ -132,21 +233,6 @@ class CopyContractTest < ActionDispatch::IntegrationTest
         expected = source.gsub("%{consulting_link}", locale == "en" ? "consulting" : "consultoría").gsub("%{linkedin_link}", "LinkedIn")
         assert_select selector, text: expected
         assert_select "#{selector}[lang]", 0
-      end
-    end
-  end
-
-  test "CO-5 malformed linked sentences save nothing and retain fields for correction" do
-    sign_in_as users(:one)
-    TOKENS.each do |key, token|
-      [ "Missing link", "#{token} twice #{token}", "%{wrong_link}" ].each do |bad|
-        before = SiteSetting.pluck(:key, :value).sort
-        patch "/admin/copy", params: { copy: { tagline: "Must not save", key => bad, "#{key}_es" => "Spanish #{token}" } }
-        assert_response :unprocessable_entity
-        assert_select ".form-errors", text: /#{Regexp.escape(token)}/
-        assert_select "textarea[name=?]", "copy[#{key}]", text: bad
-        assert_select 'textarea[name="copy[tagline]"]', text: "Must not save"
-        assert_equal before, SiteSetting.pluck(:key, :value).sort
       end
     end
   end
@@ -217,6 +303,11 @@ class CopyContractTest < ActionDispatch::IntegrationTest
     get consulting_path(locale: nil)
     assert_equal "First careful\nwork. · Test Site", css_select("title").first.text
   end
+end
+
+# Malformed submissions, refused before any SiteSetting method runs.
+class CopyRefusalContractTest < ActionDispatch::IntegrationTest
+  include CopyContractFixture
 
   { "/admin/copy" => :copy, "/admin/settings" => :settings }.each do |path, group|
     test "CO-8 a malformed #{group} submission is refused with 400 and writes nothing" do
@@ -242,24 +333,36 @@ class CopyContractTest < ActionDispatch::IntegrationTest
         end
       end
     end
+  end
+end
 
-    test "CO-8 nested foreign values are still ignored and blank owned values still save in #{group}" do
-      sign_in_as users(:one)
-      SiteSetting[valid] = "Existing"
-      patch path, params: { group => { valid => "", unknown: { nested: "Wrong key" }, other: [ "Wrong key" ] } }
-      assert_response :redirect
-      assert_equal "", SiteSetting.find_by!(key: valid).value
-      assert_nil SiteSetting.find_by(key: "unknown")
-      assert_nil SiteSetting.find_by(key: "other")
+# The theme preset saved in Settings.
+class CopyThemeContractTest < ActionDispatch::IntegrationTest
+  include CopyContractFixture
+  cover "SiteSetting.theme_preset" if respond_to?(:cover)
+
+  test "CO-9 the saved theme preset is the one every page renders" do
+    sign_in_as users(:one)
+    patch admin_site_settings_path, params: { settings: { theme_preset: "console" } }
+    [ root_path, "/es/writing", admin_site_settings_path ].each do |path|
+      get path
+      assert_select "html[data-theme=console]", 1, path
     end
+    get root_path
+    assert_select ".swatch[aria-checked=true]", 1
+    assert_select ".swatch[data-preset=console][aria-checked=true][tabindex='0']"
   end
 
-  private
-
-  def edited_copy
-    COPY.keys.each_with_object({}) do |key, values|
-      values[key] = "English #{key} #{TOKENS[key]}".strip
-      values["#{key}_es"] = "Español #{key} #{TOKENS[key]}".strip
+  test "CO-9 a saved theme preset that names no preset renders workshop" do
+    sign_in_as users(:one)
+    [ "bogus", "Console", "" ].each do |saved|
+      patch admin_site_settings_path, params: { settings: { theme_preset: saved } }
+      [ root_path, admin_site_settings_path ].each do |path|
+        get path
+        assert_select "html[data-theme=workshop]", 1, "#{saved.inspect} on #{path}"
+      end
+      get root_path
+      assert_select ".swatch[data-preset=workshop][aria-checked=true]"
     end
   end
 end
