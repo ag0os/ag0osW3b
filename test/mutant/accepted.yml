@@ -122,7 +122,9 @@ equivalents:
       Equivalent for the keys the app's callers pass. String#to_str and
       String#to_s both return the string itself; they differ for a key that
       is not a String (a Symbol, nil or an integer), where the mutation
-      raises instead of saving. The one caller under app/, Admin -> Settings,
+      raises. Without it, a Symbol or integer key saves and a nil key
+      returns false without saving, since a blank key fails validation.
+      The one caller under app/, Admin -> Settings,
       passes the String keys of its permitted parameters, and no Contract
       states the writer's behaviour for other kinds of key.
   - subject: SiteSetting.copy_translation
