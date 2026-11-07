@@ -1,0 +1,4 @@
+# Persistent exact-path acceptances for mutation selection completeness.
+# Append only. Each entry needs path, on (quoted ISO date), and reason.
+# See CI-15 and D-38. This is separate from survivor acceptances.
+paths: []
