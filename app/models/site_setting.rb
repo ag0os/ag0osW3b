@@ -85,8 +85,7 @@ class SiteSetting < ApplicationRecord
     def localized(key)
       return self[key] if I18n.locale == :en
 
-      translated = COPY_FIELDS.key?(key.to_s) ? copy_translation(key) : self["#{key}_#{I18n.locale}"]
-      translated.presence || self[key]
+      copy_translation(key).presence || self[key]
     end
 
     def untranslated?(key)

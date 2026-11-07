@@ -8,7 +8,9 @@ covers:
   - app/views/admin/copies/
   - app/views/admin/site_settings/
   - app/views/layouts/admin.html.erb
+  - app/views/layouts/application.html.erb
   - app/views/shared/_page_header.html.erb
+  - app/views/shared/_theme_controls.html.erb
   - config/routes.rb
 depends_on:
   - locale
@@ -16,11 +18,11 @@ depends_on:
 tests:
   - test/contract/copy_contract_test.rb
 ---
-Coverage: 8 obligations; 8 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
+Coverage: 10 obligations; 10 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
 
 # Contract: editable page copy
 
-The ten pairs of English and Spanish prose edited at Admin → Copy: hero tagline and note, Work and Writing intros, footer pitch, Consulting heading and contact sentence, and About, Work and Writing empty states. Sections, posts and interface labels retain their existing homes.
+The ten pairs of English and Spanish prose edited at Admin → Copy: hero tagline and note, Work and Writing intros, footer pitch, Consulting heading and contact sentence, and About, Work and Writing empty states. Sections, posts and interface labels retain their existing homes. The site-wide values edited at Admin → Settings (site title, email, URLs and the theme preset) are stored the same way, as SiteSetting rows, and CO-9 and CO-10 cover how the site reads them.
 
 ### CO-1 One bilingual copy editor
 
@@ -60,7 +62,9 @@ Kind: functional. Proof: test, CO-4 in `test/contract/copy_contract_test.rb`.
 
 ### CO-5 Link sentences keep their destinations
 
-Each nonblank linked sentence contains exactly one of its designated placeholders, %{consulting_link} or %{linkedin_link}. Generated links retain their live destinations and existing behavior. Invalid submissions show an actionable error, keep submitted fields for correction and save no value.
+Each nonblank linked sentence, English or Spanish, contains exactly one of its designated placeholders, %{consulting_link} or %{linkedin_link}; a blank one needs none. Generated links retain their live destinations and existing behavior. Invalid submissions show an actionable error that names the field and the placeholder it needs, keep submitted fields for correction and save no value.
+
+Reworded 2026-11-04 by refine: mutation scope for SiteSetting: says outright that the Spanish sentences are held to the placeholder, that a blank sentence needs none, and that the error names the field and its placeholder. The previous wording implied all three; flagged for owner review.
 
 **Reason.** Editing surrounding prose must not silently remove an invitation or partially save a form. (D-30, D-31)
 
@@ -91,6 +95,22 @@ Reworded 2026-10-21 by fix round 1 of this PR: a malformed own field refuses the
 **Reason.** Neither editor's form can produce such a request, so it is a mistake or a probe. Rejecting it whole keeps the endpoint from crashing and keeps a partial or stray write out of the settings. Close call on the membership test: the 400 is an HTTP answer any implementation can give, not Rails' parameter error.
 
 Kind: functional. Proof: test, CO-8 in `test/contract/copy_contract_test.rb`.
+
+### CO-9 The saved theme preset is the one the site renders
+
+Every page, public or admin, renders the theme preset saved at Admin → Settings as its server-side default (`<html data-theme>` and the checked swatch). A saved value that names no preset, including a blank one or one in the wrong case, renders the first preset, workshop.
+
+**Reason.** The preset is rendered before any JavaScript runs, and a value that matches no token block would leave every semantic color and type role undefined. A stored typo must degrade to the default design, not to an unstyled page.
+
+Kind: functional. Proof: test, CO-9 in `test/contract/copy_contract_test.rb`.
+
+### CO-10 A setting with no value reads as its default
+
+A setting saved blank, or stored as no value at all, makes the site use its default. A setting stored as no value also shows that default in Admin → Settings.
+
+**Reason.** The site must never render an empty title, address or link because a field was cleared. The editor should show what the site actually uses for a value that was never saved. Close call: a setting saved blank still shows blank in Settings, which is what the owner typed (CO-8 keeps blank saves).
+
+Kind: functional. Proof: test, CO-10 in `test/contract/copy_contract_test.rb`.
 
 ## Decisions
 
