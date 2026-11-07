@@ -156,4 +156,4 @@ Moved to `docs/contracts/ci.md` (CI-1 to CI-9).
 
 ## Contract: editable page copy
 
-See `docs/contracts/copy.md` (CO-1 to CO-8).
+See `docs/contracts/copy.md` (CO-1 to CO-10).
