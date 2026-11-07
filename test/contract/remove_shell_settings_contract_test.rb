@@ -3,15 +3,36 @@ require "test_helper"
 # The Contract for retiring the command line's settings, as tests. Each test is
 # named after an obligation in docs/contracts/remove_shell_settings.md.
 # This is the one test file that names the three keys: it exists to prove they
-# are gone.
-class RemoveShellSettingsContractTest < ActionDispatch::IntegrationTest
+# are gone. DM-4 has a class of its own, the only one here that covers
+# SiteSetting.[], so mutation runs the reader's proof without the migration's.
+module RemoveShellSettingsFixture
+  extend ActiveSupport::Concern
+
   RETIRED = %w[ shell_opening shell_whoami shell_whoami_es ].freeze
 
-  setup do
-    SiteSetting.create!(RETIRED.map { |key| { key: key, value: "stored #{key}" } })
-    SiteSetting["tagline"] = "A stored tagline."
-    SiteSetting["hero_note_es"] = "Una nota guardada."
+  included do
+    setup do
+      SiteSetting.create!(RETIRED.map { |key| { key: key, value: "stored #{key}" } })
+      SiteSetting["tagline"] = "A stored tagline."
+      SiteSetting["hero_note_es"] = "Una nota guardada."
+    end
   end
+
+  private
+    def migration_file
+      files = Pathname.glob(Rails.root.join("db/migrate/*_remove_shell_settings.rb"))
+      assert_equal 1, files.size, "one migration named *_remove_shell_settings.rb in db/migrate"
+      files.first
+    end
+
+    def migrate(direction)
+      load migration_file.to_s
+      ActiveRecord::Migration.suppress_messages { RemoveShellSettings.new.migrate(direction) }
+    end
+end
+
+class RemoveShellSettingsContractTest < ActionDispatch::IntegrationTest
+  include RemoveShellSettingsFixture
 
   test "DM-1 the migration deletes the three rows and no other" do
     others = SiteSetting.where.not(key: RETIRED).pluck(:key, :value).sort
@@ -44,6 +65,11 @@ class RemoveShellSettingsContractTest < ActionDispatch::IntegrationTest
   test "DM-3 it works on the table in SQL and never loads the model" do
     assert_no_match(/\bSiteSetting\b/, migration_file.read)
   end
+end
+
+class RemoveShellSettingsEditorContractTest < ActionDispatch::IntegrationTest
+  include RemoveShellSettingsFixture
+  cover "SiteSetting.[]" if respond_to?(:cover)
 
   test "DM-4 afterwards the admin's settings page offers no field for them" do
     migrate :up
@@ -58,16 +84,4 @@ class RemoveShellSettingsContractTest < ActionDispatch::IntegrationTest
     end
     assert_select "[name=?]", "settings[site_title]", 1
   end
-
-  private
-    def migration_file
-      files = Pathname.glob(Rails.root.join("db/migrate/*_remove_shell_settings.rb"))
-      assert_equal 1, files.size, "one migration named *_remove_shell_settings.rb in db/migrate"
-      files.first
-    end
-
-    def migrate(direction)
-      load migration_file.to_s
-      ActiveRecord::Migration.suppress_messages { RemoveShellSettings.new.migrate(direction) }
-    end
 end
