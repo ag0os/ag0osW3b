@@ -190,7 +190,7 @@ module MutantCompleteness
   end
 
   def reflective_code?(node)
-    method_call?(node) && %i[send public_send __send__ method public_method].include?(node.method_name) && node.first_argument&.sym_type? &&
+    method_call?(node) && %i[send public_send __send__ method public_method instance_method public_instance_method].include?(node.method_name) && node.first_argument&.sym_type? &&
       [ *METHOD_TABLE, *EVALUATIONS, :eval ].include?(node.first_argument.value)
   end
 
@@ -211,17 +211,11 @@ module MutantCompleteness
     (foreign && sensitive) ||
       (node.sclass_type? && !self_receiver?(node.children.first)) ||
       (node.defs_type? && !self_receiver?(node.children.first)) ||
-      (method_call?(node) && (DEFINITIONS.include?(node.method_name) || reflective_code?(node) || evaluation?(node)) && !self_receiver?(node.receiver))
+      (method_call?(node) && (method_table?(node) || reflective_code?(node) || evaluation?(node)) && !self_receiver?(node.receiver))
   end
 
   def foreign_receiver?(node)
-    return false unless method_call?(node)
-
-    # A fresh anonymous module does not retarget its definitions by itself.
-    # Keep the inherited flag, so Foreign.extend(Module.new { def ... }) is
-    # still foreign while self.extend(Module.new { def ... }) remains valid.
-    fresh_module = node.method_name == :new && node.receiver&.const_type? && node.receiver.source.delete_prefix("::") == "Module"
-    !fresh_module && !self_receiver?(node.receiver)
+    method_call?(node) && !self_receiver?(node.receiver)
   end
 
   # Namespaces do not borrow reach from children. A macro argument may contain

@@ -1756,8 +1756,6 @@ class CiContractTest < ActiveSupport::TestCase
     [
       "class << self\n def compute = 42\nend",
       "self.define_method(:compute) { 42 }",
-      "extend(Module.new { def compute = 42 })",
-      "self.extend(Module.new { def compute = 42 })",
       "def render(items)\n items.map { |item| item.to_s }\nend"
     ].each do |body|
       source = "class MarkdownRenderer\n #{body}\nend"
@@ -1801,5 +1799,41 @@ class CiContractTest < ActiveSupport::TestCase
   test "CI-13 round 3 superclass expressions are walked in the new class context" do
     source = "class Pricing < Class.new { def compute = 42 }\nend"
     assert_not_empty completeness("app/services/pricing.rb", source).first
+  end
+
+  {
+    "bare self extension" => "extend(Module.new { def compute(x) = x * 42 })",
+    "explicit self extension" => "self.extend(Module.new { def compute(x) = x * 42 })",
+    "local module extension" => "m = Module.new { def compute(x) = x * 42 }; Pricing.extend(m)",
+    "local module prepend" => "m = Module.new { def compute(x) = x * 42 }; Pricing.singleton_class.prepend(m)"
+  }.each do |shape, body|
+    test "CI-13 round 4 #{shape} is unattributed" do
+      path = "app/services/markdown_renderer.rb"
+      source = "class MarkdownRenderer\n def render(text) = Pricing.compute(text)\n #{body}\nend"
+      assert_includes completeness(path, source, reached: { "MarkdownRenderer" => [ path ] }).first.join, "unattributed Ruby code"
+      source = "class PricingController < ApplicationController\n #{body}\nend"
+      assert_includes completeness("app/controllers/pricing_controller.rb", source).first.join, "unattributed Ruby code"
+    end
+  end
+
+  test "CI-13 round 4 unbound method definition lookup is unattributed" do
+    path = "app/services/markdown_renderer.rb"
+    %w[instance_method public_instance_method].each do |dispatch|
+      source = "class MarkdownRenderer\n Module.#{dispatch}(:define_singleton_method).bind_call(Pricing, :compute) { |x| x * 42 }\nend"
+      assert_includes completeness(path, source, reached: { "MarkdownRenderer" => [ path ] }).first.join, "unattributed Ruby code"
+    end
+  end
+
+  test "CI-15 round 4 unbound alias lookup cannot hide a macro rebind" do
+    %w[instance_method public_instance_method].each do |dispatch|
+      source = "class Pricing\n Module.#{dispatch}(:alias_method).bind_call(singleton_class, :scope, :define_singleton_method)\n scope(:compute) { |x| x * 42 }\nend"
+      assert_not_empty completeness("app/services/pricing.rb", source).first, dispatch
+    end
+  end
+
+  test "CI-13 round 4 a direct foreign method table call is unattributed" do
+    path = "app/services/markdown_renderer.rb"
+    source = "class MarkdownRenderer\n Pricing.instance_variable_set(:@fn, ->(x) { x * 42 })\nend"
+    assert_includes completeness(path, source, reached: { "MarkdownRenderer" => [ path ] }).first.join, "unattributed Ruby code"
   end
 end
