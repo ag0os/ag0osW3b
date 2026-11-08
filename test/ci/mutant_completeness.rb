@@ -7,11 +7,13 @@ require_relative "../mutant/floor"
 
 module MutantCompleteness
   ACCEPTED = "test/mutant/selection_accepted.yml"
+  CONTROLLER_BASES = %w[ActionController::Base ActionController::API].freeze
   CONTROLLER_CAP = 100
   FRONTEND = { ".erb" => "ERB templates", ".builder" => "Builder templates", ".jbuilder" => "Jbuilder templates", ".js" => "JavaScript", ".css" => "CSS" }.freeze
   NON_CODE = %w[.woff .woff2 .ttf .otf .png .jpg .jpeg .gif .webp .avif .svg .ico .md .keep].freeze
   EVALUATIONS = %i[class_eval module_eval class_exec module_exec instance_eval instance_exec].freeze
   DEFINITIONS = %i[define_method define_singleton_method].freeze
+  METHOD_TABLE = %i[alias alias_method remove_method undef_method define_method define_singleton_method instance_variable_set].freeze
   # Closed names, not open-ended before_*, validates_* or association guesses.
   RAILS_MACROS = %i[
     scope validate validates validates! validates_each validates_with
@@ -64,6 +66,8 @@ module MutantCompleteness
     problems << "#{ACCEPTED} edits or removes an existing entry; append instead" unless head.first(base.size) == base
     problems << "#{ACCEPTED} repeats a path" unless head.map { |entry| entry["path"] if entry.is_a?(Hash) }.uniq.size == head.size
     [ head, problems ]
+  rescue Psych::DisallowedClass
+    [ [], [ "#{ACCEPTED}: date must be a quoted string" ] ]
   rescue ArgumentError, Psych::Exception => error
     [ [], [ "#{ACCEPTED}: #{error.message}" ] ]
   end
@@ -152,7 +156,11 @@ module MutantCompleteness
   def controller?(path, scopes, outside)
     path.match?(%r{\Aapp/controllers/(?!concerns/).+_controller\.rb\z}) && !outside && scopes.any? &&
       scopes.all? { |scope| scope.namespace || (scope.node.class_type? && scope.name.end_with?("Controller") &&
-        scope.node.parent_class&.const_type? && scope.node.parent_class.source.end_with?("Controller")) }
+        controller_superclass?(scope.node.parent_class)) }
+  end
+
+  def controller_superclass?(node)
+    node&.const_type? && (node.source.end_with?("Controller") || CONTROLLER_BASES.include?(node.source.delete_prefix("::")))
   end
 
   def check_scopes(path, scopes, reached)
@@ -182,19 +190,38 @@ module MutantCompleteness
   end
 
   def reflective_code?(node)
-    method_call?(node) && %i[send public_send].include?(node.method_name) && node.first_argument&.sym_type? &&
-      [ *DEFINITIONS, *EVALUATIONS, :eval ].include?(node.first_argument.value)
+    method_call?(node) && %i[send public_send __send__ method public_method].include?(node.method_name) && node.first_argument&.sym_type? &&
+      [ *METHOD_TABLE, *EVALUATIONS, :eval ].include?(node.first_argument.value)
   end
 
   def string_eval?(node)
     method_call?(node) && [ :eval, *EVALUATIONS ].include?(node.method_name) && node.arguments.any?
   end
 
-  def foreign_definition?(node)
-    (node.defs_type? && !node.children.first.self_type?) ||
-      (method_call?(node) && DEFINITIONS.include?(node.method_name) && !self_receiver?(node.receiver)) ||
-      (%i[block numblock itblock].include?(node.type) && method_call?(node.children.first) &&
-        EVALUATIONS.include?(node.children.first.method_name) && !self_receiver?(node.children.first.receiver))
+  def method_table?(node)
+    node.alias_type? || node.undef_type? || (method_call?(node) && METHOD_TABLE.include?(node.method_name))
+  end
+
+  def evaluation?(node)
+    method_call?(node) && [ :eval, *EVALUATIONS ].include?(node.method_name)
+  end
+
+  def unattributed?(node, foreign)
+    sensitive = method_body?(node) || node.sclass_type? || method_table?(node) || reflective_code?(node) || evaluation?(node)
+    (foreign && sensitive) ||
+      (node.sclass_type? && !self_receiver?(node.children.first)) ||
+      (node.defs_type? && !self_receiver?(node.children.first)) ||
+      (method_call?(node) && (DEFINITIONS.include?(node.method_name) || reflective_code?(node) || evaluation?(node)) && !self_receiver?(node.receiver))
+  end
+
+  def foreign_receiver?(node)
+    return false unless method_call?(node)
+
+    # A fresh anonymous module does not retarget its definitions by itself.
+    # Keep the inherited flag, so Foreign.extend(Module.new { def ... }) is
+    # still foreign while self.extend(Module.new { def ... }) remains valid.
+    fresh_module = node.method_name == :new && node.receiver&.const_type? && node.receiver.source.delete_prefix("::") == "Module"
+    !fresh_module && !self_receiver?(node.receiver)
   end
 
   # Namespaces do not borrow reach from children. A macro argument may contain
@@ -208,10 +235,10 @@ module MutantCompleteness
         outside = true
       end
     end
-    visit = lambda do |node, nesting, current, macro_argument = false|
+    visit = lambda do |node, nesting, current, macro_argument = false, foreign = false|
       next unless node.is_a?(RuboCop::AST::Node)
 
-      if foreign_definition?(node)
+      if unattributed?(node, foreign)
         outside = true
       elsif node.class_type? || node.module_type?
         name = node.children.first.source
@@ -222,6 +249,7 @@ module MutantCompleteness
         namespace = node.module_type? && children.any? && children.all? { |child| child.class_type? || child.module_type? }
         index = scopes.size
         scopes << Scope.new(name:, node:, methods: false, namespace:)
+        visit.call(node.parent_class, name, index) if node.class_type?
         visit.call(body, name, index)
       elsif (node.casgn_type? || (method_call?(node) && node.method_name == :const_set)) && node.each_descendant.any? { |child| method_body?(child) }
         outside = true
@@ -229,15 +257,19 @@ module MutantCompleteness
         call = node.children.first
         callable_argument = macro_argument && call.send_type? && self_receiver?(call.receiver) && %i[lambda proc].include?(call.method_name)
         executable.call(current) unless rails_macro?(call) || callable_argument
-        node.each_child_node { |child| visit.call(child, nesting, current) }
-      elsif method_body?(node) || reflective_code?(node) || string_eval?(node)
+        block_foreign = foreign || foreign_receiver?(call)
+        node.each_child_node { |child| visit.call(child, nesting, current, false, block_foreign) }
+      elsif method_body?(node) || method_table?(node) || reflective_code?(node) || string_eval?(node)
         executable.call(current)
-        node.each_child_node { |child| visit.call(child, nesting, current) }
+        # A method definition starts its own receiver context. Ordinary
+        # blocks in the method's body do not inherit a surrounding DSL call.
+        next_foreign = node.def_type? || node.defs_type? ? false : foreign || foreign_receiver?(node)
+        node.each_child_node { |child| visit.call(child, nesting, current, false, next_foreign) }
       else
         outside = true if current.nil? && !node.begin_type? && !(method_call?(node) && %i[require require_relative].include?(node.method_name))
         next if current.nil? && method_call?(node) && %i[require require_relative].include?(node.method_name)
 
-        node.each_child_node { |child| visit.call(child, nesting, current, macro_argument || rails_macro?(node)) }
+        node.each_child_node { |child| visit.call(child, nesting, current, macro_argument || rails_macro?(node), foreign || foreign_receiver?(node)) }
       end
     end
     visit.call(ast, "", nil)

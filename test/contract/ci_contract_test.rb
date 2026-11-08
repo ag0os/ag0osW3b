@@ -1653,16 +1653,18 @@ class CiContractTest < ActiveSupport::TestCase
       "validates_each(:title) { |record, attr, value| record.errors.add(attr, value) }",
       "before_save { normalize }", "around_perform { |job, block| block.call }", "before_action { authenticate }",
       "included { before_save :normalize }", "class_methods { attr_reader :value }", "prepended { before_action :authenticate }",
-      "has_many(:posts) { def extra = 1 }", "normalizes :email, with: ->(value) { value.strip }",
+      "normalizes :email, with: ->(value) { value.strip }",
       "belongs_to :user, -> { where(active: true) }", "enum :status, { draft: 0 }; delegate :user, to: :session"
     ]
     path = "app/models/pricing.rb"
-    allowed.reject { |body| body.include?("def extra") }.each do |body|
+    allowed.each do |body|
       failures, reports = completeness(path, "class Pricing\n #{body}\nend")
       assert_empty failures, body
       assert_includes reports.join, "tool limit", body
     end
     denied = [
+      "singleton_class.alias_method :scope, :define_singleton_method; scope(:compute) { |x| x * 42 }",
+      "singleton_class.send(:alias_method, :validate, :define_singleton_method); validate(:compute) { |x| x * 42 }",
       "custom_macro { 42 }", "scope_fake(:x) { 42 }", "validates_made_up { 42 }", "before_made_up { 42 }",
       "Other.scope(:x) { 42 }", "Other.normalizes(:x, with: -> { 42 })", "RUN = lambda { 42 }",
       "RUN = -> { 42 }", "RUN = Proc.new { 42 }", "[1].map { _1 * 2 }", "[1].map { it * 2 }",
@@ -1730,5 +1732,74 @@ class CiContractTest < ActiveSupport::TestCase
       assert_not status.success?, out
       assert_includes out, "Pricing is unreached"
     end
+  end
+
+  {
+    "foreign singleton class" => "class << Pricing\n def compute(x) = x * 42\nend",
+    "foreign string eval" => 'Pricing.class_eval("def self.compute(x) = x * 42")',
+    "foreign reflective definition" => "Pricing.send(:define_singleton_method, :compute) { |x| x * 42 }",
+    "foreign Method call" => "Pricing.method(:define_singleton_method).call(:compute) { |x| x * 42 }",
+    "foreign extension module" => "Pricing.extend(Module.new { def compute(x) = x * 42 })"
+  }.each do |shape, body|
+    test "CI-13 round 3 #{shape} is unattributed" do
+      path = "app/services/markdown_renderer.rb"
+      source = "class MarkdownRenderer\n def render(text) = Pricing.compute(text)\n #{body}\nend"
+      assert_includes completeness(path, source, reached: { "MarkdownRenderer" => [ path ] }).first.join, "unattributed Ruby code"
+      path = "app/controllers/pricing_controller.rb"
+      source = "class PricingController < ApplicationController\n #{body}\nend"
+      assert_includes completeness(path, source).first.join, "unattributed Ruby code"
+    end
+  end
+
+  test "CI-13 round 3 self scopes and method bodies do not inherit foreign receivers" do
+    path = "app/services/markdown_renderer.rb"
+    [
+      "class << self\n def compute = 42\nend",
+      "self.define_method(:compute) { 42 }",
+      "extend(Module.new { def compute = 42 })",
+      "self.extend(Module.new { def compute = 42 })",
+      "def render(items)\n items.map { |item| item.to_s }\nend"
+    ].each do |body|
+      source = "class MarkdownRenderer\n #{body}\nend"
+      assert_empty completeness(path, source, reached: { "MarkdownRenderer" => [ path ] }).first, body
+    end
+  end
+
+  test "CI-15 round 3 method table manipulation is executable on every receiver" do
+    bodies = [ "alias compute render" ]
+    %w[alias_method remove_method undef_method define_method define_singleton_method instance_variable_set].each do |name|
+      bodies << "#{name}(:compute, :render)"
+      bodies << "self.#{name}(:compute, :render)"
+      bodies << "Other.#{name}(:compute, :render)"
+      %w[send public_send __send__].each { |dispatch| bodies << "#{dispatch}(:#{name}, :compute, :render)" }
+    end
+    bodies.each do |body|
+      assert_not_empty completeness("app/services/pricing.rb", "class Pricing\n #{body}\nend").first, body
+    end
+  end
+
+  test "CI-14 round 3 Rails controller bases are statically exempt" do
+    %w[ActionController::Base ActionController::API ::ActionController::Base ::ActionController::API].each do |base|
+      source = "class ApplicationController < #{base}\n def current_user = Current.session&.user\nend"
+      failures, reports = completeness("app/controllers/application_controller.rb", source)
+      assert_empty failures, base
+      assert_includes reports.join, "controller exemption"
+    end
+  end
+
+  test "CI-15 round 3 an unquoted date asks for a quoted string" do
+    document = <<~YAML
+      paths:
+        - path: app/models/widget.rb
+          date: 2026-11-07
+          reason: Specific accepted gap
+    YAML
+    _, failures = MutantCompleteness.acceptances(document, nil)
+    assert_includes failures.join, "date must be a quoted string"
+  end
+
+  test "CI-13 round 3 superclass expressions are walked in the new class context" do
+    source = "class Pricing < Class.new { def compute = 42 }\nend"
+    assert_not_empty completeness("app/services/pricing.rb", source).first
   end
 end
