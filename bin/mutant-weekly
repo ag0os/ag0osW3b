@@ -53,6 +53,11 @@ def gh(*args)
   output
 end
 
+def gh_json(*args)
+  output = gh(*args)
+  output.empty? ? [] : JSON.parse(output)
+end
+
 def commit
   at, status = Open3.capture2("git", "rev-parse", "--short", "HEAD")
   abort "mutant-weekly: git rev-parse HEAD failed" unless status.success?
@@ -85,7 +90,7 @@ end
 # read from the repository's own issue list, oldest first, page by page.
 def oldest_open
   (1..).each do |page|
-    found = MutantWeekly.oldest_on(JSON.parse(gh(*MutantWeekly.open_issues_page(page))))
+    found = MutantWeekly.oldest_on(gh_json(*MutantWeekly.open_issues_page(page)))
     return found if found
   end
 end
@@ -94,7 +99,7 @@ def issue
   abort "mutant-weekly: no saved report (#{STATE}); a full run must complete first" unless File.exist?(STATE) && File.exist?(BODY)
   state = JSON.parse(File.read(STATE))
   open = oldest_open
-  labelled = JSON.parse(gh("label", "list", "--search", MutantWeekly::LABEL, "--json", "name")).any? { |label| label["name"] == MutantWeekly::LABEL }
+  labelled = gh_json("label", "list", "--search", MutantWeekly::LABEL, "--json", "name").any? { |label| label["name"] == MutantWeekly::LABEL }
   MutantWeekly.issue_commands(open:, labelled:, delta_size: state.fetch("delta"), body_file: BODY, at: state.fetch("at")).each do |command|
     puts "mutant-weekly: gh #{command.first(3).join(" ")}"
     gh(*command)

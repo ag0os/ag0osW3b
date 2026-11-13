@@ -1234,6 +1234,10 @@ class CiContractTest < ActiveSupport::TestCase
     File.write("#{__dir__}/gh-calls", JSON.dump(ARGV) + "\n", mode: "a")
     state = JSON.parse(File.read("#{__dir__}/gh-state.json"))
     abort "gh: #{ARGV.first(2).join(" ")} failed" if state["fail"] == ARGV.first(2)
+    if state.fetch("output", {}).key?(ARGV.first(2).join(" "))
+      print state["output"].fetch(ARGV.first(2).join(" "))
+      exit
+    end
     option = ->(name) { (index = ARGV.index(name)) && ARGV[index + 1] }
     case ARGV.first(2)
     when [ "api", "repos/{owner}/{repo}/issues" ] # the repository's list: open issues and pull requests with the label
@@ -1248,7 +1252,7 @@ class CiContractTest < ActiveSupport::TestCase
       numbers = state.fetch("searchable", state["open"]).sort.reverse
       numbers = numbers.reverse if option.("--search").to_s.split.include?("sort:created-asc")
       puts JSON.dump(numbers.first(Integer(option.("--limit") || 30)).map { |number| { "number" => number } })
-    when %w[label list] then puts JSON.dump(state["labels"].map { |name| { "name" => name } })
+    when %w[label list] then puts JSON.dump(state["labels"].map { |name| { "name" => name } }) unless state["labels"].empty?
     when %w[issue create] then puts "https://github.com/owner/repo/issues/1"
     end
   STAND_IN
@@ -1357,6 +1361,35 @@ class CiContractTest < ActiveSupport::TestCase
         assert_equal calls, gh_calls(dir), "delta #{delta}, open #{open}, labels #{labels}"
       end
       assert_includes File.read("#{dir}/log/mutant-weekly.md"), "**0**", "the body file is the last run's report"
+    end
+  end
+
+  test "CI-12 empty output from a gh listing means an empty list" do
+    weekly_sandbox do |dir, _|
+      [ "api repos/{owner}/{repo}/issues", "label list" ].each do |command|
+        stand_in(dir, gh: { "labels" => [], "output" => { command => "" } })
+        assert run_weekly(dir).last.success?
+        out, status = run_weekly(dir, "--issue")
+        assert status.success?, out
+        assert_equal [ list_page(1), LIST_LABELS,
+          [ "label", "create", "mutation-weekly", "--description", "The weekly mutation run on main" ],
+          [ "issue", "create", "--title", "Mutation survivors on main", "--label", "mutation-weekly", "--body-file", "log/mutant-weekly.md" ] ], gh_calls(dir)
+      end
+    end
+  end
+
+  test "CI-12 malformed nonempty JSON from a gh listing stops the step before any later call" do
+    weekly_sandbox do |dir, _|
+      { "api repos/{owner}/{repo}/issues" => [ list_page(1) ], "label list" => [ list_page(1), LIST_LABELS ] }.each do |command, calls|
+        [ "{", " \n" ].each do |output|
+          stand_in(dir, gh: { "output" => { command => output } })
+          assert run_weekly(dir).last.success?
+          out, status = run_weekly(dir, "--issue")
+          assert_not status.success?, out
+          assert_includes out, "JSON::ParserError"
+          assert_equal calls, gh_calls(dir)
+        end
+      end
     end
   end
 
