@@ -5,6 +5,7 @@ covers:
   - .github/CODEOWNERS
   - bin/ci
   - bin/mutant-floor
+  - bin/mutant-completeness
   - bin/test-count
   - bin/change-guards
   - bin/exhale
@@ -16,20 +17,22 @@ depends_on: []
 tests:
   - test/contract/ci_contract_test.rb
 ---
-Coverage: 12 obligations; 12 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
+Coverage: 16 obligations; 16 proved by test, 0 by PR evidence, 0 mixed, 0 unproved. Suite runs against this implementation.
 
 # Contract: continuous integration
 
-What a green `ci` check on a pull request means. `bin/ci` runs the steps in `config/ci.rb`, and GitHub runs exactly `bin/ci`. A merge with nobody reading the code rests on this check alone, so it runs every check that would otherwise be run by hand. Obligations run in `test/contract/ci_contract_test.rb`. CI-1 to CI-3 and CI-8 are read from the config files. CI-4, CI-5, CI-7 and CI-9 run the mutation gate's, the guards' and the test count's logic on hand-built inputs. CI-10 to CI-12 are the weekly run on main, which reports and never gates: CI-10 is read from its workflow, and CI-11 and CI-12 run its logic on hand-built inputs and `bin/mutant-weekly` on stand-ins. Decisions are in `docs/decisions/ci.md` (D-20 to D-25, D-37). CI-1 to CI-9 moved from `PRODUCT.md` without changing obligation meanings on 2026-11-04.
+What a green `ci` check on a pull request means. `bin/ci` runs the steps in `config/ci.rb`, and GitHub runs exactly `bin/ci`. A merge with nobody reading the code rests on this check alone, so it runs every check that would otherwise be run by hand. Obligations run in `test/contract/ci_contract_test.rb`. CI-1 to CI-3 and CI-8 are read from the config files. CI-4, CI-5, CI-7 and CI-9 run the mutation gate's, the guards' and the test count's logic on hand-built inputs. CI-10 to CI-12 are the weekly run on main, which reports and never gates: CI-10 is read from its workflow, and CI-11 and CI-12 run its logic on hand-built inputs and `bin/mutant-weekly` on stand-ins. CI-13 to CI-16 exercise selection completeness on source fixtures and its CLI with process stand-ins. Decisions are in `docs/decisions/ci.md` (D-20 to D-25, D-37, D-38). CI-1 to CI-9 moved from `PRODUCT.md` without changing obligation meanings on 2026-11-04.
 
 ### CI-1 bin/ci runs every check, and every step even after one fails
+
+Reworded 2026-11-07 by the mutation selection completeness change (D-38).
 
 `bin/ci` runs these steps in order:
 - setup, which also installs exhale's own bundle;
 - RuboCop, the gem and import-map audits, and Brakeman;
 - the Rails tests and the system tests, each through the test count (`bin/test-count`, CI-9), and the seeds;
 - two guards: files exhale doesn't read, and disable directives (`bin/change-guards`);
-- the mutation gate (`bin/mutant-floor`), and two floors: duplication (`bin/exhale dry --introduced-only`) and complexity (`bin/exhale complexity`).
+- selection completeness (`bin/mutant-completeness`), the mutation gate (`bin/mutant-floor`), and two floors: duplication (`bin/exhale dry --introduced-only`) and complexity (`bin/exhale complexity`).
 
 Every step runs even after one fails, and the run fails if any step did.
 
@@ -47,7 +50,9 @@ Kind: functional. Proof: test, the tests named CI-2 in `test/contract/ci_contrac
 
 ### CI-3 The gate, the floors and the guards judge only what changed since a base
 
-The mutation gate, the floors and the guards judge only what changed since a base:
+Reworded 2026-11-07 by the mutation selection completeness change (D-38).
+
+The mutation gate, the floors and the guards, including mutation selection completeness, judge only what changed since a base:
 - on a pull request, the merge base with the target branch;
 - on a push to main, the commit main pointed at before the push;
 - locally, `origin/main` (fetch first), or `$CI_BASE`.
@@ -137,9 +142,11 @@ Kind: functional. Proof: test, the tests named CI-7 in `test/contract/ci_contrac
 
 ### CI-8 CODEOWNERS names the owner on every path that decides the gate
 
+Reworded 2026-11-07 by the mutation selection completeness change (D-38).
+
 `.github/CODEOWNERS` names the owner on every path that decides the gate:
 - the workflow, and `bin/` (which holds `bin/ci`, the mutation gate, the floors, the guards and the test count);
-- the CI and mutant config, the baseline and the accepted list, the gate's, guards' and test count's logic, and the CI Contract test;
+- the CI and mutant config, the baseline, the survivor and selection accepted lists, the gate's, guards' and test count's logic, and the CI Contract test;
 - exhale's Contract, its bundle and its cache;
 - every file a gate tool reads without being told to: `.rubocop.yml` and a `.rubocop` options file, `config/brakeman.yml` and `config/brakeman.ignore`, `config/bundler-audit.yml`, a committed `.bundle/` or `vendor/bundle/`, and `.gitattributes`;
 - the test harness: `test/test_helper.rb`, `test/test_helpers/`, `test/application_system_test_case.rb`, `config/environments/test.rb`, `config/boot.rb`, the `Rakefile` and `lib/tasks/`;
@@ -187,9 +194,61 @@ Reworded 2026-11-12 by fix: CI-12 (#61): empty `gh` listing output means an empt
 
 Kind: functional. Proof: test, the tests named CI-12 in `test/contract/ci_contract_test.rb`.
 
+## Selection completeness
+
+### CI-13 Changed application constants need actual mutation reach
+
+Reworded 2026-11-08 after reviews of a11298e, 8431911 and f4e1722 (D-38).
+
+For added or modified code paths under `app/` and `lib/`, every declared class or module containing an ordinary definition or executable block outside CI-15's macro exception must have at least one subject in mutant's own enumeration for the current `config/mutant.yml`, resolving to that constant and that source file, unless CI-14 or CI-15 accepts it. Namespace-only module wrappers do not independently need a subject. Multiple constants in one file are judged separately. An extraction behind an unchanged delegate into an unlisted class fails. An unreached constant's failure names the path and constant and says to list its subject in `config/mutant.yml` or add a dated path acceptance. Ruby with unattributed executable code, including dynamically constructed classes, fails unless accepted by path. Foreign receiver context follows non-self calls through their blocks and arguments. Definitions, singleton-class bodies, reflective calls and evaluation calls reached in that context are unattributed. A singleton-class body on a non-self receiver, and a non-self definition, reflective call or source evaluation, are also unattributed directly. Entering ordinary method, class and module definitions gives their bodies a fresh receiver context. A definition inside a `Module.new` or `Class.new` block is unattributed wherever it appears, including self-extension. Receiver context is lexical and does not establish runtime binding. A `define_method` under a literal array's `each` (`%i[a b].each { |n| define_method(n) { 1 } }`) and `me = self; def me.x = 1` fail closed, so they need a rewrite or an acceptance. Ruby syntax errors always fail.
+
+Every file under those two roots is a candidate except the non-code allowlist: `.woff`, `.woff2`, `.ttf`, `.otf`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.svg`, `.ico`, `.md`, `.keep`, plus the `.keep` placeholder basename. Today the non-code files present under `app/` are `.woff2` fonts, the `.md` font README and `.keep` placeholders; `lib/` has only a `.keep` placeholder. Unknown suffixes or suffixless files fail with "unknown code type" unless accepted by dated path. `.rb` is parsed as Ruby, `.rake` requires acceptance, and `.erb`, `.builder`, `.jbuilder`, `.js` and `.css` have named tool limits. `config/`, `db/`, `bin/`, `test/` and `tools/` remain a declared scope boundary, not code mutation proves.
+
+**Reason.** A delegate can retain its selected name while its logic moves outside mutation. Actual enumeration and source resolution stop a selector string or an unrelated constant from vouching for that logic. (D-38)
+
+Kind: functional. Proof: test, the tests named CI-13 in `test/contract/ci_contract_test.rb`.
+
+### CI-14 Only controller files at or below 100 lines receive the directory exemption
+
+Reworded 2026-11-08 after reviews of a11298e, 8431911 and f4e1722 (D-38).
+
+Classes with names ending in `Controller` and a static constant superclass name ending in `Controller` or exactly `ActionController::Base` or `ActionController::API` (with an optional leading `::`), in `app/controllers/**/*_controller.rb`, excluding `app/controllers/concerns/`, are exempt only when their combined file bodies measure at most 100 lines by RuboCop's ClassLength and ModuleLength counting, excluding comments and blank lines, with no folded constructs. Nested class and module bodies contribute once. Namespace-only wrappers contribute no body lines of their own; top-level load directives count toward the cap. Unattributed code cannot take this exemption. The check verifies only the path, class-name suffix and static superclass name; it does not prove Rails controller ancestry or routing. An over-cap file loses the exemption and follows CI-13 and CI-15. The exemption prints its path, measured size and cap. There is no method-length cap and this check does not enable RuboCop Metrics cops. Lines are counted as RuboCop counts them: a line of any length counts once, and a one-line class body counts zero.
+
+**Reason.** Thin controllers are allowed to orchestrate Rails conventions, while extracting logic into a concern must not silently gain the same exemption. File aggregation prevents splitting the body into nested definitions to evade the cap. (D-38)
+
+Kind: functional. Proof: test, the tests named CI-14 in `test/contract/ci_contract_test.rb`.
+
+### CI-15 Every accepted gap is named and dated path acceptances are owned
+
+Reworded 2026-11-08 after reviews of a11298e, 8431911 and f4e1722 (D-38).
+
+ERB, Builder, Jbuilder, JavaScript and CSS paths are named tool limits, reported for each changed path. A Ruby constant receives the declarations/macro tool limit only when its parse has no ordinary definition, reflective definition/evaluation call, or executable block outside the following closed macro exception. A block passed to a listed macro, or a literal lambda or bare/self `lambda` or `proc` callable passed in that macro's arguments, may use the exception only when the macro send has no receiver or receiver `self`. Nested blocks in its body are independently inspected; an ordinary definition within a macro block still requires reach. Any other block, lambda, proc, numbered-parameter block or implicit-parameter block is executable. `send` or `public_send` with a literal definition/evaluation method symbol, and evaluation calls with source arguments, also require reach or acceptance. Method-table manipulation is executable wherever it appears: `alias`, `alias_method`, `remove_method`, `undef_method`, `define_method`, `define_singleton_method` and `instance_variable_set`, and `send`, `public_send` or `__send__` whose first argument is a literal symbol naming one of them. Ordinary Ruby `undef` is treated the same way. `.rake` task source is not a verified automatic tool limit and requires a dated path acceptance.
+
+The macro exception allows straight-line logic inside a listed macro's own lambda or block, and callables built without any block. The parse does not prove those bodies are trivial or mutated. A definition inside `included`, `class_methods` or `prepended` is attributed to the concern but defined on the includer, which mutation does not reach through the concern's subject. A symbol built at runtime (for example `__send__("alias_method".to_sym, ...)`), or a macro name supplied by a module from another file (`extend ScopeShim; scope(:compute) { ... }`), is invisible to the parse. Receiver context is lexical and does not establish runtime binding.
+
+The closed macro names are: `scope`, `validate`, `validates`, `validates!`, `validates_each`, `validates_with`, `validates_absence_of`, `validates_acceptance_of`, `validates_associated`, `validates_comparison_of`, `validates_confirmation_of`, `validates_exclusion_of`, `validates_format_of`, `validates_inclusion_of`, `validates_length_of`, `validates_numericality_of`, `validates_presence_of`, `validates_size_of`, `validates_uniqueness_of`, `before_validation`, `after_validation`, `before_save`, `around_save`, `after_save`, `before_create`, `around_create`, `after_create`, `before_update`, `around_update`, `after_update`, `before_destroy`, `around_destroy`, `after_destroy`, `before_commit`, `after_commit`, `after_rollback`, `after_create_commit`, `after_update_commit`, `after_destroy_commit`, `after_save_commit`, `after_touch`, `after_find`, `after_initialize`, `before_action`, `after_action`, `around_action`, `before_enqueue`, `after_enqueue`, `around_enqueue`, `before_perform`, `after_perform`, `around_perform`, `included`, `class_methods`, `prepended`, `belongs_to`, `has_one`, `has_many`, `has_and_belongs_to_many`, `normalizes`, `enum`, `delegate`.
+
+`test/mutant/selection_accepted.yml`, under existing CODEOWNERS protection, contains only a `paths` list. Every entry has exactly an exact repository-relative code `path`, a quoted real ISO `date`, and a nonblank `reason`. Glob paths, directory paths, duplicate paths and malformed documents fail. An unquoted YAML date rejected by Psych is reported as "date must be a quoted string". Every YAML mapping key must be a String before key comparison; a rejected non-String key is named. The whole file is validated, including old entries. The merge base's list must be the start of the current list, so entries may only be appended. An accepted path remains accepted on later touches, so a new unreached constant added to an accepted file is not caught. Each applicable entry prints its path, date and reason on every run. These acceptances are separate from survivor credits and do not change CI-4 or CI-5.
+
+**Reason.** Mutant's method inventory cannot represent every Rails declaration or frontend language. Gaps must be visible, and deliberately leaving enumerable code outside selection is an owned decision tied to a named path. (D-38)
+
+Kind: functional. Proof: test, the tests named CI-15 in `test/contract/ci_contract_test.rb`.
+
+### CI-16 Completeness runs before mutation and fails closed on an untrustworthy inventory
+
+`bin/ci` runs `Guard: Mutation selection completeness` immediately before `Gate: Mutation`. `bin/mutant-completeness` accepts the shared base argument, defaulting to `$CI_BASE` then `origin/main`, and compares current added and modified paths, including rename destinations, against the merge base with HEAD. Paths are NUL-delimited; deleted paths have no current constant to judge. Local untracked application candidates are included too.
+
+The step runs exactly `bundle exec mutant environment subject list` with the current config, without replacing its subjects. Its exit must succeed and its complete listing count must match. Every listed method must resolve to a source location in a separate eager-loaded Rails process. Git failures, listing failures, malformed or incomplete inventories, lookup failures, unreadable files and symlinks fail the step. It reports all path findings and named gaps and returns nonzero on any failure. It does not run mutations or change the existing two-run survivor gate.
+
+**Reason.** A missing subject or a failed discovery process must not silently count as proof of reach, and an independent step must join the single CI job to be enforced. (D-38)
+
+Kind: functional. Proof: test, the tests named CI-16 in `test/contract/ci_contract_test.rb`.
+
 ## What this does not cover
 
-What this does not cover: mutation runs only on the subjects listed in `config/mutant.yml`, the ones with a Contract test that declares `cover`. Code outside them is tested but not mutated. A pull request runs its own code, so a test that rewrites the test framework could pass anything. CODEOWNERS covers the gate's files, not every file the gate executes. A change to the mutation harness (`test/mutant/boot.rb`, `test/mutant/hooks.rb`) weakens both runs alike, so the comparison can't see it; only the `change: harness` reason (CI-5) and CODEOWNERS guard it. A rename in place is known only by its class gaining a subject, one for one, so deleting one method of a selected class while adding another to it passes as a rename. More widely, mutation's selection is the explicit list in `config/mutant.yml`: logic moved into a class the list doesn't select, behind a one-line delegate that keeps the old method's name so that no subject vanishes, is not mutated, and only the review of the pull request sees that. The test count is a tripwire, not a proof: app code that prints a convincing summary line before exiting would pass it.
+Mutation runs only on the subjects listed in `config/mutant.yml`, with tests declaring `cover`. Selection completeness checks changed application files per constant, not per method or executable expression. `PagesController#consulting` reaches `PagesController` while its other three actions remain unselected. A selected constant may therefore still contain unmutated methods, class-body code, including lambda and proc constants and callables stored elsewhere, or an extraction into an already reached constant. Examples are `RENDER = ->(text) { text.upcase }; def render(text) = RENDER.call(text)`, `Pricing::HOOKS << ->(x) { x * 42 }` and `Pricing.const_set(:FN, ->(x) { x * 42 })`. Unchanged unlisted files are not forced into selection by an unrelated PR. Controller exemptions, named tool limits and persistent path acceptances are explicit remaining gaps.
+
+A pull request runs its own code, so a test that rewrites the test framework could pass anything. CODEOWNERS covers the gate's files, not every file the gate executes. A harness change weakens both runs alike and needs the CI-5 reason and owner review. Deleting one method while adding an unrelated selected method in the same constant can still pass as a rename under CI-4's one-for-one rule. The test count is a tripwire, not a proof: app code that prints a convincing summary before exiting could pass it.
 
 ## Decisions
 
@@ -200,3 +259,4 @@ What this does not cover: mutation runs only on the subjects listed in `config/m
 - D-24, `docs/decisions/ci.md`: guards for what switches a check off from inside, and owners for the gate (CI-7, CI-8).
 - D-25, `docs/decisions/ci.md`: tests pass on their own summary and the base's count (CI-9).
 - D-37, `docs/decisions/ci.md`: a weekly full run on main reports what the anchor and accepted.yml don't account for, in one issue (CI-10 to CI-12).
+- D-38, `docs/decisions/ci.md`: changed application constants need actual enumerated reach, with bounded controllers and named accepted gaps (CI-13 to CI-16).

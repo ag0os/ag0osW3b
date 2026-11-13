@@ -1,0 +1,73 @@
+#!/usr/bin/env ruby
+# Changed app/ and lib/ code needs actual mutation reach. See CI-13 to CI-16.
+require "bundler/setup"
+require "json"
+require "open3"
+require_relative "../test/ci/mutant_completeness"
+
+module MutantCompletenessCommand
+  module_function
+
+  def capture(*command)
+    output, status = Open3.capture2e(*command)
+    raise ArgumentError, "#{command.join(" ")} failed:\n#{output}" unless status.success?
+    output
+  end
+
+  def git(*args) = capture("git", *args)
+
+  LOOKUP = <<~'CODE'
+    require "json"
+    require "./test/ci/mutant_completeness"
+    Rails.application.eager_load!
+    subjects = JSON.parse(ARGV.fetch(0))
+    puts "mutant-completeness-locations:#{JSON.generate(MutantCompleteness.locations(subjects, root: Rails.root))}"
+  CODE
+
+  def inventory
+    output, status = Open3.capture2e("bundle", "exec", "mutant", "environment", "subject", "list")
+    subjects = MutantCompleteness.listed(output, status.success?)
+    output = capture("env", "RAILS_ENV=test", "bin/rails", "runner", LOOKUP, JSON.generate(subjects))
+    lines = output.lines.grep(/^mutant-completeness-locations:/)
+    raise ArgumentError, "Rails did not return subject locations" unless lines.size == 1
+    reached = JSON.parse(lines.first.delete_prefix("mutant-completeness-locations:"))
+    unless reached.is_a?(Hash) && reached.values.all? { |paths| paths.is_a?(Array) && paths.all? { |path| path.is_a?(String) } } &&
+        subjects.all? { |subject| reached.fetch(MutantFloor.scope(subject), []).any? }
+      raise ArgumentError, "invalid subject locations"
+    end
+    reached
+  end
+
+  def run(base)
+    merge_base = git("merge-base", base, "HEAD").strip
+    raise ArgumentError, "git returned an empty merge base" if merge_base.empty?
+
+    path = MutantCompleteness::ACCEPTED
+    before = git("ls-tree", "--name-only", merge_base, "--", path).strip.empty? ? nil : git("show", "#{merge_base}:#{path}")
+    accepted, problems = MutantCompleteness.acceptances(File.exist?(path) ? File.read(path) : nil, before)
+    raise ArgumentError, problems.join("\n") unless problems.empty?
+
+    changed = git("diff", "--name-only", "--diff-filter=ACMRT", "-z", merge_base, "--", "app", "lib").split("\0")
+    added = git("ls-files", "--others", "--exclude-standard", "-z", "--", "app", "lib").split("\0")
+    reached = inventory
+    (changed + added).uniq.sort.select { |file| MutantCompleteness.candidate?(file) }.each do |file|
+      raise ArgumentError, "#{file}: symlink cannot establish source reach" if File.symlink?(file)
+      failures, reports = MutantCompleteness.check(file, File.read(file), reached:, accepted:)
+      puts reports
+      problems.concat(failures)
+    end
+    puts problems.map { |problem| "FAIL: #{problem}" }
+    puts "mutant-completeness: #{problems.empty? ? "pass" : "FAIL"} against #{base} (#{merge_base[0, 7]})"
+    problems.empty? ? 0 : 1
+  end
+end
+
+Dir.chdir(File.expand_path("..", __dir__)) do
+  base = ARGV.first || ENV["CI_BASE"].to_s.then { |ref| ref.empty? ? "origin/main" : ref }
+  begin
+    exit MutantCompletenessCommand.run(base)
+  rescue ArgumentError, JSON::ParserError, SystemCallError => error
+    warn "mutant-completeness: #{error.message}"
+    exit 1
+  end
+end
