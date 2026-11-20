@@ -275,7 +275,10 @@ steps are in `config/ci.rb`, and what a green run means is
   on the change, and on its merge base. The base is exported from git and run
   with the change's harness, bundle and seed. `bin/mutant-floor` runs the gate
   on its own, in about 80 seconds locally. It fails on a survivor the base
-  doesn't have, counted per subject and changed lines.
+  doesn't have, counted per subject and changed lines. Its budget is 13
+  minutes on GitHub's 4-core runner (the owner, 2026-11-12, when SiteSetting
+  joined and the step measured 11m53s on #59). If a change takes it past
+  that, give the measured time in the PR.
   - A test that kills a known survivor just passes.
   - A method renamed within its own class passes (the class runs a new
     subject, one for each renamed method), and survivors carry across a
